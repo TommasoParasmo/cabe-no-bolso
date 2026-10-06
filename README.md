@@ -12,7 +12,7 @@ Diga quanto quer gastar. A gente monta a viagem e diz se dá.
 ## Publicar na Cloudflare Pages (grátis)
 
 1. Em dash.cloudflare.com, vá em **Workers & Pages → Create → Pages → Connect to Git** e escolha este repositório.
-2. Build command: deixe vazio. Build output directory: `public`.
+2. Project name: `vai-dar-viagem`. Build command: `npm ci` (instala as bibliotecas das funções). Build output directory: `public`.
 3. Em **Settings → Variables and Secrets**, adicione como *Secret*:
    - `TRAVELPAYOUTS_TOKEN`: token de API do Travelpayouts (perfil → API token).
    - `TRAVELPAYOUTS_MARKER`: seu marker (ID de parceiro) do Travelpayouts.
