@@ -195,11 +195,13 @@ test("viagem por várias cidades: trechos só de ida, noites divididas e preço 
   await assert.rejects(montarVeredito({ ...base, volta: "2026-11-22", destinos: ["Lisboa", "Paris", "Lima"], tipo: "viagem" }), /pelo menos 3 noites/);
 });
 
-test("roteiro de várias cidades descreve a ordem e aceita até 10 dias", async () => {
+test("roteiro de várias cidades descreve a ordem e vai até 15 dias", async () => {
   let pedido;
   const client = { messages: { parse: async req => { pedido = req; return resposta([0]).messages.parse(req); } } };
   const p = validarPedido({ paradas: [{ destino: "Lisboa", noites: 5 }, { destino: "Paris", noites: 5 }] });
-  assert.equal(p.dias, 10);
+  assert.equal(p.dias, 11);
+  assert.equal(validarPedido({ destino: "Tóquio", noites: 14 }).dias, 15);
+  assert.equal(validarPedido({ destino: "Tóquio", noites: 20 }).dias, 15);
   await gerarRoteiro({ paradas: [{ destino: "Lisboa", noites: 4 }, { destino: "Paris", noites: 3 }], verbaPasseios: 2000 }, {}, client);
   assert.match(pedido.messages[0].content, /Lisboa, Portugal \(4 noites\); depois Paris, França \(3 noites\)/);
 });
@@ -253,4 +255,20 @@ test("ônibus: faixa baixa sugere viagem perto de ônibus que cabe", async () =>
 test("ônibus: viagem por várias cidades usa ônibus nos trechos perto", async () => {
   const r = await montarVeredito({ ...base, orcamento: 9000, tipo: "viagem", destinos: ["Rio de Janeiro", "Búzios"] });
   assert.ok(r.atual.trechos.some(t => t.meio === "onibus" && t.paraNome === "Búzios"));
+});
+
+test("roteiro pede almoço e jantar dentro da verba de comida e devolve as refeições", async () => {
+  let pedido;
+  const client = { messages: { parse: async req => {
+    pedido = req;
+    return { parsed_output: { dias: [{ dia: 1, cidade: "Salvador", titulo: "Centro", atividades: [{ periodo: "manhã", nome: "Pelourinho", custo: 0 }],
+      almoco: { nome: "Restaurante A", custo: 120.4 }, jantar: { nome: "Restaurante B", custo: -5 } }], dicas: [] } };
+  } } };
+  const r = await gerarRoteiro({ destino: "Salvador", noites: 3, pessoas: 2, verbaPasseios: 500, verbaAlimentacao: 1040 }, {}, client);
+  // R$ 1.040 em 4 dias = R$ 260/dia, arredondado para baixo em faixas de R$ 50.
+  assert.match(pedido.messages[0].content, /Almoço e jantar: todo dia.*R\$ 250 por dia/s);
+  assert.equal(r.dias[0].almoco.custo, 120);
+  assert.equal(r.dias[0].jantar.custo, 0);
+  assert.equal(r.totalRefeicoes, 120);
+  assert.equal(r.totalPasseios, 0);
 });
