@@ -154,3 +154,14 @@ test("roteiro novo tem limite por IP por dia", () => comCache(async () => {
   const repetido = await gerarRoteiro({ destino: "Salvador", noites: 3, verbaPasseios: 1000 }, {}, resposta([0]), "1.2.3.4");
   assert.equal(repetido.cache, true);
 }));
+
+test("roteiro usa o interesse livre no prompt, limpo e curto", async () => {
+  let pedido;
+  const client = { messages: { parse: async req => { pedido = req; return resposta([0]).messages.parse(req); } } };
+  const p = validarPedido({ destino: "Tóquio", noites: 5, foco: '  Pokémon\n"Center"  <b>' + "x".repeat(200) });
+  assert.equal(p.dest.p, "Japão");
+  assert.ok(p.foco.length <= 120);
+  assert.doesNotMatch(p.foco, /[\n<>"]/);
+  await gerarRoteiro({ destino: "Tóquio", noites: 5, foco: "Pokémon", verbaPasseios: 2000 }, {}, client);
+  assert.match(pedido.messages[0].content, /Foco principal.*"Pokémon"/);
+});

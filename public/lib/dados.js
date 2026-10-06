@@ -38,6 +38,7 @@ export const DESTINOS = [
   { n: "Cancún", p: "México", lat: 21.04, lon: -86.87, ap: "CUN", iata: "CUN", int: true, hotel: [300, 550, 1200], idx: 1.7, tags: ["praia", "noite", "criancas"] },
   { n: "Lisboa", p: "Portugal", lat: 38.77, lon: -9.13, ap: "LIS", iata: "LIS", int: true, hotel: [350, 600, 1200], idx: 1.8, tags: ["cultura", "gastronomia", "noite"] },
   { n: "Orlando", p: "Estados Unidos", lat: 28.43, lon: -81.31, ap: "MCO", iata: "ORL", int: true, hotel: [400, 700, 1300], idx: 2.2, pf: 2.0, tags: ["criancas", "compras"] },
+  { n: "Tóquio", p: "Japão", lat: 35.77, lon: 140.39, ap: "NRT", iata: "TYO", int: true, hotel: [350, 650, 1300], idx: 1.7, tags: ["cultura", "gastronomia", "compras", "noite"] },
   { n: "Paris", p: "França", lat: 49.01, lon: 2.55, ap: "CDG", iata: "PAR", int: true, hotel: [550, 900, 1800], idx: 2.6, tags: ["cultura", "gastronomia", "compras"] }
 ];
 
