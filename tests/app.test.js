@@ -76,7 +76,8 @@ test("veredito sem destino sugere opções que cabem, usando estimativa sem toke
   const r = await montarVeredito(base, {}, aviasales(500).fetchImpl);
   assert.equal(r.modo, "sugestao");
   assert.ok(r.opcoes.length >= 1);
-  assert.ok(r.opcoes.every(o => o.estado !== "nao_cabe"));
+  assert.ok(r.opcoes.filter(o => o.grupo === "nacional").every(o => o.estado !== "nao_cabe"));
+  assert.notEqual(r.atual.estado, "nao_cabe");
   assert.equal(r.atual.fonteVoo, "estimativa");
 });
 
@@ -200,4 +201,17 @@ test("roteiro de várias cidades descreve a ordem e aceita até 10 dias", async 
   assert.equal(p.dias, 10);
   await gerarRoteiro({ paradas: [{ destino: "Lisboa", noites: 4 }, { destino: "Paris", noites: 3 }], verbaPasseios: 2000 }, {}, client);
   assert.match(pedido.messages[0].content, /Lisboa, Portugal \(4 noites\); depois Paris, França \(3 noites\)/);
+});
+
+test("sugestão separa as melhores viagens nacionais e internacionais", async () => {
+  const r = await montarVeredito({ ...base, orcamento: 20000 });
+  assert.equal(r.modo, "sugestao");
+  const nac = r.opcoes.filter(o => o.grupo === "nacional"), int = r.opcoes.filter(o => o.grupo === "internacional");
+  assert.ok(nac.length >= 1 && nac.length <= 3 && nac.every(o => o.destino.p === "Brasil"));
+  assert.ok(int.length >= 1 && int.length <= 3 && int.every(o => o.destino.p !== "Brasil"));
+  assert.ok(r.opcoes.includes(r.atual));
+  // Valor baixo: nada cabe com 5 noites, mas o app diz com quantas noites caberia.
+  const pouco = await montarVeredito({ ...base, orcamento: 1000, pessoas: 1, estilo: 0 });
+  assert.ok(pouco.opcoes.every(o => o.estado === "nao_cabe"));
+  assert.equal(pouco.opcoes[0].noitesCabem >= 1, true);
 });

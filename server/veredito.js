@@ -51,21 +51,33 @@ export async function montarVeredito(body, env = {}, fetchImpl = fetch) {
   });
 
   // Ranqueia pela estimativa e busca preço real só dos melhores candidatos (poucas chamadas de API).
-  async function melhores(excluir) {
-    const est = ranking(f, { excluir });
+  // internacional: true/false limita ao grupo; null = todos.
+  async function melhores(excluir, internacional = null) {
+    const est = ranking(f, { excluir }).filter(c => internacional === null || DESTINOS.find(d => d.n === c.destino.n).int === internacional);
     let cand = est.filter(c => c.estado !== "nao_cabe").slice(0, 5);
     if (!cand.length) cand = [...est].sort((a, b) => a.total - b.total).slice(0, 3);
     const dests = cand.map(c => DESTINOS.find(d => d.n === c.destino.n));
     const voos = await Promise.all(dests.map(buscar));
-    const recalculados = dests.map((d, i) => custo(d, f, voos[i] || undefined))
-      .sort((a, b) => pontuar(b, f) - pontuar(a, f));
+    const recalculados = dests.map((d, i) => {
+      const c = custo(d, f, voos[i] || undefined);
+      // Quando não cabe, diz com quantas noites caberia (0 = nem com 1 noite).
+      if (c.estado === "nao_cabe") c.noitesCabem = noitesQueCabem(d, f, voos[i] || undefined);
+      return c;
+    }).sort((a, b) => pontuar(b, f) - pontuar(a, f));
     const cabem = recalculados.filter(c => c.estado !== "nao_cabe");
-    return cabem.length ? cabem : [...recalculados].sort((a, b) => a.total - b.total);
+    // Nada cabe: primeiro o que cabe com mais noites, depois o mais barato.
+    return cabem.length ? cabem : [...recalculados].sort((a, b) => (b.noitesCabem || 0) - (a.noitesCabem || 0) || a.total - b.total);
   }
 
   if (!f.destinos.length) {
-    const opcoes = (await melhores(null)).slice(0, 4);
-    return { entrada: f, modo: "sugestao", atual: opcoes[0], opcoes, noitesMax: 0 };
+    // Sem destino: as melhores viagens nacionais e internacionais para esse valor.
+    const [nac, int] = await Promise.all([melhores(null, false), melhores(null, true)]);
+    const opcoes = [
+      ...nac.slice(0, 3).map(c => ({ ...c, grupo: "nacional" })),
+      ...int.slice(0, 3).map(c => ({ ...c, grupo: "internacional" }))
+    ];
+    const atual = [...opcoes].sort((a, b) => pontuar(b, f) - pontuar(a, f))[0];
+    return { entrada: f, modo: "sugestao", atual, opcoes, noitesMax: atual.noitesCabem || 0 };
   }
 
   if (f.tipo === "viagem" && f.destinos.length > 1) return viagemPorCidades(f, origem, env, fetchImpl);

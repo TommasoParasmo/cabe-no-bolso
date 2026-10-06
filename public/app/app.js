@@ -15,6 +15,14 @@ const iso = d => d.toISOString().slice(0, 10);
   const b = new Date(a); b.setDate(b.getDate() + 5);
   $("ida").value = iso(a); $("volta").value = iso(b);
 })();
+// Botões de faixa: preenchem o valor e já calculam.
+const marcarFaixa = () => document.querySelectorAll(".faixas button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === $("orcamento").value.replace(/\D/g, ""))));
+document.querySelectorAll(".faixas button").forEach(b => b.onclick = () => {
+  $("orcamento").value = Number(b.dataset.v).toLocaleString("pt-BR");
+  marcarFaixa();
+  calcular();
+});
+$("orcamento").addEventListener("input", marcarFaixa);
 $("orcamento").addEventListener("input", e => {
   const digits = e.target.value.replace(/\D/g, "").slice(0, 9);
   e.target.value = digits ? Number(digits).toLocaleString("pt-BR") : "";
@@ -123,6 +131,14 @@ function cartoesViagem(c, f) {
     </div>`;
 }
 
+function opcoesHtml(opcoes, atual, filtro = () => true) {
+  return `<div class="options">${opcoes.map((o, i) => filtro(o) ? `
+    <button type="button" class="opt" data-i="${i}" aria-current="${o === atual}">
+      <span class="t">${esc(o.destino.n)}</span><span class="v">${brl(o.total)}</span>
+      <small>${ESTADO[o.estado]} · ${o.diff >= 0 ? "sobra " + brl(o.diff) : "falta " + brl(-o.diff)}${o.noitesCabem ? ` · cabe com ${o.noitesCabem} ${o.noitesCabem > 1 ? "noites" : "noite"}` : ""}${o.match ? " · combina com o que vocês curtem" : ""}</small>
+    </button>` : "").join("")}</div>`;
+}
+
 function render(fresh) {
   const { entrada: f, atual: c } = state;
   const manchete = c.estado === "cabe" ? `Dá para ir e ainda sobra ${brl(c.diff)}`
@@ -133,6 +149,8 @@ function render(fresh) {
   const viagem = state.modo === "viagem";
   const ajuste = viagem && c.estado === "nao_cabe" ? "Tente menos cidades, menos noites ou o estilo econômico."
     : comparar && c.estado === "nao_cabe" ? "Nenhum dos destinos escolhidos cabe nesse valor. Tire o filtro para ver o que cabe no seu orçamento."
+    : state.modo === "sugestao" && c.estado === "nao_cabe"
+    ? (c.noitesCabem ? `Com ${c.noitesCabem} ${c.noitesCabem > 1 ? "noites" : "noite"} em vez de ${f.noites}, ${esc(c.destino.n)} cabe no orçamento.` : "Com esse valor, nenhuma viagem cabe nessas datas. Tente menos noites ou menos pessoas.")
     : state.modo === "destino" && c.estado === "nao_cabe"
     ? (state.noitesMax ? `Com ${state.noitesMax} noites em vez de ${f.noites}, ${esc(c.destino.n)} cabe no orçamento.` : `Mesmo com menos noites, ${esc(c.destino.n)} não cabe nesse valor.`) : "";
   const mostrarOpcoes = state.modo === "destino" ? state.opcoes.length > 0 : state.opcoes.length > 1;
@@ -152,13 +170,10 @@ function render(fresh) {
     </article>
     ${mostrarOpcoes ? `
     <section class="card">
-      <h3>${comparar ? "Comparando os destinos que você escolheu" : state.modo === "sugestao" ? "Outras opções para o seu orçamento" : "Destinos que cabem no seu orçamento"}</h3>
-      <div class="options">${state.opcoes.map((o, i) => `
-        <button type="button" class="opt" data-i="${i}" aria-current="${o === c}">
-          <span class="t">${esc(o.destino.n)}</span><span class="v">${brl(o.total)}</span>
-          <small>${ESTADO[o.estado]} · ${o.diff >= 0 ? "sobra " + brl(o.diff) : "falta " + brl(-o.diff)}${o.match ? " · combina com o que vocês curtem" : ""}</small>
-        </button>`).join("")}
-      </div>
+      <h3>${comparar ? "Comparando os destinos que você escolheu" : state.modo === "sugestao" ? `As melhores viagens para ${brl(f.orcamento)}` : "Destinos que cabem no seu orçamento"}</h3>
+      ${state.modo === "sugestao"
+        ? ["nacional", "internacional"].map(g => `<div class="grupo-titulo">${g === "nacional" ? "No Brasil" : "No exterior"}</div>${opcoesHtml(state.opcoes, c, o => o.grupo === g)}`).join("")
+        : opcoesHtml(state.opcoes, c)}
     </section>` : ""}
     <section class="card">
       <h3>Para onde vai o dinheiro</h3>
