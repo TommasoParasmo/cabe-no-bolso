@@ -1,0 +1,10 @@
+{
+  "appId": "br.com.vaidarviagem.app",
+  "appName": "Vai Dar Viagem",
+  "webDir": "www",
+  "backgroundColor": "#F3F6F5",
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 800, "backgroundColor": "#F3F6F5", "showSpinner": false },
+    "StatusBar": { "overlaysWebView": false, "backgroundColor": "#0E6E6A", "style": "DARK" }
+  }
+}

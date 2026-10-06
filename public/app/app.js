@@ -117,8 +117,10 @@ function lerForm() {
   };
 }
 
+// No app de celular as telas vêm de dentro do aparelho, então a API é chamada no endereço do site.
+const API = window.Capacitor?.isNativePlatform?.() ? "https://vai-dar-viagem.pages.dev" : "";
 async function postar(caminho, dados, signal) {
-  const r = await fetch(caminho, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(dados), signal });
+  const r = await fetch(API + caminho, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(dados), signal });
   const corpo = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(corpo.erro || "Algo falhou. Tente de novo.");
   return corpo;
@@ -243,6 +245,10 @@ function render(fresh) {
         <div><span class="eyebrow">Custo estimado</span><b>${brl(c.total)}</b></div>
         <div class="diff"><span class="eyebrow">${c.diff >= 0 ? "Sobra" : "Falta"}</span><b>${brl(Math.abs(c.diff))}</b></div>
       </div>
+      <div class="acoes-viagem">
+        <button type="button" id="salvar">${salvas.some(v => v.id === idViagem()) ? "Salva ✓" : "Salvar viagem"}</button>
+        <button type="button" id="compartilhar">Compartilhar</button>
+      </div>
     </article>
     ${mostrarOpcoes ? `
     <section class="card">
@@ -267,6 +273,8 @@ function render(fresh) {
     <section class="card" id="roteiro-card"></section>
   `;
   r.querySelectorAll(".opt").forEach(b => b.onclick = () => escolher(Number(b.dataset.i)));
+  $("salvar").onclick = salvarViagem;
+  $("compartilhar").onclick = compartilhar;
   renderRoteiro();
 }
 
@@ -329,6 +337,7 @@ async function gerarRoteiro() {
     }, ctlRoteiro.signal);
     if (state.atual !== alvo) return;
     state.roteiro = r;
+    if (salvas.some(v => v.id === idViagem())) salvarViagem();
   } catch (e) {
     if (state.atual !== alvo) return;
     state.roteiro = e.name === "AbortError" ? null : { erro: e.message };
@@ -342,3 +351,58 @@ $("form").addEventListener("submit", e => {
   calcular().then(() => state && $("result").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }));
 });
 calcular();
+
+// ---- Minhas viagens: ficam guardadas no aparelho (no app, pelo armazenamento nativo) ----
+// Sem bundler: usa o plugin já exposto pela ponte nativa ou registra pelo nome.
+const plugin = nome => window.Capacitor?.isNativePlatform?.() ? (Capacitor.Plugins?.[nome] || Capacitor.registerPlugin?.(nome) || null) : null;
+const Prefs = plugin("Preferences");
+const CHAVE = "minhas-viagens";
+let salvas = [];
+async function lerSalvas() {
+  try {
+    const bruto = Prefs ? (await Prefs.get({ key: CHAVE })).value : localStorage.getItem(CHAVE);
+    salvas = JSON.parse(bruto || "[]");
+  } catch { salvas = []; }
+  renderSalvas();
+}
+async function gravarSalvas() {
+  const bruto = JSON.stringify(salvas);
+  try { Prefs ? await Prefs.set({ key: CHAVE, value: bruto }) : localStorage.setItem(CHAVE, bruto); } catch {}
+  renderSalvas();
+}
+const idViagem = () => state && [state.atual.destino.n, state.entrada.ida, state.entrada.volta, state.entrada.pessoas, state.entrada.orcamento].join("|");
+function salvarViagem() {
+  const id = idViagem();
+  const copia = { id, salvoEm: new Date().toISOString(), estado: { ...state, roteiro: state.roteiro?.dias ? state.roteiro : null } };
+  salvas = [copia, ...salvas.filter(v => v.id !== id)].slice(0, 20);
+  gravarSalvas();
+  const b = $("salvar"); if (b) b.textContent = "Salva ✓";
+}
+function renderSalvas() {
+  const el = $("minhas");
+  if (!el) return;
+  el.hidden = !salvas.length;
+  el.innerHTML = salvas.length ? `<h3>Minhas viagens</h3><ul class="salvas">${salvas.map((v, i) => {
+    const { entrada: f, atual: c } = v.estado;
+    return `<li><button type="button" class="abrir" data-i="${i}"><b>${esc(c.destino.n)}</b><small>${dataCurta(f.ida)} a ${dataCurta(f.volta)} · ${brl(c.total)} · ${ESTADO[c.estado]}${v.estado.roteiro ? " · com roteiro" : ""}</small></button><button type="button" class="tirar" data-i="${i}" aria-label="Apagar ${esc(c.destino.n)}">✕</button></li>`;
+  }).join("")}</ul>` : "";
+  el.querySelectorAll(".abrir").forEach(b => b.onclick = () => {
+    state = { ...salvas[Number(b.dataset.i)].estado };
+    render(false);
+    $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  el.querySelectorAll(".tirar").forEach(b => b.onclick = () => { salvas.splice(Number(b.dataset.i), 1); gravarSalvas(); if (state) render(false); });
+}
+async function compartilhar() {
+  const { entrada: f, atual: c } = state;
+  const texto = `${c.destino.n}: ${ESTADO[c.estado]}. ${f.noites} noites para ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} por cerca de ${brl(c.total)}. Simule a sua viagem:`;
+  const url = "https://vai-dar-viagem.pages.dev/app/";
+  try {
+    const Share = plugin("Share");
+    if (Share) return await Share.share({ title: "Vai Dar Viagem", text: texto, url });
+    if (navigator.share) return await navigator.share({ title: "Vai Dar Viagem", text: texto, url });
+    await navigator.clipboard.writeText(`${texto} ${url}`);
+    setStatus("Resumo copiado. É só colar onde quiser.");
+  } catch {}
+}
+lerSalvas();
