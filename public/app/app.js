@@ -9,8 +9,6 @@ const ESTADO = { cabe: "Vai dar viagem", apertado: "Vai dar, no aperto", nao_cab
 const iso = d => d.toISOString().slice(0, 10);
 (function init() {
   $("origem").innerHTML = ORIGENS.map(o => `<option>${esc(o.n)}</option>`).join("");
-  const paises = [...new Set(DESTINOS.map(d => d.p))].map(p => `<option value="${esc(p)}">País · todas as cidades</option>`);
-  $("destinos").innerHTML = DESTINOS.map(d => `<option value="${esc(d.n)}">${esc(d.p)}</option>`).join("") + paises.join("");
   const a = new Date(); a.setDate(a.getDate() + 45);
   const b = new Date(a); b.setDate(b.getDate() + 5);
   $("ida").value = iso(a); $("volta").value = iso(b);
@@ -30,9 +28,15 @@ $("orcamento").addEventListener("input", e => {
 
 // Destinos escolhidos (cidades ou países). O texto ainda no campo também conta.
 const escolhidos = [];
-const conhecido = v => [...$("destinos").options].some(o => o.value === v);
+const norm = t => String(t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+const PAISES = [...new Set(DESTINOS.map(d => d.p))];
+const OPCOES = [
+  ...DESTINOS.filter(d => !d.int).map(d => ({ v: d.n, nota: d.terrestre ? "só de ônibus" : d.p, grupo: "No Brasil" })),
+  ...DESTINOS.filter(d => d.int).map(d => ({ v: d.n, nota: d.p, grupo: "No exterior" })),
+  ...PAISES.map(p => ({ v: p, nota: "todas as cidades", grupo: "Países" }))
+];
 function addDestino(v) {
-  v = v.trim();
+  v = OPCOES.find(o => norm(o.v) === norm(v))?.v || v.trim();
   if (!v || escolhidos.includes(v) || escolhidos.length >= 8) return;
   escolhidos.push(v);
   $("destino").value = "";
@@ -46,8 +50,60 @@ function renderEscolhidos() {
   $("destino").placeholder = escolhidos.length ? "Adicionar outro" : "Vazio = sugerimos";
 }
 document.querySelectorAll('input[name="tipo"]').forEach(r => r.onchange = () => { tipo = r.value; });
-$("destino").addEventListener("input", e => { if (conhecido(e.target.value)) addDestino(e.target.value); });
-$("destino").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.value.trim()) { e.preventDefault(); addDestino(e.target.value); } });
+
+// Lista de destinos própria (a do navegador fica estreita e sem estilo).
+let visiveis = [], ativa = -1;
+function abrirLista() {
+  const q = norm($("destino").value);
+  visiveis = OPCOES.filter(o => !escolhidos.includes(o.v) && (!q || norm(o.v).includes(q) || norm(o.nota).includes(q)));
+  ativa = q && visiveis.length ? 0 : -1;
+  let grupo = "";
+  $("sugestoes").innerHTML = visiveis.length ? visiveis.map((o, i) => {
+    const titulo = o.grupo !== grupo ? `<li class="grupo" role="presentation">${grupo = o.grupo}</li>` : "";
+    return `${titulo}<li role="option" id="sug-${i}" data-i="${i}" aria-selected="${i === ativa}"><span>${esc(o.v)}</span><small>${esc(o.nota)}</small></li>`;
+  }).join("") : '<li class="vazio" role="presentation">Ainda não temos esse destino. Pressione Enter para tentar mesmo assim.</li>';
+  $("sugestoes").hidden = false;
+  $("destino").setAttribute("aria-expanded", "true");
+  marcarAtiva();
+}
+function fecharLista() {
+  $("sugestoes").hidden = true;
+  $("destino").setAttribute("aria-expanded", "false");
+  $("destino").removeAttribute("aria-activedescendant");
+}
+function marcarAtiva() {
+  $("sugestoes").querySelectorAll('[role="option"]').forEach(li => li.setAttribute("aria-selected", String(Number(li.dataset.i) === ativa)));
+  const li = $("sug-" + ativa);
+  if (li) { $("destino").setAttribute("aria-activedescendant", li.id); li.scrollIntoView({ block: "nearest" }); }
+  else $("destino").removeAttribute("aria-activedescendant");
+}
+$("destino").addEventListener("focus", abrirLista);
+$("destino").addEventListener("click", abrirLista);
+$("destino").addEventListener("input", abrirLista);
+$("destino").addEventListener("blur", () => setTimeout(fecharLista, 120));
+$("sugestoes").addEventListener("mousedown", e => {
+  const li = e.target.closest('[role="option"]');
+  if (!li) return;
+  e.preventDefault();
+  addDestino(visiveis[Number(li.dataset.i)].v);
+  abrirLista();
+});
+$("destino").addEventListener("keydown", e => {
+  const aberta = !$("sugestoes").hidden;
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    if (!aberta) return abrirLista();
+    if (!visiveis.length) return;
+    ativa = (ativa + (e.key === "ArrowDown" ? 1 : -1) + visiveis.length) % visiveis.length;
+    marcarAtiva();
+  } else if (e.key === "Enter") {
+    const v = aberta && ativa >= 0 ? visiveis[ativa].v : e.target.value.trim();
+    if (!v) return;
+    e.preventDefault();
+    addDestino(v);
+    abrirLista();
+  } else if (e.key === "Escape") fecharLista();
+});
 
 function lerForm() {
   return {
