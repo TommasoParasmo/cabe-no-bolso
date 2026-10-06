@@ -74,6 +74,12 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; le
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .escolhidos { display: flex; flex-wrap: wrap; gap: 6px; }
 .escolhidos:empty { display: none; }
+.seg.dois { grid-template-columns: 1fr 1fr; }
+.seg[hidden] { display: none; }
+.trechos { list-style: none; margin: 10px 0 6px; padding: 0; display: grid; gap: 8px; font-size: 14px; }
+.trechos li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; }
+.trechos .v { font-variant-numeric: tabular-nums; }
+.trechos .link { grid-column: 1 / -1; font-size: 13px; }
 .escolhidos button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; border: 0; background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
 .chip { position: relative; }
 .chip input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
@@ -182,8 +188,12 @@ button:disabled { opacity: .55; cursor: default; }
         <label for="destino">Para onde</label>
         <input id="destino" list="destinos" placeholder="Vazio = sugerimos" autocomplete="off" aria-describedby="dest-hint">
         <datalist id="destinos"></datalist>
-        <div class="hint" id="dest-hint">Pode escolher vários países e cidades para comparar.</div>
+        <div class="hint" id="dest-hint">Pode escolher vários países e cidades.</div>
         <div class="escolhidos" id="escolhidos" aria-live="polite"></div>
+        <div class="seg dois" id="tipo" role="radiogroup" aria-label="Como usar os destinos" hidden>
+          <label><input type="radio" name="tipo" value="comparar" checked><span>Comparar e escolher um</span></label>
+          <label><input type="radio" name="tipo" value="viagem"><span>Visitar todos na viagem</span></label>
+        </div>
       </div>
       <div class="field">
         <label for="ida">Ida</label>

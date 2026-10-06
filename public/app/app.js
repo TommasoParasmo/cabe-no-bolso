@@ -30,18 +30,21 @@ function addDestino(v) {
   $("destino").value = "";
   renderEscolhidos();
 }
+let tipo = "comparar";
 function renderEscolhidos() {
   $("escolhidos").innerHTML = escolhidos.map((v, i) => `<button type="button" data-i="${i}" aria-label="Tirar ${esc(v)}">${esc(v)} ✕</button>`).join("");
+  $("tipo").hidden = escolhidos.length < 2;
   $("escolhidos").querySelectorAll("button").forEach(b => b.onclick = () => { escolhidos.splice(Number(b.dataset.i), 1); renderEscolhidos(); });
   $("destino").placeholder = escolhidos.length ? "Adicionar outro" : "Vazio = sugerimos";
 }
+document.querySelectorAll('input[name="tipo"]').forEach(r => r.onchange = () => { tipo = r.value; });
 $("destino").addEventListener("input", e => { if (conhecido(e.target.value)) addDestino(e.target.value); });
 $("destino").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.value.trim()) { e.preventDefault(); addDestino(e.target.value); } });
 
 function lerForm() {
   return {
     orcamento: Number($("orcamento").value.replace(/\D/g, "")) || 0,
-    origem: $("origem").value, destinos: [...escolhidos, $("destino").value.trim()].filter(Boolean),
+    origem: $("origem").value, destinos: [...escolhidos, $("destino").value.trim()].filter(Boolean), tipo,
     ida: $("ida").value, volta: $("volta").value,
     pessoas: Number($("pessoas").value),
     estilo: Number(document.querySelector('input[name="estilo"]:checked')?.value ?? 1),
@@ -91,6 +94,35 @@ function links(c, f) {
   return { flights, google, vooReal: !!c.linkVoo, hotels: "https://www.booking.com/searchresults.pt-br.html?" + p.toString() };
 }
 
+const linkGoogle = (de, para, data) => "https://www.google.com/travel/flights?q=" + encodeURIComponent(`Voos só ida de ${de} para ${para} em ${data}`) + "&curr=BRL&hl=pt-BR";
+const linkBooking = (cidade, pessoas, checkin, noites) => {
+  const d = new Date(checkin + "T12:00:00"); d.setDate(d.getDate() + noites);
+  return "https://www.booking.com/searchresults.pt-br.html?" + new URLSearchParams({ ss: cidade, group_adults: String(pessoas), checkin, checkout: d.toISOString().slice(0, 10) });
+};
+const dataCurta = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7);
+
+// Cartões de passagem e hospedagem da viagem por várias cidades: um trecho e uma cidade por linha.
+function cartoesViagem(c, f) {
+  return `
+    <div class="two">
+      <section class="card">
+        <span class="eyebrow">Passagens por pessoa · ${c.fonteVoo === "aviasales" ? "preços encontrados" : c.fonteVoo === "misto" ? "alguns preços encontrados" : "estimativa"}</span>
+        <div class="kv"><span class="price">${brl(c.vooPessoa)}</span><p>${c.trechos.length} trechos só de ida</p></div>
+        <ul class="trechos">${c.trechos.map(t => `<li>
+          <span>${esc(t.de)} → ${esc(t.para)} · ${dataCurta(t.data)}</span><span class="v">${brl(t.porPessoa)}${t.fonte === "aviasales" ? "" : "*"}</span>
+          <a class="link" href="${esc(t.link || linkGoogle(t.de, t.para, t.data))}" target="_blank" rel="noopener sponsored">${t.link ? "Aviasales ↗" : "Google Voos ↗"}</a></li>`).join("")}</ul>
+        ${c.fonteVoo === "aviasales" ? "" : '<p class="hint">* estimativa: não achamos busca recente desse trecho.</p>'}
+      </section>
+      <section class="card">
+        <span class="eyebrow">Hospedagem · estimativa</span>
+        <ul class="trechos">${c.paradas.map(p => `<li>
+          <span>${esc(p.n)} · ${p.noites} ${p.noites > 1 ? "noites" : "noite"}</span><span class="v">${brl(p.diaria)}/noite</span>
+          <a class="link" href="${esc(linkBooking(p.n, f.pessoas, p.checkin, p.noites))}" target="_blank" rel="noopener sponsored">Booking ↗</a></li>`).join("")}</ul>
+        <p class="hint">Média por quarto para o estilo ${ESTILOS[f.estilo]}.</p>
+      </section>
+    </div>`;
+}
+
 function render(fresh) {
   const { entrada: f, atual: c } = state;
   const manchete = c.estado === "cabe" ? `Dá para ir e ainda sobra ${brl(c.diff)}`
@@ -98,7 +130,9 @@ function render(fresh) {
   const sum = c.itens.reduce((s, i) => s + i.valor, 0) || 1;
   const L = links(c, f);
   const comparar = state.modo === "comparar";
-  const ajuste = comparar && c.estado === "nao_cabe" ? "Nenhum dos destinos escolhidos cabe nesse valor. Tire o filtro para ver o que cabe no seu orçamento."
+  const viagem = state.modo === "viagem";
+  const ajuste = viagem && c.estado === "nao_cabe" ? "Tente menos cidades, menos noites ou o estilo econômico."
+    : comparar && c.estado === "nao_cabe" ? "Nenhum dos destinos escolhidos cabe nesse valor. Tire o filtro para ver o que cabe no seu orçamento."
     : state.modo === "destino" && c.estado === "nao_cabe"
     ? (state.noitesMax ? `Com ${state.noitesMax} noites em vez de ${f.noites}, ${esc(c.destino.n)} cabe no orçamento.` : `Mesmo com menos noites, ${esc(c.destino.n)} não cabe nesse valor.`) : "";
   const mostrarOpcoes = state.modo === "destino" ? state.opcoes.length > 0 : state.opcoes.length > 1;
@@ -107,7 +141,7 @@ function render(fresh) {
   r.innerHTML = `
     <article class="verdict" data-state="${c.estado}">
       <span class="pill">${ESTADO[c.estado]}</span>
-      <div class="eyebrow">${state.modo === "sugestao" ? "Nossa sugestão · " : comparar ? "Melhor entre os escolhidos · " : ""}${esc(c.destino.n)}, ${esc(c.destino.p)} · ${f.noites} noites · ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} · ${ESTILOS[f.estilo]}</div>
+      <div class="eyebrow">${viagem ? `Viagem por ${c.paradas.length} cidades · ${c.paradas.map(p => `${esc(p.n)} (${p.noites})`).join(" → ")}` : `${state.modo === "sugestao" ? "Nossa sugestão · " : comparar ? "Melhor entre os escolhidos · " : ""}${esc(c.destino.n)}, ${esc(c.destino.p)}`} · ${f.noites} noites · ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} · ${ESTILOS[f.estilo]}</div>
       <h2>${manchete}</h2>
       ${ajuste ? `<p>${ajuste}</p>` : c.estado === "apertado" ? "<p>Sobra pouco para imprevistos. Vale comprar a passagem logo, antes de o preço subir.</p>" : ""}
       <div class="nums">
@@ -131,7 +165,7 @@ function render(fresh) {
       <div class="bar" role="img" aria-label="Divisão do custo por categoria">${c.itens.map((it, i) => `<i style="width:${it.valor / sum * 100}%;background:${COLORS[i]}"></i>`).join("")}</div>
       <ul class="legend">${c.itens.map((it, i) => `<li><span class="sw" style="background:${COLORS[i]}"></span><span>${esc(it.categoria)}<small>${esc(it.detalhe)}</small></span><span class="v">${brl(it.valor)}</span></li>`).join("")}</ul>
     </section>
-    <div class="two">
+    ${viagem ? cartoesViagem(c, f) : `<div class="two">
       <section class="card">
         <span class="eyebrow">Passagem por pessoa${c.fonteVoo === "aviasales" ? " · preço encontrado" : " · estimativa"}</span>
         <div class="kv"><span class="price">${brl(c.vooPessoa)}</span><p>${esc(c.origem.n)} (${esc(c.origem.ap)}) → ${esc(c.destino.n)} (${esc(c.destino.ap)}), ida e volta</p></div>
@@ -143,7 +177,7 @@ function render(fresh) {
         <div class="kv"><span class="price">${brl(c.diaria)}<small style="font-size:13px;font-weight:500"> /noite por quarto</small></span><p>Média para o estilo ${ESTILOS[f.estilo]}</p></div>
         <a class="link" href="${esc(L.hotels)}" target="_blank" rel="noopener sponsored">Ver hotéis na Booking ↗</a>
       </section>
-    </div>
+    </div>`}
     <section class="card" id="roteiro-card"></section>
   `;
   r.querySelectorAll(".opt").forEach(b => b.onclick = () => escolher(Number(b.dataset.i)));
@@ -161,7 +195,7 @@ function renderRoteiro() {
     card.innerHTML = `
       <h3>Roteiro dia a dia em ${esc(state.atual.destino.n)}</h3>
       <div class="days">${ro.dias.map(d => `
-        <div class="day"><span class="n">DIA ${esc(d.dia)}</span><div><h4>${esc(d.titulo)}</h4><ul>${(d.atividades || []).map(a => `<li><span class="p">${esc(a.periodo)}</span><a class="lugar" href="${mapa(a.nome)}" target="_blank" rel="noopener">${esc(a.nome)} ↗</a><span class="c">${Number(a.custo) ? brl(a.custo) : "grátis"}</span></li>`).join("")}</ul></div></div>`).join("")}
+        <div class="day"><span class="n">DIA ${esc(d.dia)}</span><div><h4>${esc(d.titulo)}</h4>${state.atual.paradas && d.cidade ? `<small class="hint">${esc(d.cidade)}</small>` : ""}<ul>${(d.atividades || []).map(a => `<li><span class="p">${esc(a.periodo)}</span><a class="lugar" href="${mapa(a.nome, d.cidade)}" target="_blank" rel="noopener">${esc(a.nome)} ↗</a><span class="c">${Number(a.custo) ? brl(a.custo) : "grátis"}</span></li>`).join("")}</ul></div></div>`).join("")}
       </div>
       ${ro.totalPasseios != null ? `<p class="hint">Passeios: ${brl(ro.totalPasseios)} de ${brl(ro.verba)} de verba.</p>` : ""}
       ${ro.acimaDaVerba ? `<div class="warn-box">Este roteiro passou da verba de passeios. Troque alguma atividade paga por uma grátis.</div>` : ""}
@@ -181,8 +215,8 @@ function renderRoteiro() {
 }
 
 // Busca o lugar no Google Maps, onde a pessoa vê nota, fotos e avaliações.
-function mapa(nome) {
-  const q = `${nome}, ${state.atual.destino.n}, ${state.atual.destino.p}`;
+function mapa(nome, cidade) {
+  const q = state.atual.paradas ? `${nome}, ${cidade || state.atual.paradas[0].n}` : `${nome}, ${state.atual.destino.n}, ${state.atual.destino.p}`;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
@@ -194,7 +228,8 @@ async function gerarRoteiro() {
   renderRoteiro();
   try {
     const r = await postar("/api/roteiro", {
-      destino: c.destino.n, noites: f.noites, pessoas: f.pessoas, estilo: f.estilo, interesses: f.interesses, foco: f.foco,
+      destino: c.paradas ? c.paradas[0].n : c.destino.n, noites: f.noites,
+      paradas: c.paradas?.map(p => ({ destino: p.n, noites: p.noites })), pessoas: f.pessoas, estilo: f.estilo, interesses: f.interesses, foco: f.foco,
       verbaPasseios: c.itens.find(i => i.categoria === "Passeios").valor
     }, ctlRoteiro.signal);
     if (state.atual !== alvo) return;
