@@ -45,7 +45,7 @@ export function montarPrompt(p) {
 Destino: ${p.dest.n}, ${p.dest.p}. ${p.dias} dias. ${p.pessoas} pessoa(s). Estilo ${ESTILOS[p.estilo]}.
 Interesses: ${p.interesses.map(i => INTERESSES[i]).join(", ") || "variados"}.
 Verba total de passeios para o grupo: R$ ${p.verba}. A soma dos custos das atividades não pode passar disso.
-Regras: 2 ou 3 atividades por dia, com nomes curtos de atrações reais do destino. Custo em reais inteiros para o grupo todo (0 se for grátis). Prefira atrações grátis quando o estilo for econômico. Inclua 3 dicas curtas de economia específicas do destino.`;
+Regras: 2 ou 3 atividades por dia, com nomes curtos de atrações reais do destino. Não inclua refeições, bares nem restaurantes: a alimentação tem verba própria. Use o preço real aproximado de cada ingresso, multiplicado pelo número de pessoas. Custo em reais inteiros para o grupo todo (0 se for grátis). Prefira atrações grátis quando o estilo for econômico. Inclua 3 dicas curtas de economia específicas do destino.`;
 }
 
 // Contador por IP no cache da Cloudflare. É aproximado (cada data center conta separado),
