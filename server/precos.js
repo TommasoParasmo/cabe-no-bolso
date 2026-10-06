@@ -6,19 +6,22 @@ const API = "https://api.travelpayouts.com/aviasales/v3/prices_for_dates";
 const SEIS_HORAS = 6 * 3600;
 
 /**
+ * Sem `volta`, busca só ida (trechos da viagem por várias cidades).
  * Devolve { porPessoa, fonte: "aviasales", link } ou null quando não há preço
  * (sem token, rota sem buscas recentes ou erro da API). Quem chama usa a estimativa no lugar.
  */
 export async function precoVoo({ origem, destino, ida, volta, token, marker, fetchImpl = fetch }) {
-  if (!token || !ida || !volta) return null;
+  if (!token || !ida) return null;
+  const soIda = !volta;
   if (origem.iata === destino.iata) return { porPessoa: 0, fonte: "aviasales", link: null };
 
   // Primeiro as datas exatas; se ninguém buscou essa combinação, o mais barato do mês.
-  const tentativas = [[ida, volta], [ida.slice(0, 7), volta.slice(0, 7)]];
+  const tentativas = soIda ? [[ida], [ida.slice(0, 7)]] : [[ida, volta], [ida.slice(0, 7), volta.slice(0, 7)]];
   for (const [dep, ret] of tentativas) {
     const params = new URLSearchParams({
-      origin: origem.iata, destination: destino.iata, departure_at: dep, return_at: ret,
-      one_way: "false", currency: "brl", market: "br", sorting: "price", limit: "1"
+      origin: origem.iata, destination: destino.iata, departure_at: dep,
+      ...(soIda ? {} : { return_at: ret }),
+      one_way: String(soIda), currency: "brl", market: "br", sorting: "price", limit: "1"
     });
     const chave = `https://cache.cabenobolso/voo?${params}`;
     const guardado = await lerCache(chave);

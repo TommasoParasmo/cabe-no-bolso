@@ -74,6 +74,85 @@ export function custo(dest, f, voo) {
   };
 }
 
+// ---- Viagem por várias cidades: origem → cidade 1 → … → cidade N → origem ----
+
+// Divide as noites entre as cidades; as primeiras ficam com a sobra.
+export function dividirNoites(total, k) {
+  return Array.from({ length: k }, (_, i) => Math.floor(total / k) + (i < total % k ? 1 : 0));
+}
+
+const somarDias = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+
+// Trechos só de ida, com a data de cada um.
+export function trechosDaViagem(origem, paradas, ida) {
+  const pontos = [origem, ...paradas.map(p => p.dest), origem];
+  let dia = 0;
+  return pontos.slice(1).map((para, i) => {
+    const t = { de: pontos[i], para, data: somarDias(ida, dia) };
+    dia += paradas[i]?.noites || 0;
+    return t;
+  });
+}
+
+// Só ida por pessoa, quando não há preço real. Trecho curto entre cidades usa a fórmula doméstica.
+export function estimarTrecho(de, para, data, hoje = new Date()) {
+  const dist = km(de, para);
+  if (dist < 150) return 0;
+  const diasAte = data ? (new Date(data + "T12:00:00") - hoje) / 864e5 : 60;
+  const fator = (altaTemporada(data) ? 1.25 : 1) * (diasAte < 21 ? 1.2 : 1);
+  const longo = (de.int || para.int) && dist > 3000;
+  return (longo ? 900 + 0.42 * dist : 300 + 0.45 * dist) * fator * 0.6;
+}
+
+/**
+ * Custo da viagem por várias cidades. paradas: [{ dest, noites }] na ordem da viagem.
+ * voos: preços reais por trecho (mesma ordem de trechosDaViagem), null onde não houver.
+ */
+export function custoMulti(paradas, f, voos = []) {
+  const origem = acharOrigem(f.origem);
+  const alta = altaTemporada(f.ida);
+  const quartos = Math.ceil(f.pessoas / 2);
+  const trechos = trechosDaViagem(origem, paradas, f.ida).map((t, i) => {
+    const real = voos[i];
+    return {
+      de: t.de.ap, para: t.para.ap, deNome: t.de.n, paraNome: t.para.n, data: t.data,
+      porPessoa: r10(real?.porPessoa ?? estimarTrecho(t.de, t.para, t.data)),
+      fonte: real ? "aviasales" : "estimativa", link: real?.link || null
+    };
+  });
+  const vooPessoa = trechos.reduce((s, t) => s + t.porPessoa, 0);
+  let hosp = 0, comida = 0, passeios = 0, transp = 0;
+  const ps = paradas.map((p, i) => {
+    const d = p.dest, dias = p.noites + (i === 0 ? 1 : 0);
+    const diaria = r10(d.hotel[f.estilo] * (alta ? 1.25 : 1));
+    hosp += diaria * quartos * p.noites;
+    comida += [70, 130, 250][f.estilo] * d.idx * f.pessoas * dias;
+    passeios += [30, 80, 180][f.estilo] * d.idx * (d.pf || 1) * f.pessoas * p.noites;
+    transp += ([20, 45, 100][f.estilo] * d.idx * dias + (d.extra || 0)) * f.pessoas;
+    return { n: d.n, p: d.p, ap: d.ap, noites: p.noites, diaria, checkin: somarDias(f.ida, paradas.slice(0, i).reduce((s, x) => s + x.noites, 0)) };
+  });
+  const dias = f.noites + 1;
+  const reais = trechos.filter(t => t.fonte === "aviasales").length;
+  const fonteVoo = reais === trechos.length ? "aviasales" : reais ? "misto" : "estimativa";
+  const itens = [
+    { categoria: "Passagem aérea", valor: vooPessoa * f.pessoas, detalhe: `${trechos.length} trechos só de ida (${trechos.map(t => t.de).concat(trechos.at(-1).para).join(" → ")}), ${fmt(vooPessoa)} por pessoa` },
+    { categoria: "Hospedagem", valor: hosp, detalhe: ps.map(p => `${p.noites} ${p.noites > 1 ? "noites" : "noite"} em ${p.n}`).join(", ") + `, ${quartos} ${quartos > 1 ? "quartos" : "quarto"}` },
+    { categoria: "Alimentação", valor: r10(comida), detalhe: `${fmt(r10(comida / f.pessoas / dias))} por pessoa por dia, em média` },
+    { categoria: "Passeios", valor: r10(passeios), detalhe: `${fmt(r10(passeios / f.pessoas / f.noites))} por pessoa por dia, em média` },
+    { categoria: "Transporte local", valor: r10(transp), detalhe: "Metrô, ônibus, aplicativos e traslados" }
+  ];
+  const total = itens.reduce((s, i) => s + i.valor, 0);
+  const diff = f.orcamento - total;
+  const estado = diff >= f.orcamento * 0.1 ? "cabe" : diff >= 0 ? "apertado" : "nao_cabe";
+  const tags = new Set(paradas.flatMap(p => p.dest.tags));
+  return {
+    destino: { n: ps.map(p => p.n).join(" + "), p: [...new Set(ps.map(p => p.p))].join(", "), ap: ps[0].ap },
+    origem: { n: origem.n, ap: origem.ap },
+    itens, total, diff, estado, match: f.interesses.filter(t => tags.has(t)).length, alta,
+    diaria: ps[0].diaria, vooPessoa, fonteVoo, linkVoo: null, paradas: ps, trechos
+  };
+}
+
 const PESO = { cabe: 3, apertado: 1, nao_cabe: -10 };
 export const pontuar = (c, f) => PESO[c.estado] + c.match * 2 + (c.estado !== "nao_cabe" ? c.total / f.orcamento : 0);
 

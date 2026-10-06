@@ -1,12 +1,13 @@
 // Monta o veredito: custo da viagem, se cabe e quais destinos cabem. Sem IA.
 import { DESTINOS, INTERESSES } from "../public/lib/dados.js";
-import { custo, ranking, pontuar, noitesQueCabem, acharOrigem, acharDestino, norm } from "../public/lib/custo.js";
+import { custo, custoMulti, dividirNoites, trechosDaViagem, ranking, pontuar, noitesQueCabem, acharOrigem, acharDestino, norm } from "../public/lib/custo.js";
 import { precoVoo } from "./precos.js";
 
 export class EntradaInvalida extends Error {}
 
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_FILTRO = 8;
+const MAX_PARADAS = 5;
 
 // Cada item do filtro pode ser um país (todas as cidades dele) ou uma cidade.
 export function resolverFiltro(nomes) {
@@ -35,7 +36,9 @@ export function validar(b) {
     ida: b.ida, volta: b.volta, noites,
     pessoas: Math.min(9, Math.max(1, Math.round(Number(b.pessoas)) || 2)),
     estilo: [0, 1, 2].includes(Number(b.estilo)) ? Number(b.estilo) : 1,
-    interesses: (Array.isArray(b.interesses) ? b.interesses : []).filter(i => i in INTERESSES)
+    interesses: (Array.isArray(b.interesses) ? b.interesses : []).filter(i => i in INTERESSES),
+    // "viagem" = visitar todos os destinos em sequência; senão, comparar e escolher um.
+    tipo: b.tipo === "viagem" ? "viagem" : "comparar"
   };
 }
 
@@ -65,6 +68,8 @@ export async function montarVeredito(body, env = {}, fetchImpl = fetch) {
     return { entrada: f, modo: "sugestao", atual: opcoes[0], opcoes, noitesMax: 0 };
   }
 
+  if (f.tipo === "viagem" && f.destinos.length > 1) return viagemPorCidades(f, origem, env, fetchImpl);
+
   const filtro = resolverFiltro(f.destinos);
   if (filtro.length > 1) {
     // Compara só os destinos escolhidos; busca preço real dos 6 mais promissores.
@@ -81,4 +86,25 @@ export async function montarVeredito(body, env = {}, fetchImpl = fetch) {
   if (atual.estado !== "nao_cabe") return { entrada: f, modo: "destino", atual, opcoes: [], noitesMax: 0 };
   const opcoes = (await melhores(dest.n)).filter(c => c.estado !== "nao_cabe").slice(0, 3);
   return { entrada: f, modo: "destino", atual, opcoes, noitesMax: noitesQueCabem(dest, f, voo || undefined) };
+}
+
+// Uma viagem só passando por várias cidades, na ordem escolhida, com as noites divididas entre elas.
+async function viagemPorCidades(f, origem, env, fetchImpl) {
+  const dests = f.destinos.map(nome => {
+    if (DESTINOS.some(d => norm(d.p) === norm(nome)) && !DESTINOS.some(d => norm(d.n) === norm(nome)))
+      throw new EntradaInvalida(`Para uma viagem por vários lugares, escolha cidades. "${nome}" é um país.`);
+    const d = acharDestino(nome);
+    if (!d) throw new EntradaInvalida(`Ainda não temos médias de custo para "${nome}". Escolha destinos da lista.`);
+    return d;
+  }).filter((d, i, a) => a.findIndex(x => x.n === d.n) === i);
+  if (dests.length > MAX_PARADAS) throw new EntradaInvalida(`Por enquanto a viagem vai até ${MAX_PARADAS} cidades.`);
+  if (f.noites < dests.length) throw new EntradaInvalida(`Para ${dests.length} cidades, a viagem precisa de pelo menos ${dests.length} noites.`);
+  const noites = dividirNoites(f.noites, dests.length);
+  const paradas = dests.map((dest, i) => ({ dest, noites: noites[i] }));
+  const voos = await Promise.all(trechosDaViagem(origem, paradas, f.ida).map(t => precoVoo({
+    origem: t.de, destino: t.para, ida: t.data,
+    token: env.TRAVELPAYOUTS_TOKEN, marker: env.TRAVELPAYOUTS_MARKER, fetchImpl
+  })));
+  const atual = custoMulti(paradas, f, voos);
+  return { entrada: f, modo: "viagem", atual, opcoes: [], noitesMax: 0 };
 }

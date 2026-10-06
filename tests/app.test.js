@@ -178,3 +178,26 @@ test("veredito compara vários destinos: país vira todas as cidades dele", asyn
   assert.equal(um.modo, "destino");
   await assert.rejects(montarVeredito({ ...base, destinos: ["Salvador", "Atlântida"] }), EntradaInvalida);
 });
+
+test("viagem por várias cidades: trechos só de ida, noites divididas e preço real por trecho", async () => {
+  const { fetchImpl, urls } = aviasales(1500);
+  const r = await montarVeredito({ ...base, orcamento: 30000, ida: "2027-04-10", volta: "2027-04-17", destinos: ["Lisboa", "Paris"], tipo: "viagem" },
+    { TRAVELPAYOUTS_TOKEN: "tok" }, fetchImpl);
+  assert.equal(r.modo, "viagem");
+  assert.deepEqual(r.atual.paradas.map(p => [p.n, p.noites]), [["Lisboa", 4], ["Paris", 3]]);
+  assert.deepEqual(r.atual.trechos.map(t => `${t.de}>${t.para} ${t.data}`), ["GRU>LIS 2027-04-10", "LIS>CDG 2027-04-14", "CDG>GRU 2027-04-17"]);
+  assert.equal(r.atual.vooPessoa, 4500);
+  assert.equal(r.atual.fonteVoo, "aviasales");
+  assert.ok(urls.every(u => /one_way=true/.test(u.url) && !/return_at/.test(u.url)));
+  await assert.rejects(montarVeredito({ ...base, destinos: ["Portugal", "Paris"], tipo: "viagem" }), /é um país/);
+  await assert.rejects(montarVeredito({ ...base, volta: "2026-11-22", destinos: ["Lisboa", "Paris", "Lima"], tipo: "viagem" }), /pelo menos 3 noites/);
+});
+
+test("roteiro de várias cidades descreve a ordem e aceita até 10 dias", async () => {
+  let pedido;
+  const client = { messages: { parse: async req => { pedido = req; return resposta([0]).messages.parse(req); } } };
+  const p = validarPedido({ paradas: [{ destino: "Lisboa", noites: 5 }, { destino: "Paris", noites: 5 }] });
+  assert.equal(p.dias, 10);
+  await gerarRoteiro({ paradas: [{ destino: "Lisboa", noites: 4 }, { destino: "Paris", noites: 3 }], verbaPasseios: 2000 }, {}, client);
+  assert.match(pedido.messages[0].content, /Lisboa, Portugal \(4 noites\); depois Paris, França \(3 noites\)/);
+});
