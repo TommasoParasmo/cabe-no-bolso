@@ -1,15 +1,25 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DESTINOS } from "../public/lib/dados.js";
-import { custo, acharDestino } from "../public/lib/custo.js";
+import { custo, acharDestino, noitesQueCabem } from "../public/lib/custo.js";
 import { precoVoo } from "../server/precos.js";
 import { montarVeredito, EntradaInvalida } from "../server/veredito.js";
-import { gerarRoteiro, validarPedido } from "../server/roteiro.js";
+import { gerarRoteiro, validarPedido, LimiteAtingido, LIMITE_DIA } from "../server/roteiro.js";
 
 const base = {
   orcamento: 7000, origem: "São Paulo", destino: "", ida: "2026-11-20", volta: "2026-11-25",
   pessoas: 2, estilo: 1, interesses: ["praia"]
 };
+// Cache da Cloudflare em memória, só para os testes que precisam dele.
+async function comCache(fn) {
+  const mapa = new Map();
+  globalThis.caches = { default: {
+    match: async req => (mapa.has(req.url) ? new Response(mapa.get(req.url)) : undefined),
+    put: async (req, res) => { mapa.set(req.url, await res.text()); }
+  } };
+  try { return await fn(); } finally { delete globalThis.caches; }
+}
+
 const rio = DESTINOS.find(d => d.n === "Rio de Janeiro");
 
 // fetch falso da Aviasales: responde com o preço dado (ou nada) e registra as URLs pedidas.
@@ -94,7 +104,7 @@ test("roteiro chama o modelo barato com a verba no prompt e devolve dias e dicas
   const client = { messages: { parse: async req => { pedido = req; return { parsed_output: { dias: [{ dia: 1, titulo: "Centro", atividades: [{ periodo: "Manhã", nome: "Pelourinho", custo: 0 }] }], dicas: ["a", "b", "c", "d"] } }; } } };
   const r = await gerarRoteiro({ destino: "Salvador", noites: 5, pessoas: 2, estilo: 0, interesses: ["praia"], verbaPasseios: 724 }, {}, client);
   assert.equal(pedido.model, "claude-haiku-4-5");
-  assert.match(pedido.messages[0].content, /R\$ 720/);
+  assert.match(pedido.messages[0].content, /R\$ 700/);
   assert.ok(pedido.output_config?.format);
   assert.equal(r.dias.length, 1);
   assert.equal(r.dicas.length, 3);
@@ -104,3 +114,43 @@ test("roteiro sem chave configurada falha sem chamar a IA", async () => {
   await assert.rejects(gerarRoteiro({ destino: "Salvador", noites: 3 }, {}), /ANTHROPIC_API_KEY/);
   assert.throws(() => validarPedido({ destino: "Narnia", noites: 3 }), EntradaInvalida);
 });
+
+test("precoVoo com data exata vazia no cache ainda usa o preço do mês", () => comCache(async () => {
+  const pedido = { origem: { iata: "SAO" }, destino: { iata: "RIO" }, ida: "2026-11-20", volta: "2026-11-25", token: "tok" };
+  await precoVoo({ ...pedido, fetchImpl: aviasales(700, { soMes: true }).fetchImpl });
+  const { fetchImpl, urls } = aviasales(700, { soMes: true });
+  const v = await precoVoo({ ...pedido, fetchImpl });
+  assert.equal(v.porPessoa, 700);
+  assert.equal(urls.length, 0);
+}));
+
+test("noitesQueCabem considera ficar só 1 noite", () => {
+  const f = { ...base, noites: 2, orcamento: 0 };
+  const um = custo(rio, { ...f, noites: 1 });
+  assert.equal(noitesQueCabem(rio, { ...f, orcamento: um.total }), 1);
+});
+
+const resposta = custos => ({ messages: { parse: async () => ({ parsed_output: {
+  dias: [{ dia: 1, titulo: "Centro", atividades: custos.map(c => ({ periodo: "Manhã", nome: "X", custo: c })) }], dicas: []
+} }) } });
+
+test("roteiro acima da verba pede de novo e, se continuar, avisa", async () => {
+  let chamadas = 0;
+  const client = { messages: { parse: async req => { chamadas++; return resposta([300, 500]).messages.parse(req); } } };
+  const r = await gerarRoteiro({ destino: "Salvador", noites: 3, verbaPasseios: 500 }, {}, client);
+  assert.equal(chamadas, 2);
+  assert.equal(r.acimaDaVerba, true);
+  assert.equal(r.totalPasseios, 800);
+  const ok = await gerarRoteiro({ destino: "Salvador", noites: 3, verbaPasseios: 500 }, {}, resposta([-50, 200]));
+  assert.equal(ok.totalPasseios, 200);
+  assert.equal(ok.acimaDaVerba, undefined);
+});
+
+test("roteiro novo tem limite por IP por dia", () => comCache(async () => {
+  for (let i = 0; i < LIMITE_DIA; i++) {
+    await gerarRoteiro({ destino: "Salvador", noites: 3, verbaPasseios: 1000 + i * 100 }, {}, resposta([0]), "1.2.3.4");
+  }
+  await assert.rejects(gerarRoteiro({ destino: "Salvador", noites: 3, verbaPasseios: 9000 }, {}, resposta([0]), "1.2.3.4"), LimiteAtingido);
+  const repetido = await gerarRoteiro({ destino: "Salvador", noites: 3, verbaPasseios: 1000 }, {}, resposta([0]), "1.2.3.4");
+  assert.equal(repetido.cache, true);
+}));

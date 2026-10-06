@@ -18,6 +18,7 @@ Diga quanto quer gastar. A gente monta a viagem e diz se dá.
    - `TRAVELPAYOUTS_MARKER`: seu marker (ID de parceiro) do Travelpayouts.
    - `ANTHROPIC_API_KEY`: chave da API da Anthropic (console.anthropic.com).
 4. Faça um novo deploy para as variáveis valerem.
+5. Em console.anthropic.com → **Settings → Limits**, defina um limite de gasto mensal. O app já limita a 5 roteiros novos por pessoa (IP) por dia, mas esse contador é aproximado; o limite da Anthropic é o teto de verdade.
 
 Sem `TRAVELPAYOUTS_TOKEN`, o app funciona só com estimativas. Sem `ANTHROPIC_API_KEY`, o botão de roteiro mostra que a IA ainda não está ligada.
 

@@ -85,7 +85,7 @@ export function ranking(f, { excluir = null, voos = new Map() } = {}) {
 
 // Maior número de noites (abaixo do pedido) que cabe no orçamento, ou 0.
 export function noitesQueCabem(dest, f, voo) {
-  for (let n = f.noites - 1; n >= 2; n--) if (custo(dest, { ...f, noites: n }, voo).diff >= 0) return n;
+  for (let n = f.noites - 1; n >= 1; n--) if (custo(dest, { ...f, noites: n }, voo).diff >= 0) return n;
   return 0;
 }
 

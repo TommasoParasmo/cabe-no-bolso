@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { gerarRoteiro } from "../../server/roteiro.js";
+import { gerarRoteiro, LimiteAtingido } from "../../server/roteiro.js";
 import { EntradaInvalida } from "../../server/veredito.js";
 
 export async function onRequestPost({ request, env }) {
@@ -11,9 +11,10 @@ export async function onRequestPost({ request, env }) {
     return json({ erro: "Pedido inválido." }, 400);
   }
   try {
-    return json(await gerarRoteiro(body, env));
+    return json(await gerarRoteiro(body, env, null, request.headers.get("CF-Connecting-IP")));
   } catch (e) {
     if (e instanceof EntradaInvalida) return json({ erro: e.message }, 400);
+    if (e instanceof LimiteAtingido) return json({ erro: e.message }, 429);
     if (e instanceof Anthropic.RateLimitError) return json({ erro: "Muitos pedidos agora. Espere um pouco e tente de novo." }, 429);
     if (e instanceof Anthropic.AuthenticationError) {
       console.error("roteiro: chave da Anthropic inválida");

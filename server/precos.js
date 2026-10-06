@@ -22,7 +22,10 @@ export async function precoVoo({ origem, destino, ida, volta, token, marker, fet
     });
     const chave = `https://cache.cabenobolso/voo?${params}`;
     const guardado = await lerCache(chave);
-    if (guardado) return guardado.porPessoa == null ? null : guardado;
+    if (guardado) {
+      if (guardado.porPessoa != null) return guardado;
+      continue; // busca vazia já conhecida: tenta o mês
+    }
 
     let voo = null;
     try {
