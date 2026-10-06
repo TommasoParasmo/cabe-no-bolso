@@ -17,7 +17,8 @@
 <meta property="og:title" content="Vai Dar Viagem: sua viagem a partir do seu orçamento">
 <meta property="og:description" content="Diga quanto quer gastar. A gente monta a viagem e diz se dá.">
 <meta property="og:locale" content="pt_BR">
-<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<link rel="icon" href="/marca/icone-32.png" type="image/png">
+<link rel="apple-touch-icon" href="/marca/icone-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
@@ -43,10 +44,11 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; letter-spacing: -0.015
 p { margin: 0; }
 .eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 20px; }
-.logo { font-family: var(--font-display); font-weight: 800; font-size: 22px; color: var(--ink); text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
-.logo img { width: 1.5em; height: 1.5em; }
-.logo b { font-weight: inherit; }
-.logo span { color: var(--accent); }
+.logo-escuro { display: none; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .logo-claro { display: none; } :root:not([data-theme="light"]) .logo-escuro { display: block; } }
+:root[data-theme="dark"] .logo-claro { display: none; } :root[data-theme="dark"] .logo-escuro { display: block; }
+.logo { display: block; line-height: 0; }
+.logo img { height: 50px; width: auto; }
 .tag { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; background: var(--sun); color: #2A2000; padding: 4px 10px; border-radius: 6px; }
 
 .hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 40px; align-items: center; padding-block: 32px 56px; }
@@ -105,7 +107,7 @@ footer { padding-block: 32px 48px; border-top: 1px solid var(--line); color: var
 <body>
 <div class="wrap">
   <nav>
-    <a class="logo" href="#"><img src="/logo.svg" alt="" width="34" height="34"><b>Vai Dar <span>Viagem</span></b></a>
+    <a class="logo" href="#"><img class="logo-claro" src="/marca/logo.png" alt="Vai Dar Viagem" width="144" height="50"><img class="logo-escuro" src="/marca/logo-escuro.png" alt="Vai Dar Viagem" width="144" height="50"></a>
     <span class="tag">Em breve</span>
   </nav>
 
