@@ -133,8 +133,10 @@ async function calcular() {
   $("go").disabled = true;
   setStatus("Calculando…");
   try {
-    const r = await postar("/api/veredito", lerForm(), pedido.signal);
-    state = { ...r, roteiro: null };
+    const form = lerForm();
+    const r = await postar("/api/veredito", form, pedido.signal);
+    // O foco (ex.: "Pokémon") não volta do servidor: guarda o que foi pedido para o roteiro.
+    state = { ...r, foco: form.foco, roteiro: null };
     setStatus("");
     render(true);
   } catch (e) {
@@ -279,9 +281,9 @@ function renderRoteiro() {
     card.innerHTML = `
       <h3>Roteiro dia a dia em ${esc(state.atual.destino.n)}</h3>
       <div class="days">${ro.dias.map(d => `
-        <div class="day"><span class="n">DIA ${esc(d.dia)}</span><div><h4>${esc(d.titulo)}</h4>${state.atual.paradas && d.cidade ? `<small class="hint">${esc(d.cidade)}</small>` : ""}<ul>${(d.atividades || []).map(a => `<li><span class="p">${esc(a.periodo)}</span><a class="lugar" href="${mapa(a.nome, d.cidade)}" target="_blank" rel="noopener">${esc(a.nome)} ↗</a><span class="c">${Number(a.custo) ? brl(a.custo) : "grátis"}</span></li>`).join("")}</ul></div></div>`).join("")}
+        <div class="day"><span class="n">DIA ${esc(d.dia)}</span><div><h4>${esc(d.titulo)}</h4>${state.atual.paradas && d.cidade ? `<small class="hint">${esc(d.cidade)}</small>` : ""}<ul>${itensDoDia(d).map(a => `<li${a.refeicao ? ' class="ref"' : ""}><span class="p">${esc(a.periodo)}</span><a class="lugar" href="${mapa(a.nome, d.cidade)}" target="_blank" rel="noopener">${esc(a.nome)} ↗</a><span class="c">${Number(a.custo) ? brl(a.custo) : "grátis"}</span></li>`).join("")}</ul></div></div>`).join("")}
       </div>
-      ${ro.totalPasseios != null ? `<p class="hint">Passeios: ${brl(ro.totalPasseios)} de ${brl(ro.verba)} de verba.</p>` : ""}
+      ${ro.totalPasseios != null ? `<p class="hint">Passeios: ${brl(ro.totalPasseios)} de ${brl(ro.verba)} de verba.${ro.totalRefeicoes ? ` Almoços e jantares sugeridos: cerca de ${brl(ro.totalRefeicoes)} (já contam na alimentação).` : ""}</p>` : ""}
       ${ro.acimaDaVerba ? `<div class="warn-box">Este roteiro passou da verba de passeios. Troque alguma atividade paga por uma grátis.</div>` : ""}
       ${(ro.dicas || []).length ? `<h3>Como economizar</h3><ul class="tips">${ro.dicas.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}`;
     return;
@@ -290,12 +292,20 @@ function renderRoteiro() {
   card.innerHTML = `
     <div class="roteiro-cta">
       <h3>Quer o roteiro dia a dia?</h3>
-      <p class="hint" style="margin:0">Montamos os passeios dentro da verba de passeios acima.</p>
+      <p class="hint" style="margin:0">Montamos passeios, almoço e jantar de cada dia dentro da verba acima.</p>
       <div class="actions"><button type="button" class="primary" id="gerar" ${busy ? "disabled" : ""}>${busy ? "Montando o roteiro…" : "Montar roteiro"}</button>${busy ? '<button type="button" id="parar">Parar</button>' : ""}</div>
       ${ro?.erro ? `<div class="warn-box">${esc(ro.erro)}</div>` : ""}
     </div>`;
   $("gerar")?.addEventListener("click", gerarRoteiro);
   $("parar")?.addEventListener("click", () => ctlRoteiro?.abort());
+}
+
+// Atividades e refeições do dia na ordem: manhã, almoço, tarde, jantar, noite.
+const ORDEM = ["manh", "almo", "tard", "jant", "noit"];
+const posicao = periodo => { const i = ORDEM.findIndex(o => String(periodo).toLowerCase().startsWith(o)); return i < 0 ? 2 : i; };
+function itensDoDia(d) {
+  const refeicoes = [["almoço", d.almoco], ["jantar", d.jantar]].filter(([, r]) => r?.nome).map(([periodo, r]) => ({ periodo, nome: r.nome, custo: r.custo, refeicao: true }));
+  return [...(d.atividades || []), ...refeicoes].map((a, i) => ({ a, i })).sort((x, y) => posicao(x.a.periodo) - posicao(y.a.periodo) || x.i - y.i).map(x => x.a);
 }
 
 // Busca o lugar no Google Maps, onde a pessoa vê nota, fotos e avaliações.
@@ -313,8 +323,9 @@ async function gerarRoteiro() {
   try {
     const r = await postar("/api/roteiro", {
       destino: c.paradas ? c.paradas[0].n : c.destino.n, noites: f.noites,
-      paradas: c.paradas?.map(p => ({ destino: p.n, noites: p.noites })), pessoas: f.pessoas, estilo: f.estilo, interesses: f.interesses, foco: f.foco,
-      verbaPasseios: c.itens.find(i => i.categoria === "Passeios").valor
+      paradas: c.paradas?.map(p => ({ destino: p.n, noites: p.noites })), pessoas: f.pessoas, estilo: f.estilo, interesses: f.interesses, foco: state.foco,
+      verbaPasseios: c.itens.find(i => i.categoria === "Passeios").valor,
+      verbaAlimentacao: c.itens.find(i => i.categoria === "Alimentação").valor
     }, ctlRoteiro.signal);
     if (state.atual !== alvo) return;
     state.roteiro = r;
