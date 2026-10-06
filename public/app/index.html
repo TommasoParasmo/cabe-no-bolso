@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cabe no Bolso? · Planejar viagem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+html, body { margin: 0; }
+[hidden] { display: none !important; }
+
+/* Layout: one mobile-first column; a form "ticket" on top, the verdict stub and itinerary below. */
+:root {
+  --bg: #F3F6F5;
+  --surface: #FFFFFF;
+  --ink: #102624;
+  --muted: #557370;
+  --line: #D7E2E0;
+  --accent: #0E6E6A;
+  --accent-ink: #FFFFFF;
+  --sun: #F2B705;
+  --ok: #1E8A4C;
+  --ok-bg: #E3F4EA;
+  --warn: #A86A00;
+  --warn-bg: #FDF1D6;
+  --bad: #B3362B;
+  --bad-bg: #FBE6E3;
+  --chip: #E8F0EF;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C1716; --surface: #13211F; --ink: #E4EFED; --muted: #8FAAA6; --line: #24403C;
+    --accent: #3FB8AE; --accent-ink: #062120; --sun: #F5C842;
+    --ok: #5BCB8A; --ok-bg: #12301F; --warn: #F0B54A; --warn-bg: #33270C; --bad: #F08074; --bad-bg: #3A1915;
+    --chip: #1B2F2C; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C1716; --surface: #13211F; --ink: #E4EFED; --muted: #8FAAA6; --line: #24403C;
+  --accent: #3FB8AE; --accent-ink: #062120; --sun: #F5C842;
+  --ok: #5BCB8A; --ok-bg: #12301F; --warn: #F0B54A; --warn-bg: #33270C; --bad: #F08074; --bad-bg: #3A1915;
+  --chip: #1B2F2C; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 720px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 64px; display: grid; gap: 20px; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+.brand { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand h1 { font-size: clamp(30px, 7vw, 42px); font-weight: 800; line-height: 1; }
+.brand h1 span { color: var(--accent); }
+.brand p { margin: 0; color: var(--muted); max-width: 32ch; }
+.eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+.ticket { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 20px; display: grid; gap: 16px; }
+.money { display: grid; gap: 6px; }
+.money label { font-weight: 600; }
+.money-input { display: flex; align-items: baseline; gap: 8px; border-bottom: 2px solid var(--accent); padding-bottom: 4px; }
+.money-input span { font-family: var(--font-display); font-size: 28px; color: var(--muted); font-weight: 600; }
+.money-input input { font-family: var(--font-display); font-size: 40px; font-weight: 800; border: 0; background: transparent; color: var(--ink); width: 100%; min-width: 0; padding: 0; font-variant-numeric: tabular-nums; }
+.money-input input:focus { outline: none; }
+.money-input:focus-within { border-color: var(--sun); }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field.full { grid-column: 1 / -1; }
+.field label { font-size: 13px; font-weight: 600; color: var(--muted); }
+.field input, .field select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%; min-width: 0; }
+.field input:focus-visible, .field select:focus-visible, button:focus-visible, .chip:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hint { font-size: 12px; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { position: relative; }
+.chip input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.chip span { display: inline-block; padding: 6px 12px; border-radius: 999px; background: var(--chip); font-size: 13px; font-weight: 500; border: 1px solid transparent; }
+.chip input:checked + span { background: var(--accent); color: var(--accent-ink); }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--chip); border-radius: 12px; padding: 4px; gap: 4px; }
+.seg label { position: relative; text-align: center; }
+.seg input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.seg span { display: block; padding: 8px 4px; border-radius: 9px; font-size: 13px; font-weight: 600; }
+.seg input:checked + span { background: var(--surface); color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+button { font: inherit; font-weight: 600; border-radius: 12px; padding: 12px 18px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); flex: 1; font-size: 16px; }
+button:disabled { opacity: .55; cursor: default; }
+.status { font-size: 14px; color: var(--muted); }
+.status.err { color: var(--bad); }
+
+/* Result */
+.result { display: grid; gap: 16px; }
+.sample-flag { justify-self: start; font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; background: var(--sun); color: #2A2000; padding: 4px 10px; border-radius: 6px; }
+.verdict { border-radius: 18px; padding: 20px; display: grid; gap: 10px; border: 1px solid var(--line); background: var(--surface); position: relative; overflow: hidden; }
+.verdict::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background: var(--state); }
+.verdict[data-state="cabe"] { --state: var(--ok); --state-bg: var(--ok-bg); }
+.verdict[data-state="apertado"] { --state: var(--warn); --state-bg: var(--warn-bg); }
+.verdict[data-state="nao_cabe"] { --state: var(--bad); --state-bg: var(--bad-bg); }
+.pill { justify-self: start; background: var(--state-bg); color: var(--state); font-weight: 700; padding: 4px 12px; border-radius: 999px; font-size: 14px; }
+.verdict h2 { font-size: clamp(24px, 5.5vw, 32px); font-weight: 800; }
+.verdict p { margin: 0; color: var(--muted); max-width: 60ch; }
+.nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.nums div { display: grid; gap: 2px; min-width: 0; }
+.nums b { font-family: var(--font-display); font-size: clamp(16px, 4.2vw, 22px); font-variant-numeric: tabular-nums; }
+.nums .diff b { color: var(--state); }
+.bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--chip); }
+.bar i { display: block; height: 100%; }
+.legend { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.legend li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; }
+.legend .sw { width: 12px; height: 12px; border-radius: 3px; align-self: center; }
+.legend small { display: block; color: var(--muted); font-size: 12px; }
+.legend .v { font-variant-numeric: tabular-nums; font-weight: 600; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; display: grid; gap: 12px; min-width: 0; }
+.card h3 { font-size: 18px; font-weight: 600; }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.kv { display: grid; gap: 4px; }
+.kv .price { font-family: var(--font-display); font-weight: 800; font-size: 22px; font-variant-numeric: tabular-nums; }
+.kv p { margin: 0; color: var(--muted); font-size: 14px; }
+.link { color: var(--accent); font-weight: 600; text-decoration: none; }
+.link:hover { text-decoration: underline; }
+.days { display: grid; gap: 0; }
+.day { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 12px; padding-block: 12px; border-top: 1px solid var(--line); }
+.day:first-child { border-top: 0; padding-top: 0; }
+.day .n { font-family: var(--font-mono); font-size: 12px; color: var(--muted); padding-top: 3px; }
+.day h4 { margin: 0 0 6px; font-size: 15px; }
+.day ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.day li { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 8px; font-size: 14px; }
+.day li .p { color: var(--muted); font-size: 12px; padding-top: 2px; }
+.day li .c { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+.tips { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.alt { background: var(--warn-bg); border-color: transparent; }
+.fine { font-size: 12px; color: var(--muted); }
+@media (max-width: 520px) {
+  .grid, .two { grid-template-columns: minmax(0, 1fr); }
+  .day li { grid-template-columns: minmax(0, 1fr) auto; }
+  .day li .p { grid-column: 1 / -1; padding: 0; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .result.fresh > * { animation: rise .35s ease both; }
+  .result.fresh > *:nth-child(2) { animation-delay: .05s; }
+  .result.fresh > *:nth-child(3) { animation-delay: .1s; }
+  @keyframes rise { from { transform: translateY(6px); opacity: .4; } to { transform: none; opacity: 1; } }
+}
+
+.badge { font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; color: var(--muted); }
+.badge b { color: var(--accent); font-weight: 500; }
+.options { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: baseline; text-align: left; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); font-weight: 500; }
+.opt:hover { border-color: var(--accent); }
+.opt[aria-current="true"] { border-color: var(--accent); background: var(--chip); }
+.opt .t { font-weight: 600; }
+.opt .v { font-variant-numeric: tabular-nums; font-weight: 600; }
+.opt small { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+.roteiro-cta { display: grid; gap: 8px; }
+.roteiro-cta button { justify-self: start; }
+.warn-box { background: var(--warn-bg); color: var(--ink); border-radius: 12px; padding: 12px 14px; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="brand">
+    <h1><a href="/" style="color:inherit;text-decoration:none">Cabe no <span>Bolso?</span></a></h1>
+    <p>Diga quanto quer gastar. A gente monta a viagem e diz se dá.</p>
+  </header>
+
+  <form class="ticket" id="form" autocomplete="off">
+    <div class="money">
+      <label for="orcamento">Quanto você quer gastar no total?</label>
+      <div class="money-input"><span>R$</span><input id="orcamento" inputmode="numeric" value="7.000" aria-describedby="orc-hint"></div>
+      <div class="hint" id="orc-hint">Tudo incluído para o grupo: passagem, hospedagem, comida, passeios e transporte.</div>
+    </div>
+    <div class="grid">
+      <div class="field">
+        <label for="origem">Saindo de</label>
+        <select id="origem"></select>
+      </div>
+      <div class="field">
+        <label for="destino">Para onde</label>
+        <input id="destino" list="destinos" placeholder="Vazio = sugerimos">
+        <datalist id="destinos"></datalist>
+      </div>
+      <div class="field">
+        <label for="ida">Ida</label>
+        <input id="ida" type="date">
+      </div>
+      <div class="field">
+        <label for="volta">Volta</label>
+        <input id="volta" type="date">
+      </div>
+      <div class="field">
+        <label for="pessoas">Pessoas</label>
+        <select id="pessoas">
+          <option value="1">1 pessoa</option>
+          <option value="2" selected>2 pessoas</option>
+          <option value="3">3 pessoas</option>
+          <option value="4">4 pessoas</option>
+          <option value="5">5 pessoas</option>
+          <option value="6">6 pessoas</option>
+        </select>
+      </div>
+      <div class="field">
+        <span style="font-size:13px;font-weight:600;color:var(--muted)">Estilo</span>
+        <div class="seg" role="radiogroup" aria-label="Estilo da viagem">
+          <label><input type="radio" name="estilo" id="estilo-eco" value="0"><span>Econômico</span></label>
+          <label><input type="radio" name="estilo" id="estilo-eq" value="1" checked><span>Equilibrado</span></label>
+          <label><input type="radio" name="estilo" id="estilo-conf" value="2"><span>Conforto</span></label>
+        </div>
+      </div>
+      <div class="field full">
+        <span style="font-size:13px;font-weight:600;color:var(--muted)">O que vocês curtem</span>
+        <div class="chips" id="interesses">
+          <label class="chip"><input type="checkbox" id="i-praia" value="praia" checked><span>Praia</span></label>
+          <label class="chip"><input type="checkbox" id="i-gastro" value="gastronomia"><span>Gastronomia</span></label>
+          <label class="chip"><input type="checkbox" id="i-cultura" value="cultura"><span>Cultura</span></label>
+          <label class="chip"><input type="checkbox" id="i-natureza" value="natureza"><span>Natureza</span></label>
+          <label class="chip"><input type="checkbox" id="i-noite" value="noite"><span>Vida noturna</span></label>
+          <label class="chip"><input type="checkbox" id="i-compras" value="compras"><span>Compras</span></label>
+          <label class="chip"><input type="checkbox" id="i-criancas" value="criancas"><span>Com crianças</span></label>
+        </div>
+      </div>
+    </div>
+    <div class="actions">
+      <button type="submit" class="primary" id="go">Ver se cabe no bolso</button>
+    </div>
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+  </form>
+
+  <section class="result" id="result" aria-live="polite"></section>
+
+  <p class="fine">Passagens: preços encontrados no Aviasales a partir de buscas recentes, ou estimativa quando não há busca para a rota. Hospedagem, comida e passeios: médias estimadas por destino. Confira os valores nos sites parceiros antes de reservar. Alguns links geram comissão, sem custo extra para você.</p>
+</div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
