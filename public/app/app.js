@@ -138,7 +138,7 @@ function renderRoteiro() {
     card.innerHTML = `
       <h3>Roteiro dia a dia em ${esc(state.atual.destino.n)}</h3>
       <div class="days">${ro.dias.map(d => `
-        <div class="day"><span class="n">DIA ${esc(d.dia)}</span><div><h4>${esc(d.titulo)}</h4><ul>${(d.atividades || []).map(a => `<li><span class="p">${esc(a.periodo)}</span><span>${esc(a.nome)}</span><span class="c">${Number(a.custo) ? brl(a.custo) : "grátis"}</span></li>`).join("")}</ul></div></div>`).join("")}
+        <div class="day"><span class="n">DIA ${esc(d.dia)}</span><div><h4>${esc(d.titulo)}</h4><ul>${(d.atividades || []).map(a => `<li><span class="p">${esc(a.periodo)}</span><a class="lugar" href="${mapa(a.nome)}" target="_blank" rel="noopener">${esc(a.nome)} ↗</a><span class="c">${Number(a.custo) ? brl(a.custo) : "grátis"}</span></li>`).join("")}</ul></div></div>`).join("")}
       </div>
       ${ro.totalPasseios != null ? `<p class="hint">Passeios: ${brl(ro.totalPasseios)} de ${brl(ro.verba)} de verba.</p>` : ""}
       ${ro.acimaDaVerba ? `<div class="warn-box">Este roteiro passou da verba de passeios. Troque alguma atividade paga por uma grátis.</div>` : ""}
@@ -155,6 +155,12 @@ function renderRoteiro() {
     </div>`;
   $("gerar")?.addEventListener("click", gerarRoteiro);
   $("parar")?.addEventListener("click", () => ctlRoteiro?.abort());
+}
+
+// Busca o lugar no Google Maps, onde a pessoa vê nota, fotos e avaliações.
+function mapa(nome) {
+  const q = `${nome}, ${state.atual.destino.n}, ${state.atual.destino.p}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
 async function gerarRoteiro() {
