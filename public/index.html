@@ -19,6 +19,9 @@
 <meta property="og:locale" content="pt_BR">
 <link rel="icon" href="/marca/icone-32.png" type="image/png">
 <link rel="apple-touch-icon" href="/marca/icone-180.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0E6E6A">
+<meta name="apple-mobile-web-app-title" content="Vai Dar Viagem">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
@@ -184,5 +187,6 @@ footer { padding-block: 32px 48px; border-top: 1px solid var(--line); color: var
     <span>Preços de passagens e hotéis fornecidos por parceiros. Alguns links podem gerar comissão, sem custo extra para você.</span>
   </footer>
 </div>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});</script>
 </body>
 </html>

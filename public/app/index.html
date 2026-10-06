@@ -6,6 +6,9 @@
 <title>Vai Dar Viagem · Planejar viagem</title>
 <link rel="icon" href="/marca/icone-32.png" type="image/png">
 <link rel="apple-touch-icon" href="/marca/icone-180.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0E6E6A">
+<meta name="apple-mobile-web-app-title" content="Vai Dar Viagem">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
@@ -275,5 +278,6 @@ button:disabled { opacity: .55; cursor: default; }
   <p class="fine">Passagens: preços encontrados no Aviasales a partir de buscas recentes, ou estimativa quando não há busca para a rota. Hospedagem, comida e passeios: médias estimadas por destino. Confira os valores nos sites parceiros antes de reservar. Alguns links geram comissão, sem custo extra para você.</p>
 </div>
 <script type="module" src="./app.js"></script>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});</script>
 </body>
 </html>
