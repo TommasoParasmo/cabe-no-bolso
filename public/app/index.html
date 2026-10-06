@@ -72,8 +72,16 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; le
 .money-input input:focus { outline: none; }
 .money-input:focus-within { border-color: var(--sun); }
 .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.field { display: grid; gap: 4px; min-width: 0; }
+.field { display: grid; gap: 4px; min-width: 0; align-content: start; }
 .field.full { grid-column: 1 / -1; }
+.field input:not([type="checkbox"]):not([type="radio"]), .field select { height: 46px; box-sizing: border-box; }
+.combo { position: relative; }
+.sugestoes { position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; right: 0; margin: 0; padding: 6px; list-style: none; max-height: 320px; overflow-y: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px rgba(16, 38, 36, .16); }
+.sugestoes .grupo { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 10px 10px 4px; }
+.sugestoes [role="option"] { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.sugestoes [role="option"] small { color: var(--muted); font-size: 12px; text-align: right; }
+.sugestoes [role="option"][aria-selected="true"], .sugestoes [role="option"]:hover { background: var(--chip); }
+.sugestoes .vazio { padding: 10px; color: var(--muted); font-size: 13px; }
 .field label { font-size: 13px; font-weight: 600; color: var(--muted); }
 .field input, .field select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%; min-width: 0; }
 .field input:focus-visible, .field select:focus-visible, button:focus-visible, .chip:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -200,8 +208,10 @@ button:disabled { opacity: .55; cursor: default; }
       </div>
       <div class="field">
         <label for="destino">Para onde</label>
-        <input id="destino" list="destinos" placeholder="Vazio = sugerimos" autocomplete="off" aria-describedby="dest-hint">
-        <datalist id="destinos"></datalist>
+        <div class="combo">
+          <input id="destino" role="combobox" aria-expanded="false" aria-controls="sugestoes" aria-autocomplete="list" placeholder="Vazio = sugerimos" autocomplete="off" aria-describedby="dest-hint">
+          <ul id="sugestoes" class="sugestoes" role="listbox" aria-label="Destinos" hidden></ul>
+        </div>
         <div class="hint" id="dest-hint">Pode escolher vários países e cidades.</div>
         <div class="escolhidos" id="escolhidos" aria-live="polite"></div>
         <div class="seg dois" id="tipo" role="radiogroup" aria-label="Como usar os destinos" hidden>
