@@ -41,9 +41,10 @@ export function estimarVoo(origem, dest, ida, hoje = new Date()) {
 export function custo(dest, f, voo) {
   const origem = acharOrigem(f.origem);
   const alta = altaTemporada(f.ida);
-  const vooPessoa = voo?.porPessoa ?? estimarVoo(origem, dest, f.ida);
+  // Arredonda por pessoa e por diária antes de multiplicar, para a conta mostrada bater.
+  const vooPessoa = r10(voo?.porPessoa ?? estimarVoo(origem, dest, f.ida));
   const quartos = Math.ceil(f.pessoas / 2);
-  const diaria = dest.hotel[f.estilo] * (alta ? 1.25 : 1);
+  const diaria = r10(dest.hotel[f.estilo] * (alta ? 1.25 : 1));
   const dias = f.noites + 1;
   const comida = [70, 130, 250][f.estilo] * dest.idx * f.pessoas * dias;
   const passeios = [30, 80, 180][f.estilo] * dest.idx * (dest.pf || 1) * f.pessoas * f.noites;
@@ -51,12 +52,12 @@ export function custo(dest, f, voo) {
   const fonteVoo = voo?.fonte || "estimativa";
   const itens = [
     {
-      categoria: "Passagem aérea", valor: r10(vooPessoa * f.pessoas),
+      categoria: "Passagem aérea", valor: vooPessoa * f.pessoas,
       detalhe: vooPessoa
-        ? `Ida e volta ${origem.ap}–${dest.ap}, ${fmt(r10(vooPessoa))} por pessoa${fonteVoo === "aviasales" ? ", preço encontrado no Aviasales" : ", estimativa"}`
+        ? `Ida e volta ${origem.ap}–${dest.ap}, ${fmt(vooPessoa)} por pessoa${fonteVoo === "aviasales" ? ", preço encontrado no Aviasales" : ", estimativa"}`
         : "Sem voo: destino na sua cidade"
     },
-    { categoria: "Hospedagem", valor: r10(diaria * quartos * f.noites), detalhe: `${f.noites} noites, ${quartos} ${quartos > 1 ? "quartos" : "quarto"} a ${fmt(r10(diaria))}` },
+    { categoria: "Hospedagem", valor: diaria * quartos * f.noites, detalhe: `${f.noites} noites, ${quartos} ${quartos > 1 ? "quartos" : "quarto"} a ${fmt(diaria)}` },
     { categoria: "Alimentação", valor: r10(comida), detalhe: `${fmt(r10(comida / f.pessoas / dias))} por pessoa por dia` },
     { categoria: "Passeios", valor: r10(passeios), detalhe: `${fmt(r10(passeios / f.pessoas / f.noites))} por pessoa por dia` },
     { categoria: "Transporte local", valor: r10(transp), detalhe: dest.extra ? `Inclui traslado do aeroporto de ${dest.ap}` : "Metrô, ônibus e aplicativos" }
@@ -69,7 +70,7 @@ export function custo(dest, f, voo) {
     destino: { n: dest.n, p: dest.p, ap: dest.ap },
     origem: { n: origem.n, ap: origem.ap },
     itens, total, diff, estado, match, alta,
-    diaria: r10(diaria), vooPessoa: r10(vooPessoa), fonteVoo, linkVoo: voo?.link || null
+    diaria, vooPessoa, fonteVoo, linkVoo: voo?.link || null
   };
 }
 
