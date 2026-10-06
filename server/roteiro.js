@@ -63,7 +63,7 @@ const somaCustos = dias => dias.reduce((t, d) => t + d.atividades.reduce((s, a) 
 
 export async function gerarRoteiro(body, env = {}, client = null, ip = null) {
   const p = validarPedido(body);
-  const chave = `https://cache.cabenobolso/roteiro?${new URLSearchParams({
+  const chave = `https://cache.cabenobolso/roteiro/v2?${new URLSearchParams({
     d: p.dest.n, n: p.dias, q: p.pessoas, e: p.estilo, i: p.interesses.join(","), v: p.verba
   })}`;
   const guardado = await lerCache(chave);
