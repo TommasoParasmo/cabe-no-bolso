@@ -9,7 +9,8 @@ const ESTADO = { cabe: "Vai dar viagem", apertado: "Vai dar, no aperto", nao_cab
 const iso = d => d.toISOString().slice(0, 10);
 (function init() {
   $("origem").innerHTML = ORIGENS.map(o => `<option>${esc(o.n)}</option>`).join("");
-  $("destinos").innerHTML = DESTINOS.map(d => `<option value="${esc(d.n)}">`).join("");
+  const paises = [...new Set(DESTINOS.map(d => d.p))].map(p => `<option value="${esc(p)}">País · todas as cidades</option>`);
+  $("destinos").innerHTML = DESTINOS.map(d => `<option value="${esc(d.n)}">${esc(d.p)}</option>`).join("") + paises.join("");
   const a = new Date(); a.setDate(a.getDate() + 45);
   const b = new Date(a); b.setDate(b.getDate() + 5);
   $("ida").value = iso(a); $("volta").value = iso(b);
@@ -19,10 +20,28 @@ $("orcamento").addEventListener("input", e => {
   e.target.value = digits ? Number(digits).toLocaleString("pt-BR") : "";
 });
 
+// Destinos escolhidos (cidades ou países). O texto ainda no campo também conta.
+const escolhidos = [];
+const conhecido = v => [...$("destinos").options].some(o => o.value === v);
+function addDestino(v) {
+  v = v.trim();
+  if (!v || escolhidos.includes(v) || escolhidos.length >= 8) return;
+  escolhidos.push(v);
+  $("destino").value = "";
+  renderEscolhidos();
+}
+function renderEscolhidos() {
+  $("escolhidos").innerHTML = escolhidos.map((v, i) => `<button type="button" data-i="${i}" aria-label="Tirar ${esc(v)}">${esc(v)} ✕</button>`).join("");
+  $("escolhidos").querySelectorAll("button").forEach(b => b.onclick = () => { escolhidos.splice(Number(b.dataset.i), 1); renderEscolhidos(); });
+  $("destino").placeholder = escolhidos.length ? "Adicionar outro" : "Vazio = sugerimos";
+}
+$("destino").addEventListener("input", e => { if (conhecido(e.target.value)) addDestino(e.target.value); });
+$("destino").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.value.trim()) { e.preventDefault(); addDestino(e.target.value); } });
+
 function lerForm() {
   return {
     orcamento: Number($("orcamento").value.replace(/\D/g, "")) || 0,
-    origem: $("origem").value, destino: $("destino").value.trim(),
+    origem: $("origem").value, destinos: [...escolhidos, $("destino").value.trim()].filter(Boolean),
     ida: $("ida").value, volta: $("volta").value,
     pessoas: Number($("pessoas").value),
     estilo: Number(document.querySelector('input[name="estilo"]:checked')?.value ?? 1),
@@ -66,9 +85,10 @@ function escolher(i) {
 }
 
 function links(c, f) {
-  const flights = c.linkVoo || "https://www.google.com/travel/flights?q=" + encodeURIComponent(`Voos de ${f.origem} para ${c.destino.n} em ${f.ida} até ${f.volta}`);
+  const google = "https://www.google.com/travel/flights?q=" + encodeURIComponent(`Voos de ${c.origem.ap} para ${c.destino.ap} em ${f.ida} volta ${f.volta}`) + "&curr=BRL&hl=pt-BR";
+  const flights = c.linkVoo || google;
   const p = new URLSearchParams({ ss: c.destino.n, group_adults: String(f.pessoas), checkin: f.ida, checkout: f.volta });
-  return { flights, vooReal: !!c.linkVoo, hotels: "https://www.booking.com/searchresults.pt-br.html?" + p.toString() };
+  return { flights, google, vooReal: !!c.linkVoo, hotels: "https://www.booking.com/searchresults.pt-br.html?" + p.toString() };
 }
 
 function render(fresh) {
@@ -77,15 +97,17 @@ function render(fresh) {
     : c.estado === "apertado" ? "Cabe, mas no limite" : `Faltam ${brl(-c.diff)} para essa viagem`;
   const sum = c.itens.reduce((s, i) => s + i.valor, 0) || 1;
   const L = links(c, f);
-  const ajuste = state.modo === "destino" && c.estado === "nao_cabe"
+  const comparar = state.modo === "comparar";
+  const ajuste = comparar && c.estado === "nao_cabe" ? "Nenhum dos destinos escolhidos cabe nesse valor. Tire o filtro para ver o que cabe no seu orçamento."
+    : state.modo === "destino" && c.estado === "nao_cabe"
     ? (state.noitesMax ? `Com ${state.noitesMax} noites em vez de ${f.noites}, ${esc(c.destino.n)} cabe no orçamento.` : `Mesmo com menos noites, ${esc(c.destino.n)} não cabe nesse valor.`) : "";
-  const mostrarOpcoes = state.modo === "sugestao" ? state.opcoes.length > 1 : state.opcoes.length > 0;
+  const mostrarOpcoes = state.modo === "destino" ? state.opcoes.length > 0 : state.opcoes.length > 1;
   const r = $("result");
   r.className = "result" + (fresh ? " fresh" : "");
   r.innerHTML = `
     <article class="verdict" data-state="${c.estado}">
       <span class="pill">${ESTADO[c.estado]}</span>
-      <div class="eyebrow">${state.modo === "sugestao" ? "Nossa sugestão · " : ""}${esc(c.destino.n)}, ${esc(c.destino.p)} · ${f.noites} noites · ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} · ${ESTILOS[f.estilo]}</div>
+      <div class="eyebrow">${state.modo === "sugestao" ? "Nossa sugestão · " : comparar ? "Melhor entre os escolhidos · " : ""}${esc(c.destino.n)}, ${esc(c.destino.p)} · ${f.noites} noites · ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} · ${ESTILOS[f.estilo]}</div>
       <h2>${manchete}</h2>
       ${ajuste ? `<p>${ajuste}</p>` : c.estado === "apertado" ? "<p>Sobra pouco para imprevistos. Vale comprar a passagem logo, antes de o preço subir.</p>" : ""}
       <div class="nums">
@@ -96,7 +118,7 @@ function render(fresh) {
     </article>
     ${mostrarOpcoes ? `
     <section class="card">
-      <h3>${state.modo === "sugestao" ? "Outras opções para o seu orçamento" : "Destinos que cabem no seu orçamento"}</h3>
+      <h3>${comparar ? "Comparando os destinos que você escolheu" : state.modo === "sugestao" ? "Outras opções para o seu orçamento" : "Destinos que cabem no seu orçamento"}</h3>
       <div class="options">${state.opcoes.map((o, i) => `
         <button type="button" class="opt" data-i="${i}" aria-current="${o === c}">
           <span class="t">${esc(o.destino.n)}</span><span class="v">${brl(o.total)}</span>
@@ -114,6 +136,7 @@ function render(fresh) {
         <span class="eyebrow">Passagem por pessoa${c.fonteVoo === "aviasales" ? " · preço encontrado" : " · estimativa"}</span>
         <div class="kv"><span class="price">${brl(c.vooPessoa)}</span><p>${esc(c.origem.n)} (${esc(c.origem.ap)}) → ${esc(c.destino.n)} (${esc(c.destino.ap)}), ida e volta</p></div>
         <a class="link" href="${esc(L.flights)}" target="_blank" rel="noopener sponsored">${L.vooReal ? "Ver essa passagem no Aviasales ↗" : "Ver preços no Google Voos ↗"}</a>
+        ${L.vooReal ? `<a class="link" href="${esc(L.google)}" target="_blank" rel="noopener" style="display:block;margin-top:6px">Comparar no Google Voos ↗</a>` : ""}
       </section>
       <section class="card">
         <span class="eyebrow">Hospedagem · estimativa</span>

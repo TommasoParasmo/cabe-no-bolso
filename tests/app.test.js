@@ -165,3 +165,16 @@ test("roteiro usa o interesse livre no prompt, limpo e curto", async () => {
   await gerarRoteiro({ destino: "Tóquio", noites: 5, foco: "Pokémon", verbaPasseios: 2000 }, {}, client);
   assert.match(pedido.messages[0].content, /Foco principal.*"Pokémon"/);
 });
+
+test("veredito compara vários destinos: país vira todas as cidades dele", async () => {
+  const r = await montarVeredito({ ...base, orcamento: 9000, destinos: ["Argentina", "Chile", "Salvador"] });
+  assert.equal(r.modo, "comparar");
+  assert.deepEqual(r.opcoes.map(o => o.destino.n).sort(), ["Buenos Aires", "Salvador", "Santiago"]);
+  assert.equal(r.atual, r.opcoes[0]);
+  const brasil = await montarVeredito({ ...base, destinos: ["Brasil"] });
+  assert.equal(brasil.modo, "comparar");
+  assert.ok(brasil.opcoes.length > 1 && brasil.opcoes.every(o => o.destino.p === "Brasil"));
+  const um = await montarVeredito({ ...base, destinos: ["Lisboa"] });
+  assert.equal(um.modo, "destino");
+  await assert.rejects(montarVeredito({ ...base, destinos: ["Salvador", "Atlântida"] }), EntradaInvalida);
+});
