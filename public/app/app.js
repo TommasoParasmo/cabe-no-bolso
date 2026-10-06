@@ -370,7 +370,12 @@ async function gravarSalvas() {
   try { Prefs ? await Prefs.set({ key: CHAVE, value: bruto }) : localStorage.setItem(CHAVE, bruto); } catch {}
   renderSalvas();
 }
-const idViagem = () => state && [state.atual.destino.n, state.entrada.ida, state.entrada.volta, state.entrada.pessoas, state.entrada.orcamento].join("|");
+// Tudo que muda o cálculo entra no id, para uma simulação diferente não apagar a outra.
+const idViagem = () => {
+  if (!state) return null;
+  const f = state.entrada;
+  return [state.atual.destino.n, f.origem, f.ida, f.volta, f.pessoas, f.orcamento, f.estilo, f.tipo, (f.interesses || []).join(","), state.foco || ""].join("|");
+};
 function salvarViagem() {
   const id = idViagem();
   const copia = { id, salvoEm: new Date().toISOString(), estado: { ...state, roteiro: state.roteiro?.dias ? state.roteiro : null } };
@@ -387,6 +392,7 @@ function renderSalvas() {
     return `<li><button type="button" class="abrir" data-i="${i}"><b>${esc(c.destino.n)}</b><small>${dataCurta(f.ida)} a ${dataCurta(f.volta)} · ${brl(c.total)} · ${ESTADO[c.estado]}${v.estado.roteiro ? " · com roteiro" : ""}</small></button><button type="button" class="tirar" data-i="${i}" aria-label="Apagar ${esc(c.destino.n)}">✕</button></li>`;
   }).join("")}</ul>` : "";
   el.querySelectorAll(".abrir").forEach(b => b.onclick = () => {
+    pedido?.abort(); setStatus(""); // um cálculo pendente não pode substituir a viagem aberta
     state = { ...salvas[Number(b.dataset.i)].estado };
     render(false);
     $("result").scrollIntoView({ behavior: "smooth", block: "start" });
