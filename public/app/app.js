@@ -4,7 +4,7 @@ const brl = v => (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", c
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const COLORS = ["var(--accent)", "var(--sun)", "#7A8FD6", "#D96C8A", "#6FB58C", "#A58B6F"];
-const ESTADO = { cabe: "Cabe no bolso", apertado: "Cabe apertado", nao_cabe: "Não cabe" };
+const ESTADO = { cabe: "Vai dar viagem", apertado: "Vai dar, no aperto", nao_cabe: "Não vai dar" };
 
 const iso = d => d.toISOString().slice(0, 10);
 (function init() {
