@@ -26,7 +26,8 @@ function lerForm() {
     ida: $("ida").value, volta: $("volta").value,
     pessoas: Number($("pessoas").value),
     estilo: Number(document.querySelector('input[name="estilo"]:checked')?.value ?? 1),
-    interesses: [...document.querySelectorAll("#interesses input:checked")].map(i => i.value)
+    interesses: [...document.querySelectorAll("#interesses input:checked")].map(i => i.value),
+    foco: $("foco").value.trim()
   };
 }
 
@@ -164,7 +165,7 @@ async function gerarRoteiro() {
   renderRoteiro();
   try {
     const r = await postar("/api/roteiro", {
-      destino: c.destino.n, noites: f.noites, pessoas: f.pessoas, estilo: f.estilo, interesses: f.interesses,
+      destino: c.destino.n, noites: f.noites, pessoas: f.pessoas, estilo: f.estilo, interesses: f.interesses, foco: f.foco,
       verbaPasseios: c.itens.find(i => i.categoria === "Passeios").valor
     }, ctlRoteiro.signal);
     if (state.atual !== alvo) return;
