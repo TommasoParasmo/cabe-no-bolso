@@ -159,7 +159,7 @@ function escolher(i) {
 const MARKER = "786422";
 const KLOOK = "https://klook.tpk.ro/t8LpLDQI";
 const ddmm = iso => iso.slice(8, 10) + iso.slice(5, 7);
-// Busca no Aviasales: GRU2011GIG25112 = de GRU em 20/11 para GIG, volta 25/11, 2 adultos.
+// Busca no Aviasales pelo código da cidade (pega todos os aeroportos): SAO2011RIO25112 = de GRU em 20/11 para GIG, volta 25/11, 2 adultos.
 const linkAviasales = (de, ida, para, volta, pessoas) =>
   `https://www.aviasales.com/search/${de}${ddmm(ida)}${para}${volta ? ddmm(volta) : ""}${Math.min(9, pessoas)}?marker=${MARKER}`;
 const noExterior = c => String(c.destino.p || "").split(", ").some(p => p && p !== "Brasil");
@@ -167,7 +167,7 @@ const linkKlook = `<a class="link" href="${KLOOK}" target="_blank" rel="noopener
 
 function links(c, f) {
   const google = "https://www.google.com/travel/flights?q=" + encodeURIComponent(`Voos de ${c.origem.ap} para ${c.destino.ap} em ${f.ida} volta ${f.volta}`) + "&curr=BRL&hl=pt-BR";
-  const flights = c.linkVoo || linkAviasales(c.origem.ap, f.ida, c.destino.ap, f.volta, f.pessoas);
+  const flights = c.linkVoo || linkAviasales(c.origem.iata || c.origem.ap, f.ida, c.destino.iata || c.destino.ap, f.volta, f.pessoas);
   const p = new URLSearchParams({ ss: c.destino.n, group_adults: String(f.pessoas), checkin: f.ida, checkout: f.volta });
   return { flights, google, vooReal: !!c.linkVoo, hotels: "https://www.booking.com/searchresults.pt-br.html?" + p.toString() };
 }
@@ -191,7 +191,7 @@ function cartoesViagem(c, f) {
           <span>${esc(t.de)} → ${esc(t.para)} · ${dataCurta(t.data)}${t.meio === "onibus" ? ` · ônibus, ~${t.horas} h` : ""}</span><span class="v">${brl(t.porPessoa)}${t.fonte === "aviasales" ? "" : "*"}</span>
           ${t.meio === "onibus"
             ? `<a class="link" href="${esc(linkOnibus(t.deNome, t.paraNome))}" target="_blank" rel="noopener">Ver ônibus ↗</a>`
-            : `<span class="links"><a class="link" href="${esc(t.link || linkAviasales(t.de, t.data, t.para, null, f.pessoas))}" target="_blank" rel="noopener sponsored">Aviasales ↗</a>
+            : `<span class="links"><a class="link" href="${esc(t.link || linkAviasales(t.deIata || t.de, t.data, t.paraIata || t.para, null, f.pessoas))}" target="_blank" rel="noopener sponsored">Aviasales ↗</a>
                <a class="link" href="${esc(linkGoogle(t.de, t.para, t.data))}" target="_blank" rel="noopener">Google Voos ↗</a></span>`}</li>`).join("")}</ul>
         ${noExterior(c) ? linkKlook : ""}
         ${c.fonteVoo === "aviasales" ? "" : '<p class="hint">* estimativa: não achamos busca recente desse trecho.</p>'}
