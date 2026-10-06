@@ -35,7 +35,8 @@ function aviasales(preco, { soMes = false } = {}) {
 }
 
 test("custo soma os itens e classifica o veredito", () => {
-  const f = { ...base, noites: 5 };
+  // Estilo conforto: SP–Rio vai de avião (de ônibus passa do tempo que esse estilo topa).
+  const f = { ...base, noites: 5, estilo: 2 };
   const c = custo(rio, f, { porPessoa: 800, fonte: "aviasales" });
   assert.equal(c.itens[0].valor, 1600);
   assert.equal(c.total, c.itens.reduce((s, i) => s + i.valor, 0));
@@ -82,7 +83,7 @@ test("veredito sem destino sugere opções que cabem, usando estimativa sem toke
 });
 
 test("veredito com destino usa o preço real da passagem quando há token", async () => {
-  const r = await montarVeredito({ ...base, destino: "rio de janeiro" }, { TRAVELPAYOUTS_TOKEN: "tok" }, aviasales(600).fetchImpl);
+  const r = await montarVeredito({ ...base, destino: "rio de janeiro", estilo: 2 }, { TRAVELPAYOUTS_TOKEN: "tok" }, aviasales(600).fetchImpl);
   assert.equal(r.atual.destino.n, "Rio de Janeiro");
   assert.equal(r.atual.vooPessoa, 600);
   assert.equal(r.atual.fonteVoo, "aviasales");
@@ -214,4 +215,42 @@ test("sugestão separa as melhores viagens nacionais e internacionais", async ()
   const pouco = await montarVeredito({ ...base, orcamento: 1000, pessoas: 1, estilo: 0 });
   assert.ok(pouco.opcoes.every(o => o.estado === "nao_cabe"));
   assert.equal(pouco.opcoes[0].noitesCabem >= 1, true);
+});
+
+test("ônibus: destino sem aeroporto vai de ônibus e não busca passagem aérea", async () => {
+  const { fetchImpl, urls } = aviasales(500);
+  const r = await montarVeredito({ ...base, origem: "Rio de Janeiro", destino: "Paraty" }, { TRAVELPAYOUTS_TOKEN: "tok" }, fetchImpl);
+  assert.equal(r.atual.meio, "onibus");
+  assert.equal(r.atual.itens[0].categoria, "Passagem de ônibus");
+  assert.ok(r.atual.vooPessoa > 0 && r.atual.vooPessoa < 400);
+  assert.equal(urls.length, 0);
+});
+
+test("ônibus: perto e mais barato vai de ônibus no econômico; longe vai de avião", () => {
+  const f = { ...base, noites: 5, estilo: 0 };
+  assert.equal(custo(rio, f).meio, "onibus");
+  const salvador = DESTINOS.find(d => d.n === "Salvador");
+  assert.equal(custo(salvador, f).meio, "aviao");
+  // De ônibus não cobra traslado do aeroporto.
+  const gramado = DESTINOS.find(d => d.n === "Gramado");
+  const c = custo(gramado, { ...f, origem: "Porto Alegre" });
+  assert.equal(c.meio, "onibus");
+  assert.equal(c.itens.at(-1).detalhe.includes("aeroporto"), false);
+});
+
+test("ônibus: destino só de estrada longe demais dá erro claro e some das sugestões", async () => {
+  await assert.rejects(montarVeredito({ ...base, origem: "Manaus", destino: "Paraty" }), /longe demais/);
+  const r = await montarVeredito({ ...base, origem: "Manaus", orcamento: 20000 });
+  assert.ok(r.opcoes.every(o => o.destino.n !== "Paraty"));
+});
+
+test("ônibus: faixa baixa sugere viagem perto de ônibus que cabe", async () => {
+  const r = await montarVeredito({ ...base, orcamento: 2000, pessoas: 1, estilo: 0, volta: "2026-11-23" });
+  const nac = r.opcoes.filter(o => o.grupo === "nacional");
+  assert.ok(nac.some(o => o.meio === "onibus" && o.estado !== "nao_cabe"));
+});
+
+test("ônibus: viagem por várias cidades usa ônibus nos trechos perto", async () => {
+  const r = await montarVeredito({ ...base, orcamento: 9000, tipo: "viagem", destinos: ["Rio de Janeiro", "Búzios"] });
+  assert.ok(r.atual.trechos.some(t => t.meio === "onibus" && t.paraNome === "Búzios"));
 });

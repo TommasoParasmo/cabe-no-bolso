@@ -33,6 +33,33 @@ export function estimarVoo(origem, dest, ida, hoje = new Date()) {
   return (dest.int ? 900 + 0.42 * dist : 300 + 0.45 * dist) * fator;
 }
 
+// Ônibus só ida por pessoa: distância por estrada ≈ 1,3 × linha reta, a ~70 km/h.
+// Preço por km: convencional, executivo, leito. null = internacional ou longe demais (mais de ~16 h).
+const ONIBUS_KM = [0.25, 0.32, 0.48];
+const MAX_HORAS = [12, 8, 5]; // até quantas horas de ônibus cada estilo topa, quando há avião
+export function estimarOnibus(de, para, data, estilo = 1) {
+  if (de.int || para.int) return null;
+  const estrada = km(de, para) * 1.3;
+  if (estrada > 1100) return null;
+  const porPessoa = Math.max(40, estrada * ONIBUS_KM[estilo]) * (altaTemporada(data) ? 1.15 : 1);
+  return { porPessoa, horas: Math.max(1, Math.round(estrada / 70)) };
+}
+
+// Destino só de estrada que fica longe demais dessa origem não entra nas opções.
+export const alcancavel = (de, para) => !para.terrestre || !!estimarOnibus(de, para);
+
+/**
+ * Ônibus ou avião para um trecho. aviao = preço por pessoa do avião (real ou estimado) no mesmo sentido.
+ * Vai de ônibus quando é o único jeito (sem aeroporto ou muito perto) ou quando é mais barato e cabe no tempo do estilo.
+ */
+function escolherMeio(de, para, data, estilo, aviao, vezes) {
+  const bus = estimarOnibus(de, para, data, estilo);
+  if (!bus) return null;
+  const obrigatorio = para.terrestre || de.terrestre || km(de, para) < 150;
+  if (obrigatorio || (bus.horas <= MAX_HORAS[estilo] && bus.porPessoa * vezes < aviao)) return { ...bus, porPessoa: bus.porPessoa * vezes };
+  return null;
+}
+
 /**
  * Custo da viagem inteira para o grupo.
  * f: { orcamento, origem, ida, noites, pessoas, estilo (0-2), interesses[] }
@@ -42,25 +69,33 @@ export function custo(dest, f, voo) {
   const origem = acharOrigem(f.origem);
   const alta = altaTemporada(f.ida);
   // Arredonda por pessoa e por diária antes de multiplicar, para a conta mostrada bater.
-  const vooPessoa = r10(voo?.porPessoa ?? estimarVoo(origem, dest, f.ida));
+  const mesmaCidade = km(origem, dest) < 30;
+  const aviao = voo?.porPessoa ?? estimarVoo(origem, dest, f.ida);
+  const onibus = mesmaCidade ? null : escolherMeio(origem, dest, f.ida, f.estilo, aviao, 2);
+  const vooPessoa = mesmaCidade ? 0 : r10(onibus ? onibus.porPessoa : aviao);
   const quartos = Math.ceil(f.pessoas / 2);
   const diaria = r10(dest.hotel[f.estilo] * (alta ? 1.25 : 1));
   const dias = f.noites + 1;
   const comida = [70, 130, 250][f.estilo] * dest.idx * f.pessoas * dias;
   const passeios = [30, 80, 180][f.estilo] * dest.idx * (dest.pf || 1) * f.pessoas * f.noites;
-  const transp = ([20, 45, 100][f.estilo] * dest.idx * dias + (dest.extra || 0)) * f.pessoas;
-  const fonteVoo = voo?.fonte || "estimativa";
+  // De ônibus, ele já chega na cidade: sem traslado do aeroporto.
+  const traslado = onibus ? 0 : (dest.extra || 0);
+  const transp = ([20, 45, 100][f.estilo] * dest.idx * dias + traslado) * f.pessoas;
+  const fonteVoo = onibus ? "estimativa" : voo?.fonte || "estimativa";
   const itens = [
-    {
+    onibus ? {
+      categoria: "Passagem de ônibus", valor: vooPessoa * f.pessoas,
+      detalhe: `Ida e volta ${origem.n}–${dest.n}, cerca de ${onibus.horas} h por trecho, ${fmt(vooPessoa)} por pessoa, estimativa`
+    } : {
       categoria: "Passagem aérea", valor: vooPessoa * f.pessoas,
       detalhe: vooPessoa
         ? `Ida e volta ${origem.ap}–${dest.ap}, ${fmt(vooPessoa)} por pessoa${fonteVoo === "aviasales" ? ", preço encontrado no Aviasales" : ", estimativa"}`
-        : "Sem voo: destino na sua cidade"
+        : "Sem passagem: destino na sua cidade"
     },
     { categoria: "Hospedagem", valor: diaria * quartos * f.noites, detalhe: `${f.noites} noites, ${quartos} ${quartos > 1 ? "quartos" : "quarto"} a ${fmt(diaria)}` },
     { categoria: "Alimentação", valor: r10(comida), detalhe: `${fmt(r10(comida / f.pessoas / dias))} por pessoa por dia` },
     { categoria: "Passeios", valor: r10(passeios), detalhe: `${fmt(r10(passeios / f.pessoas / f.noites))} por pessoa por dia` },
-    { categoria: "Transporte local", valor: r10(transp), detalhe: dest.extra ? `Inclui traslado do aeroporto de ${dest.ap}` : "Metrô, ônibus e aplicativos" }
+    { categoria: "Transporte local", valor: r10(transp), detalhe: traslado ? `Inclui traslado do aeroporto de ${dest.ap}` : "Metrô, ônibus e aplicativos" }
   ];
   const total = itens.reduce((s, i) => s + i.valor, 0);
   const diff = f.orcamento - total;
@@ -70,7 +105,8 @@ export function custo(dest, f, voo) {
     destino: { n: dest.n, p: dest.p, ap: dest.ap },
     origem: { n: origem.n, ap: origem.ap },
     itens, total, diff, estado, match, alta,
-    diaria, vooPessoa, fonteVoo, linkVoo: voo?.link || null
+    diaria, vooPessoa, fonteVoo, linkVoo: onibus ? null : voo?.link || null,
+    meio: mesmaCidade ? null : onibus ? "onibus" : "aviao", horasOnibus: onibus?.horas || null
   };
 }
 
@@ -114,10 +150,15 @@ export function custoMulti(paradas, f, voos = []) {
   const quartos = Math.ceil(f.pessoas / 2);
   const trechos = trechosDaViagem(origem, paradas, f.ida).map((t, i) => {
     const real = voos[i];
+    const onibus = escolherMeio(t.de, t.para, t.data, f.estilo, real?.porPessoa ?? estimarTrecho(t.de, t.para, t.data), 1);
+    if (onibus) return {
+      de: t.de.n, para: t.para.n, deNome: t.de.n, paraNome: t.para.n, data: t.data,
+      porPessoa: r10(onibus.porPessoa), fonte: "estimativa", link: null, meio: "onibus", horas: onibus.horas
+    };
     return {
       de: t.de.ap, para: t.para.ap, deNome: t.de.n, paraNome: t.para.n, data: t.data,
       porPessoa: r10(real?.porPessoa ?? estimarTrecho(t.de, t.para, t.data)),
-      fonte: real ? "aviasales" : "estimativa", link: real?.link || null
+      fonte: real ? "aviasales" : "estimativa", link: real?.link || null, meio: "aviao"
     };
   });
   const vooPessoa = trechos.reduce((s, t) => s + t.porPessoa, 0);
@@ -128,14 +169,16 @@ export function custoMulti(paradas, f, voos = []) {
     hosp += diaria * quartos * p.noites;
     comida += [70, 130, 250][f.estilo] * d.idx * f.pessoas * dias;
     passeios += [30, 80, 180][f.estilo] * d.idx * (d.pf || 1) * f.pessoas * p.noites;
-    transp += ([20, 45, 100][f.estilo] * d.idx * dias + (d.extra || 0)) * f.pessoas;
+    // Traslado do aeroporto só quando se chega de avião.
+    transp += ([20, 45, 100][f.estilo] * d.idx * dias + (trechos[i].meio === "aviao" ? d.extra || 0 : 0)) * f.pessoas;
     return { n: d.n, p: d.p, ap: d.ap, noites: p.noites, diaria, checkin: somarDias(f.ida, paradas.slice(0, i).reduce((s, x) => s + x.noites, 0)) };
   });
   const dias = f.noites + 1;
   const reais = trechos.filter(t => t.fonte === "aviasales").length;
   const fonteVoo = reais === trechos.length ? "aviasales" : reais ? "misto" : "estimativa";
+  const meios = new Set(trechos.map(t => t.meio));
   const itens = [
-    { categoria: "Passagem aérea", valor: vooPessoa * f.pessoas, detalhe: `${trechos.length} trechos só de ida (${trechos.map(t => t.de).concat(trechos.at(-1).para).join(" → ")}), ${fmt(vooPessoa)} por pessoa` },
+    { categoria: meios.size > 1 ? "Passagens" : meios.has("onibus") ? "Passagem de ônibus" : "Passagem aérea", valor: vooPessoa * f.pessoas, detalhe: `${trechos.length} trechos só de ida (${trechos.map(t => t.deNome).concat(trechos.at(-1).paraNome).join(" → ")}), ${fmt(vooPessoa)} por pessoa` },
     { categoria: "Hospedagem", valor: hosp, detalhe: ps.map(p => `${p.noites} ${p.noites > 1 ? "noites" : "noite"} em ${p.n}`).join(", ") + `, ${quartos} ${quartos > 1 ? "quartos" : "quarto"}` },
     { categoria: "Alimentação", valor: r10(comida), detalhe: `${fmt(r10(comida / f.pessoas / dias))} por pessoa por dia, em média` },
     { categoria: "Passeios", valor: r10(passeios), detalhe: `${fmt(r10(passeios / f.pessoas / f.noites))} por pessoa por dia, em média` },
@@ -158,7 +201,8 @@ export const pontuar = (c, f) => PESO[c.estado] + c.match * 2 + (c.estado !== "n
 
 // Ordena destinos do melhor para o pior para esse orçamento. voos: Map nome → voo real (opcional).
 export function ranking(f, { excluir = null, voos = new Map() } = {}) {
-  return DESTINOS.filter(d => d.n !== excluir)
+  const origem = acharOrigem(f.origem);
+  return DESTINOS.filter(d => d.n !== excluir && alcancavel(origem, d))
     .map(d => custo(d, f, voos.get(d.n)))
     .sort((a, b) => pontuar(b, f) - pontuar(a, f));
 }

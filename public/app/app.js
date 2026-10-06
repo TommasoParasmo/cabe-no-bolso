@@ -102,6 +102,7 @@ function links(c, f) {
   return { flights, google, vooReal: !!c.linkVoo, hotels: "https://www.booking.com/searchresults.pt-br.html?" + p.toString() };
 }
 
+const linkOnibus = (de, para) => "https://www.google.com/search?" + new URLSearchParams({ q: `passagem de ônibus ${de} para ${para}` });
 const linkGoogle = (de, para, data) => "https://www.google.com/travel/flights?q=" + encodeURIComponent(`Voos só ida de ${de} para ${para} em ${data}`) + "&curr=BRL&hl=pt-BR";
 const linkBooking = (cidade, pessoas, checkin, noites) => {
   const d = new Date(checkin + "T12:00:00"); d.setDate(d.getDate() + noites);
@@ -117,8 +118,10 @@ function cartoesViagem(c, f) {
         <span class="eyebrow">Passagens por pessoa · ${c.fonteVoo === "aviasales" ? "preços encontrados" : c.fonteVoo === "misto" ? "alguns preços encontrados" : "estimativa"}</span>
         <div class="kv"><span class="price">${brl(c.vooPessoa)}</span><p>${c.trechos.length} trechos só de ida</p></div>
         <ul class="trechos">${c.trechos.map(t => `<li>
-          <span>${esc(t.de)} → ${esc(t.para)} · ${dataCurta(t.data)}</span><span class="v">${brl(t.porPessoa)}${t.fonte === "aviasales" ? "" : "*"}</span>
-          <a class="link" href="${esc(t.link || linkGoogle(t.de, t.para, t.data))}" target="_blank" rel="noopener sponsored">${t.link ? "Aviasales ↗" : "Google Voos ↗"}</a></li>`).join("")}</ul>
+          <span>${esc(t.de)} → ${esc(t.para)} · ${dataCurta(t.data)}${t.meio === "onibus" ? ` · ônibus, ~${t.horas} h` : ""}</span><span class="v">${brl(t.porPessoa)}${t.fonte === "aviasales" ? "" : "*"}</span>
+          ${t.meio === "onibus"
+            ? `<a class="link" href="${esc(linkOnibus(t.deNome, t.paraNome))}" target="_blank" rel="noopener">Ver ônibus ↗</a>`
+            : `<a class="link" href="${esc(t.link || linkGoogle(t.de, t.para, t.data))}" target="_blank" rel="noopener sponsored">${t.link ? "Aviasales ↗" : "Google Voos ↗"}</a>`}</li>`).join("")}</ul>
         ${c.fonteVoo === "aviasales" ? "" : '<p class="hint">* estimativa: não achamos busca recente desse trecho.</p>'}
       </section>
       <section class="card">
@@ -131,11 +134,26 @@ function cartoesViagem(c, f) {
     </div>`;
 }
 
+// Passagem da viagem para um destino: avião, ônibus ou nenhuma (destino na própria cidade).
+function cartaoPassagem(c, f, L) {
+  if (!c.meio) return `<span class="eyebrow">Passagem</span><div class="kv"><span class="price">${brl(0)}</span><p>${esc(c.destino.n)} fica na sua cidade.</p></div>`;
+  if (c.meio === "onibus") return `
+        <span class="eyebrow">Passagem de ônibus por pessoa · estimativa</span>
+        <div class="kv"><span class="price">${brl(c.vooPessoa)}</span><p>${esc(c.origem.n)} → ${esc(c.destino.n)}, ida e volta, cerca de ${c.horasOnibus} h por trecho</p></div>
+        <a class="link" href="${esc(linkOnibus(c.origem.n, c.destino.n))}" target="_blank" rel="noopener">Ver horários e preços de ônibus ↗</a>
+        ${c.destino.ap ? `<a class="link" href="${esc(L.google)}" target="_blank" rel="noopener" style="display:block;margin-top:6px">Prefere avião? Ver no Google Voos ↗</a>` : ""}`;
+  return `
+        <span class="eyebrow">Passagem por pessoa${c.fonteVoo === "aviasales" ? " · preço encontrado" : " · estimativa"}</span>
+        <div class="kv"><span class="price">${brl(c.vooPessoa)}</span><p>${esc(c.origem.n)} (${esc(c.origem.ap)}) → ${esc(c.destino.n)} (${esc(c.destino.ap)}), ida e volta</p></div>
+        <a class="link" href="${esc(L.flights)}" target="_blank" rel="noopener sponsored">${L.vooReal ? "Ver essa passagem no Aviasales ↗" : "Ver preços no Google Voos ↗"}</a>
+        ${L.vooReal ? `<a class="link" href="${esc(L.google)}" target="_blank" rel="noopener" style="display:block;margin-top:6px">Comparar no Google Voos ↗</a>` : ""}`;
+}
+
 function opcoesHtml(opcoes, atual, filtro = () => true) {
   return `<div class="options">${opcoes.map((o, i) => filtro(o) ? `
     <button type="button" class="opt" data-i="${i}" aria-current="${o === atual}">
       <span class="t">${esc(o.destino.n)}</span><span class="v">${brl(o.total)}</span>
-      <small>${ESTADO[o.estado]} · ${o.diff >= 0 ? "sobra " + brl(o.diff) : "falta " + brl(-o.diff)}${o.noitesCabem ? ` · cabe com ${o.noitesCabem} ${o.noitesCabem > 1 ? "noites" : "noite"}` : ""}${o.match ? " · combina com o que vocês curtem" : ""}</small>
+      <small>${ESTADO[o.estado]} · ${o.diff >= 0 ? "sobra " + brl(o.diff) : "falta " + brl(-o.diff)}${o.meio === "onibus" ? " · de ônibus" : ""}${o.noitesCabem ? ` · cabe com ${o.noitesCabem} ${o.noitesCabem > 1 ? "noites" : "noite"}` : ""}${o.match ? " · combina com o que vocês curtem" : ""}</small>
     </button>` : "").join("")}</div>`;
 }
 
@@ -181,12 +199,7 @@ function render(fresh) {
       <ul class="legend">${c.itens.map((it, i) => `<li><span class="sw" style="background:${COLORS[i]}"></span><span>${esc(it.categoria)}<small>${esc(it.detalhe)}</small></span><span class="v">${brl(it.valor)}</span></li>`).join("")}</ul>
     </section>
     ${viagem ? cartoesViagem(c, f) : `<div class="two">
-      <section class="card">
-        <span class="eyebrow">Passagem por pessoa${c.fonteVoo === "aviasales" ? " · preço encontrado" : " · estimativa"}</span>
-        <div class="kv"><span class="price">${brl(c.vooPessoa)}</span><p>${esc(c.origem.n)} (${esc(c.origem.ap)}) → ${esc(c.destino.n)} (${esc(c.destino.ap)}), ida e volta</p></div>
-        <a class="link" href="${esc(L.flights)}" target="_blank" rel="noopener sponsored">${L.vooReal ? "Ver essa passagem no Aviasales ↗" : "Ver preços no Google Voos ↗"}</a>
-        ${L.vooReal ? `<a class="link" href="${esc(L.google)}" target="_blank" rel="noopener" style="display:block;margin-top:6px">Comparar no Google Voos ↗</a>` : ""}
-      </section>
+      <section class="card">${cartaoPassagem(c, f, L)}</section>
       <section class="card">
         <span class="eyebrow">Hospedagem · estimativa</span>
         <div class="kv"><span class="price">${brl(c.diaria)}<small style="font-size:13px;font-weight:500"> /noite por quarto</small></span><p>Média para o estilo ${ESTILOS[f.estilo]}</p></div>

@@ -1,6 +1,6 @@
 // Monta o veredito: custo da viagem, se cabe e quais destinos cabem. Sem IA.
 import { DESTINOS, INTERESSES } from "../public/lib/dados.js";
-import { custo, custoMulti, dividirNoites, trechosDaViagem, ranking, pontuar, noitesQueCabem, acharOrigem, acharDestino, norm } from "../public/lib/custo.js";
+import { custo, custoMulti, dividirNoites, trechosDaViagem, ranking, pontuar, noitesQueCabem, acharOrigem, acharDestino, alcancavel, norm } from "../public/lib/custo.js";
 import { precoVoo } from "./precos.js";
 
 export class EntradaInvalida extends Error {}
@@ -45,7 +45,8 @@ export function validar(b) {
 export async function montarVeredito(body, env = {}, fetchImpl = fetch) {
   const f = validar(body);
   const origem = acharOrigem(f.origem);
-  const buscar = dest => precoVoo({
+  // Destino só de estrada não tem aeroporto: nem busca passagem aérea.
+  const buscar = dest => dest.terrestre ? Promise.resolve(null) : precoVoo({
     origem, destino: dest, ida: f.ida, volta: f.volta,
     token: env.TRAVELPAYOUTS_TOKEN, marker: env.TRAVELPAYOUTS_MARKER, fetchImpl
   });
@@ -82,7 +83,9 @@ export async function montarVeredito(body, env = {}, fetchImpl = fetch) {
 
   if (f.tipo === "viagem" && f.destinos.length > 1) return viagemPorCidades(f, origem, env, fetchImpl);
 
-  const filtro = resolverFiltro(f.destinos);
+  const todos = resolverFiltro(f.destinos);
+  const filtro = todos.filter(d => alcancavel(origem, d));
+  if (!filtro.length) throw new EntradaInvalida(longeDemais(todos[0], origem));
   if (filtro.length > 1) {
     // Compara só os destinos escolhidos; busca preço real dos 6 mais promissores.
     const nomes = new Set(filtro.map(d => d.n));
@@ -109,14 +112,18 @@ async function viagemPorCidades(f, origem, env, fetchImpl) {
     if (!d) throw new EntradaInvalida(`Ainda não temos médias de custo para "${nome}". Escolha destinos da lista.`);
     return d;
   }).filter((d, i, a) => a.findIndex(x => x.n === d.n) === i);
+  const longe = dests.find(d => d.terrestre && !alcancavel(origem, d));
+  if (longe) throw new EntradaInvalida(longeDemais(longe, origem));
   if (dests.length > MAX_PARADAS) throw new EntradaInvalida(`Por enquanto a viagem vai até ${MAX_PARADAS} cidades.`);
   if (f.noites < dests.length) throw new EntradaInvalida(`Para ${dests.length} cidades, a viagem precisa de pelo menos ${dests.length} noites.`);
   const noites = dividirNoites(f.noites, dests.length);
   const paradas = dests.map((dest, i) => ({ dest, noites: noites[i] }));
-  const voos = await Promise.all(trechosDaViagem(origem, paradas, f.ida).map(t => precoVoo({
+  const voos = await Promise.all(trechosDaViagem(origem, paradas, f.ida).map(t => t.de.terrestre || t.para.terrestre ? null : precoVoo({
     origem: t.de, destino: t.para, ida: t.data,
     token: env.TRAVELPAYOUTS_TOKEN, marker: env.TRAVELPAYOUTS_MARKER, fetchImpl
   })));
   const atual = custoMulti(paradas, f, voos);
   return { entrada: f, modo: "viagem", atual, opcoes: [], noitesMax: 0 };
 }
+
+const longeDemais = (d, origem) => `${d.n} não tem aeroporto e fica longe demais de ${origem.n} para ir de ônibus. Escolha outro destino ou outra cidade de saída.`;
