@@ -163,6 +163,28 @@ const ddmm = iso => iso.slice(8, 10) + iso.slice(5, 7);
 const linkAviasales = (de, ida, para, volta, pessoas) =>
   `https://www.aviasales.com/search/${de}${ddmm(ida)}${para}${volta ? ddmm(volta) : ""}${Math.min(9, pessoas)}?marker=${MARKER}`;
 const noExterior = c => String(c.destino.p || "").split(", ").some(p => p && p !== "Brasil");
+const EKTA = "https://ektatraveling.tpk.ro/I21iymDa";
+const AIRALO = "https://airalo.tpk.ro/3Dr6HCBJ";
+const YESIM = "https://yesim.tpk.ro/UF3inyHx";
+// Países do Acordo de Schengen entre os destinos: lá o seguro viagem é exigido na entrada.
+const SCHENGEN = new Set(["França", "Portugal", "Espanha", "Itália", "Alemanha", "Holanda", "Suíça", "Grécia", "Áustria", "Bélgica"]);
+
+// Seguro e internet para quem vai para fora: links de afiliado, fora do total do orçamento.
+function cartaoExterior(c) {
+  const paises = String(c.destino.p).split(", ").filter(p => p && p !== "Brasil");
+  const exigido = paises.some(p => SCHENGEN.has(p));
+  return `
+    <section class="card">
+      <h3>Antes de embarcar</h3>
+      <ul class="extras">
+        <li><b>Seguro viagem</b><small>${exigido ? "Obrigatório para entrar na Europa (Schengen): cobertura médica mínima de 30 mil euros." : "Recomendado: uma consulta médica no exterior pode custar mais que a viagem toda."}</small>
+          <a class="link" href="${EKTA}" target="_blank" rel="noopener sponsored">Cotar seguro na EKTA ↗</a></li>
+        <li><b>Chip de internet (eSIM)</b><small>Funciona assim que o avião pousa, sem roaming da operadora. Compare o pacote do destino nas duas lojas e fique com o mais barato.</small>
+          <span class="links"><a class="link" href="${AIRALO}" target="_blank" rel="noopener sponsored">Airalo ↗</a><a class="link" href="${YESIM}" target="_blank" rel="noopener sponsored">Yesim ↗</a></span></li>
+      </ul>
+      <p class="hint">Esses dois custos não entram no total acima.</p>
+    </section>`;
+}
 const linkKlook = `<a class="link" href="${KLOOK}" target="_blank" rel="noopener sponsored" style="display:block;margin-top:6px">Trem e ônibus por lá na Klook ↗</a>`;
 
 function links(c, f) {
@@ -283,6 +305,7 @@ function render(fresh) {
         <a class="link" href="${esc(L.hotels)}" target="_blank" rel="noopener sponsored">Ver hotéis na Booking ↗</a>
       </section>
     </div>`}
+    ${noExterior(c) ? cartaoExterior(c) : ""}
     <section class="card" id="roteiro-card"></section>
   `;
   r.querySelectorAll(".opt").forEach(b => b.onclick = () => escolher(Number(b.dataset.i)));
