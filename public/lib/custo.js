@@ -102,8 +102,8 @@ export function custo(dest, f, voo) {
   const estado = diff >= f.orcamento * 0.1 ? "cabe" : diff >= 0 ? "apertado" : "nao_cabe";
   const match = dest.tags.filter(t => f.interesses.includes(t)).length;
   return {
-    destino: { n: dest.n, p: dest.p, ap: dest.ap },
-    origem: { n: origem.n, ap: origem.ap },
+    destino: { n: dest.n, p: dest.p, ap: dest.ap, iata: dest.iata },
+    origem: { n: origem.n, ap: origem.ap, iata: origem.iata },
     itens, total, diff, estado, match, alta,
     diaria, vooPessoa, fonteVoo, linkVoo: onibus ? null : voo?.link || null,
     meio: mesmaCidade ? null : onibus ? "onibus" : "aviao", horasOnibus: onibus?.horas || null
@@ -156,7 +156,7 @@ export function custoMulti(paradas, f, voos = []) {
       porPessoa: r10(onibus.porPessoa), fonte: "estimativa", link: null, meio: "onibus", horas: onibus.horas
     };
     return {
-      de: t.de.ap, para: t.para.ap, deNome: t.de.n, paraNome: t.para.n, data: t.data,
+      de: t.de.ap, para: t.para.ap, deIata: t.de.iata, paraIata: t.para.iata, deNome: t.de.n, paraNome: t.para.n, data: t.data,
       porPessoa: r10(real?.porPessoa ?? estimarTrecho(t.de, t.para, t.data)),
       fonte: real ? "aviasales" : "estimativa", link: real?.link || null, meio: "aviao"
     };
@@ -190,7 +190,7 @@ export function custoMulti(paradas, f, voos = []) {
   const tags = new Set(paradas.flatMap(p => p.dest.tags));
   return {
     destino: { n: ps.map(p => p.n).join(" + "), p: [...new Set(ps.map(p => p.p))].join(", "), ap: ps[0].ap },
-    origem: { n: origem.n, ap: origem.ap },
+    origem: { n: origem.n, ap: origem.ap, iata: origem.iata },
     itens, total, diff, estado, match: f.interesses.filter(t => tags.has(t)).length, alta,
     diaria: ps[0].diaria, vooPessoa, fonteVoo, linkVoo: null, paradas: ps, trechos
   };

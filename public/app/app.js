@@ -155,9 +155,41 @@ function escolher(i) {
   render(false);
 }
 
+// Links de afiliado (Travelpayouts). O Partner ID não é segredo: vai na própria URL.
+const MARKER = "786422";
+const KLOOK = "https://klook.tpk.ro/t8LpLDQI";
+const ddmm = iso => iso.slice(8, 10) + iso.slice(5, 7);
+// Busca no Aviasales pelo código da cidade (pega todos os aeroportos): SAO2011RIO25112 = de GRU em 20/11 para GIG, volta 25/11, 2 adultos.
+const linkAviasales = (de, ida, para, volta, pessoas) =>
+  `https://www.aviasales.com/search/${de}${ddmm(ida)}${para}${volta ? ddmm(volta) : ""}${Math.min(9, pessoas)}?marker=${MARKER}`;
+const noExterior = c => String(c.destino.p || "").split(", ").some(p => p && p !== "Brasil");
+const EKTA = "https://ektatraveling.tpk.ro/I21iymDa";
+const AIRALO = "https://airalo.tpk.ro/3Dr6HCBJ";
+const YESIM = "https://yesim.tpk.ro/UF3inyHx";
+// Países do Acordo de Schengen entre os destinos: lá o seguro viagem é exigido na entrada.
+const SCHENGEN = new Set(["França", "Portugal", "Espanha", "Itália", "Alemanha", "Holanda", "Suíça", "Grécia", "Áustria", "Bélgica"]);
+
+// Seguro e internet para quem vai para fora: links de afiliado, fora do total do orçamento.
+function cartaoExterior(c) {
+  const paises = String(c.destino.p).split(", ").filter(p => p && p !== "Brasil");
+  const exigido = paises.some(p => SCHENGEN.has(p));
+  return `
+    <section class="card">
+      <h3>Antes de embarcar</h3>
+      <ul class="extras">
+        <li><b>Seguro viagem</b><small>${exigido ? "Obrigatório para entrar na Europa (Schengen): cobertura médica mínima de 30 mil euros." : "Recomendado: uma consulta médica no exterior pode custar mais que a viagem toda."}</small>
+          <a class="link" href="${EKTA}" target="_blank" rel="noopener sponsored">Cotar seguro na EKTA ↗</a></li>
+        <li><b>Chip de internet (eSIM)</b><small>Funciona assim que o avião pousa, sem roaming da operadora. Compare o pacote do destino nas duas lojas e fique com o mais barato.</small>
+          <span class="links"><a class="link" href="${AIRALO}" target="_blank" rel="noopener sponsored">Airalo ↗</a><a class="link" href="${YESIM}" target="_blank" rel="noopener sponsored">Yesim ↗</a></span></li>
+      </ul>
+      <p class="hint">Esses dois custos não entram no total acima.</p>
+    </section>`;
+}
+const linkKlook = `<a class="link" href="${KLOOK}" target="_blank" rel="noopener sponsored" style="display:block;margin-top:6px">Trem e ônibus por lá na Klook ↗</a>`;
+
 function links(c, f) {
   const google = "https://www.google.com/travel/flights?q=" + encodeURIComponent(`Voos de ${c.origem.ap} para ${c.destino.ap} em ${f.ida} volta ${f.volta}`) + "&curr=BRL&hl=pt-BR";
-  const flights = c.linkVoo || google;
+  const flights = c.linkVoo || linkAviasales(c.origem.iata || c.origem.ap, f.ida, c.destino.iata || c.destino.ap, f.volta, f.pessoas);
   const p = new URLSearchParams({ ss: c.destino.n, group_adults: String(f.pessoas), checkin: f.ida, checkout: f.volta });
   return { flights, google, vooReal: !!c.linkVoo, hotels: "https://www.booking.com/searchresults.pt-br.html?" + p.toString() };
 }
@@ -181,7 +213,9 @@ function cartoesViagem(c, f) {
           <span>${esc(t.de)} → ${esc(t.para)} · ${dataCurta(t.data)}${t.meio === "onibus" ? ` · ônibus, ~${t.horas} h` : ""}</span><span class="v">${brl(t.porPessoa)}${t.fonte === "aviasales" ? "" : "*"}</span>
           ${t.meio === "onibus"
             ? `<a class="link" href="${esc(linkOnibus(t.deNome, t.paraNome))}" target="_blank" rel="noopener">Ver ônibus ↗</a>`
-            : `<a class="link" href="${esc(t.link || linkGoogle(t.de, t.para, t.data))}" target="_blank" rel="noopener sponsored">${t.link ? "Aviasales ↗" : "Google Voos ↗"}</a>`}</li>`).join("")}</ul>
+            : `<span class="links"><a class="link" href="${esc(t.link || linkAviasales(t.deIata || t.de, t.data, t.paraIata || t.para, null, f.pessoas))}" target="_blank" rel="noopener sponsored">Aviasales ↗</a>
+               <a class="link" href="${esc(linkGoogle(t.de, t.para, t.data))}" target="_blank" rel="noopener">Google Voos ↗</a></span>`}</li>`).join("")}</ul>
+        ${noExterior(c) ? linkKlook : ""}
         ${c.fonteVoo === "aviasales" ? "" : '<p class="hint">* estimativa: não achamos busca recente desse trecho.</p>'}
       </section>
       <section class="card">
@@ -205,8 +239,9 @@ function cartaoPassagem(c, f, L) {
   return `
         <span class="eyebrow">Passagem por pessoa${c.fonteVoo === "aviasales" ? " · preço encontrado" : " · estimativa"}</span>
         <div class="kv"><span class="price">${brl(c.vooPessoa)}</span><p>${esc(c.origem.n)} (${esc(c.origem.ap)}) → ${esc(c.destino.n)} (${esc(c.destino.ap)}), ida e volta</p></div>
-        <a class="link" href="${esc(L.flights)}" target="_blank" rel="noopener sponsored">${L.vooReal ? "Ver essa passagem no Aviasales ↗" : "Ver preços no Google Voos ↗"}</a>
-        ${L.vooReal ? `<a class="link" href="${esc(L.google)}" target="_blank" rel="noopener" style="display:block;margin-top:6px">Comparar no Google Voos ↗</a>` : ""}`;
+        <a class="link" href="${esc(L.flights)}" target="_blank" rel="noopener sponsored">${L.vooReal ? "Ver essa passagem no Aviasales ↗" : "Buscar passagens no Aviasales ↗"}</a>
+        <a class="link" href="${esc(L.google)}" target="_blank" rel="noopener" style="display:block;margin-top:6px">Comparar no Google Voos ↗</a>
+        ${noExterior(c) ? linkKlook : ""}`;
 }
 
 function opcoesHtml(opcoes, atual, filtro = () => true) {
@@ -270,6 +305,7 @@ function render(fresh) {
         <a class="link" href="${esc(L.hotels)}" target="_blank" rel="noopener sponsored">Ver hotéis na Booking ↗</a>
       </section>
     </div>`}
+    ${noExterior(c) ? cartaoExterior(c) : ""}
     <section class="card" id="roteiro-card"></section>
   `;
   r.querySelectorAll(".opt").forEach(b => b.onclick = () => escolher(Number(b.dataset.i)));
