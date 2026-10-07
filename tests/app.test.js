@@ -232,6 +232,8 @@ test("sugestão separa as melhores viagens nacionais e internacionais", async ()
   const pouco = await montarVeredito({ ...base, orcamento: 1000, pessoas: 1, estilo: 0 });
   assert.ok(pouco.opcoes.every(o => o.estado === "nao_cabe"));
   assert.equal(pouco.opcoes[0].noitesCabem >= 1, true);
+  // Nada cabe: a sugestão principal é a que fica mais perto do orçamento.
+  assert.equal(pouco.atual.total, Math.min(...pouco.opcoes.map(o => o.total)));
 });
 
 test("ônibus: destino sem aeroporto vai de ônibus e não busca passagem aérea", async () => {
