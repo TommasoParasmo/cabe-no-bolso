@@ -419,17 +419,22 @@ function cartaoPassagem(c, f, L) {
         ${noExterior(c) ? linkKlook : ""}`;
 }
 
+// Sugestão que não cabe: o app não diz "não vai dar", mostra quanto falta ("com mais um pouquinho você iria").
+const quase = (o, modo = state?.modo) => modo === "sugestao" && o.estado === "nao_cabe";
+const rotulo = (o, modo) => quase(o, modo) ? `com mais ${brl(-o.diff)}` : ESTADO[o.estado];
+
 function opcoesHtml(opcoes, atual, filtro = () => true) {
   return `<div class="options">${opcoes.map((o, i) => filtro(o) ? `
     <button type="button" class="opt" data-i="${i}" aria-current="${o === atual}">
       <span class="t">${esc(o.destino.n)}</span><span class="v">${brl(o.total)}</span>
-      <small>${ESTADO[o.estado]} · ${o.diff >= 0 ? "sobra " + brl(o.diff) : "falta " + brl(-o.diff)}${o.meio === "onibus" ? " · de ônibus" : ""}${o.noitesCabem ? ` · cabe com ${o.noitesCabem} ${o.noitesCabem > 1 ? "noites" : "noite"}` : ""}${o.match ? " · combina com o que vocês curtem" : ""}</small>
+      <small>${quase(o) ? `com mais ${brl(-o.diff)}` : `${ESTADO[o.estado]} · ${o.diff >= 0 ? "sobra " + brl(o.diff) : "falta " + brl(-o.diff)}`}${o.meio === "onibus" ? " · de ônibus" : ""}${o.noitesCabem ? ` · cabe com ${o.noitesCabem} ${o.noitesCabem > 1 ? "noites" : "noite"}` : ""}${o.match ? " · combina com o que vocês curtem" : ""}</small>
     </button>` : "").join("")}</div>`;
 }
 
 function render(fresh) {
   const { entrada: f, atual: c } = state;
-  const manchete = c.estado === "cabe" ? `Dá para ir e ainda sobra ${brl(c.diff)}`
+  const manchete = quase(c) ? `Com mais ${brl(-c.diff)} você vai para ${esc(c.destino.n)}`
+    : c.estado === "cabe" ? `Dá para ir e ainda sobra ${brl(c.diff)}`
     : c.estado === "apertado" ? "Cabe, mas no limite" : `Faltam ${brl(-c.diff)} para essa viagem`;
   const sum = c.itens.reduce((s, i) => s + i.valor, 0) || 1;
   const L = links(c, f);
@@ -437,17 +442,17 @@ function render(fresh) {
   const viagem = state.modo === "viagem";
   const ajuste = viagem && c.estado === "nao_cabe" ? "Tente menos cidades, menos noites ou o estilo econômico."
     : comparar && c.estado === "nao_cabe" ? "Nenhum dos destinos escolhidos cabe nesse valor. Tire o filtro para ver o que cabe no seu orçamento."
-    : state.modo === "sugestao" && c.estado === "nao_cabe"
-    ? (c.noitesCabem ? `Com ${c.noitesCabem} ${c.noitesCabem > 1 ? "noites" : "noite"} em vez de ${f.noites}, ${esc(c.destino.n)} cabe no orçamento.` : "Com esse valor, nenhuma viagem cabe nessas datas. Tente menos noites ou menos pessoas.")
+    : quase(c)
+    ? (c.noitesCabem ? `Ou vá com ${c.noitesCabem} ${c.noitesCabem > 1 ? "noites" : "noite"} em vez de ${f.noites} e fica dentro dos ${brl(f.orcamento)}.` : "Ou tente menos noites ou menos pessoas para caber no valor.")
     : state.modo === "destino" && c.estado === "nao_cabe"
     ? (state.noitesMax ? `Com ${state.noitesMax} noites em vez de ${f.noites}, ${esc(c.destino.n)} cabe no orçamento.` : `Mesmo com menos noites, ${esc(c.destino.n)} não cabe nesse valor.`) : "";
   const mostrarOpcoes = state.modo === "destino" ? state.opcoes.length > 0 : state.opcoes.length > 1;
   const r = $("result");
   r.className = "result" + (fresh ? " fresh" : "");
   r.innerHTML = `
-    <article class="verdict" data-state="${c.estado}">
-      <span class="pill">${ESTADO[c.estado]}</span>
-      <div class="eyebrow">${viagem ? `Viagem por ${c.paradas.length} cidades · ${c.paradas.map(p => `${esc(p.n)} (${p.noites})`).join(" → ")}` : `${state.modo === "sugestao" ? "Nossa sugestão · " : comparar ? "Melhor entre os escolhidos · " : ""}${esc(c.destino.n)}, ${esc(c.destino.p)}`} · ${f.noites} noites · ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} · ${ESTILOS[f.estilo]}</div>
+    <article class="verdict" data-state="${quase(c) ? "quase" : c.estado}">
+      <span class="pill">${quase(c) ? "Com mais um pouquinho" : ESTADO[c.estado]}</span>
+      <div class="eyebrow">${viagem ? `Viagem por ${c.paradas.length} cidades · ${c.paradas.map(p => `${esc(p.n)} (${p.noites})`).join(" → ")}` : `${quase(c) ? "Mais perto do seu orçamento · " : state.modo === "sugestao" ? "Nossa sugestão · " : comparar ? "Melhor entre os escolhidos · " : ""}${esc(c.destino.n)}, ${esc(c.destino.p)}`} · ${f.noites} noites · ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} · ${ESTILOS[f.estilo]}</div>
       <h2>${manchete}</h2>
       ${ajuste ? `<p>${ajuste}</p>` : c.estado === "apertado" ? "<p>Sobra pouco para imprevistos. Vale comprar a passagem logo, antes de o preço subir.</p>" : ""}
       <div class="nums">
@@ -462,9 +467,14 @@ function render(fresh) {
     </article>
     ${mostrarOpcoes ? `
     <section class="card">
-      <h3>${comparar ? "Comparando os destinos que você escolheu" : state.modo === "sugestao" ? `As melhores viagens para ${brl(f.orcamento)}` : "Destinos que cabem no seu orçamento"}</h3>
+      <h3>${comparar ? "Comparando os destinos que você escolheu" : state.modo === "sugestao" ? (state.opcoes.every(quase) ? "Lugares que com mais um pouquinho você iria" : `As melhores viagens para ${brl(f.orcamento)}`) : "Destinos que cabem no seu orçamento"}</h3>
       ${state.modo === "sugestao"
-        ? ["nacional", "internacional"].map(g => `<div class="grupo-titulo">${g === "nacional" ? "No Brasil" : "No exterior"}</div>${opcoesHtml(state.opcoes, c, o => o.grupo === g)}`).join("")
+        ? ["nacional", "internacional"].map(g => {
+          const doGrupo = state.opcoes.filter(o => o.grupo === g);
+          if (!doGrupo.length) return "";
+          const titulo = (g === "nacional" ? "No Brasil" : "No exterior") + (doGrupo.every(quase) && !state.opcoes.every(quase) ? " · com mais um pouquinho" : "");
+          return `<div class="grupo-titulo">${titulo}</div>${opcoesHtml(state.opcoes, c, o => o.grupo === g)}`;
+        }).join("")
         : opcoesHtml(state.opcoes, c)}
     </section>` : ""}
     <section class="card">
@@ -646,7 +656,7 @@ function renderSalvas() {
   el.hidden = !salvas.length;
   el.innerHTML = salvas.length ? `<h3>Minhas viagens</h3><ul class="salvas">${salvas.map((v, i) => {
     const { entrada: f, atual: c } = v.estado;
-    return `<li><button type="button" class="abrir" data-i="${i}"><b>${esc(c.destino.n)}</b><small>${dataCurta(f.ida)} a ${dataCurta(f.volta)} · ${brl(c.total)} · ${ESTADO[c.estado]}${v.estado.roteiro ? " · com roteiro" : ""}</small></button><button type="button" class="tirar" data-i="${i}" aria-label="Apagar ${esc(c.destino.n)}">✕</button></li>`;
+    return `<li><button type="button" class="abrir" data-i="${i}"><b>${esc(c.destino.n)}</b><small>${dataCurta(f.ida)} a ${dataCurta(f.volta)} · ${brl(c.total)} · ${rotulo(c, v.estado.modo)}${v.estado.roteiro ? " · com roteiro" : ""}</small></button><button type="button" class="tirar" data-i="${i}" aria-label="Apagar ${esc(c.destino.n)}">✕</button></li>`;
   }).join("")}</ul>` : "";
   el.querySelectorAll(".abrir").forEach(b => b.onclick = () => {
     pedido?.abort(); setStatus(""); // um cálculo pendente não pode substituir a viagem aberta
@@ -658,7 +668,7 @@ function renderSalvas() {
 }
 async function compartilhar() {
   const { entrada: f, atual: c } = state;
-  const texto = `${c.destino.n}: ${ESTADO[c.estado]}. ${f.noites} noites para ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} por cerca de ${brl(c.total)}. Simule a sua viagem:`;
+  const texto = `${c.destino.n}: ${quase(c) ? `com mais ${brl(-c.diff)} vai dar viagem` : ESTADO[c.estado]}. ${f.noites} noites para ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} por cerca de ${brl(c.total)}. Simule a sua viagem:`;
   const url = "https://vaidarviagem.com.br/app/";
   try {
     const Share = plugin("Share");

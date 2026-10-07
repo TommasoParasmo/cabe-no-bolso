@@ -66,8 +66,8 @@ export async function montarVeredito(body, env = {}, fetchImpl = fetch) {
       return c;
     }).sort((a, b) => pontuar(b, f) - pontuar(a, f));
     const cabem = recalculados.filter(c => c.estado !== "nao_cabe");
-    // Nada cabe: primeiro o que cabe com mais noites, depois o mais barato.
-    return cabem.length ? cabem : [...recalculados].sort((a, b) => (b.noitesCabem || 0) - (a.noitesCabem || 0) || a.total - b.total);
+    // Nada cabe: primeiro o que fica mais perto do orçamento ("com mais um pouquinho você iria").
+    return cabem.length ? cabem : [...recalculados].sort((a, b) => a.total - b.total);
   }
 
   if (!f.destinos.length) {
@@ -77,7 +77,10 @@ export async function montarVeredito(body, env = {}, fetchImpl = fetch) {
       ...nac.slice(0, 3).map(c => ({ ...c, grupo: "nacional" })),
       ...int.slice(0, 3).map(c => ({ ...c, grupo: "internacional" }))
     ];
-    const atual = [...opcoes].sort((a, b) => pontuar(b, f) - pontuar(a, f))[0];
+    // Sugestão principal nunca é uma que não cabe se alguma cabe; se nenhuma cabe, a mais perto do orçamento.
+    const cabem = opcoes.filter(c => c.estado !== "nao_cabe");
+    const atual = cabem.length ? [...cabem].sort((a, b) => pontuar(b, f) - pontuar(a, f))[0]
+      : [...opcoes].sort((a, b) => a.total - b.total)[0];
     return { entrada: f, modo: "sugestao", atual, opcoes, noitesMax: atual.noitesCabem || 0 };
   }
 
