@@ -6,6 +6,8 @@ export class LeadInvalido extends Error {}
 
 const EMAIL = /^[^\s@<>"',;]{1,64}@[^\s@<>"',;]+\.[a-z]{2,}$/i;
 const LIMITE_IP_DIA = 10;
+// A política promete apagar cadastro parado há 2 anos: cada novo cadastro do mesmo e-mail renova o prazo.
+const VALIDADE = 2 * 365 * 86400;
 
 export async function guardarLead(body, env = {}, ip = null) {
   const email = String(body?.email ?? "").trim().toLowerCase();
@@ -13,14 +15,15 @@ export async function guardarLead(body, env = {}, ip = null) {
   const destino = String(body?.destino ?? "").replace(/[\u0000-\u001f<>"]/g, " ").trim().slice(0, 80);
   if (!env.LEADS) {
     // Sem o banco ligado, a pessoa baixa mesmo assim; o aviso fica no log.
+    // guardado:false faz o app pedir o e-mail de novo na próxima vez.
     console.error("lead: KV LEADS não configurado");
-    return { ok: true };
+    return { ok: true, guardado: false };
   }
   // Freio contra robô enchendo o banco (o KV grátis tem limite de gravações por dia).
   if (ip) {
     const chave = `https://cache.cabenobolso/lead-limite?${new URLSearchParams({ ip, d: new Date().toISOString().slice(0, 10) })}`;
     const n = (await lerCache(chave))?.n || 0;
-    if (n >= LIMITE_IP_DIA) return { ok: true };
+    if (n >= LIMITE_IP_DIA) return { ok: true, guardado: false };
     await gravarCache(chave, { n: n + 1 }, 86400);
   }
   const agora = new Date().toISOString();
@@ -32,6 +35,6 @@ export async function guardarLead(body, env = {}, ip = null) {
     destinos: [...new Set([...(antigo?.destinos || []), destino].filter(Boolean))].slice(-20),
     primeiro: antigo?.primeiro || agora,
     ultimo: agora
-  }));
-  return { ok: true };
+  }), { expirationTtl: VALIDADE });
+  return { ok: true, guardado: true };
 }
