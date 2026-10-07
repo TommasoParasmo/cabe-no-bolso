@@ -1,3 +1,8 @@
 name = "vai-dar-viagem"
 pages_build_output_dir = "public"
 compatibility_date = "2026-09-01"
+
+# Cadastros de e-mail para baixar o roteiro (namespace vai-dar-viagem-leads).
+[[kv_namespaces]]
+binding = "LEADS"
+id = "ab130243b6d5459281e0d57084a1781a"

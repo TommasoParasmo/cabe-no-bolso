@@ -210,6 +210,27 @@ button.voando .frase { display: inline-block; animation: frase 2.4s ease both; }
   button.voando .frase { animation: none; }
 }
 .warn-box { background: var(--warn-bg); color: var(--ink); border-radius: 12px; padding: 12px 14px; font-size: 14px; }
+.baixar { display: grid; gap: 8px; padding-top: 4px; }
+.lead { display: grid; gap: 10px; }
+.lead label { font-size: 13px; font-weight: 600; color: var(--muted); }
+.lead input[type="email"] { font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.lead .check { display: flex; gap: 8px; align-items: flex-start; font-weight: 500; color: var(--ink); }
+.lead .check input { margin-top: 3px; }
+.lead .fine { margin: 0; }
+.lead .fine a { color: var(--accent); }
+/* "Baixar roteiro em PDF": imprime só o roteiro, sempre em cores claras (a impressão não leva o fundo escuro). */
+@media print {
+  :root:root:root { --bg: #fff; --surface: #fff; --ink: #102624; --muted: #557370; --line: #D7E2E0; --accent: #0E6E6A; --warn: #A86A00; }
+  body.so-roteiro { background: #fff; }
+  body.so-roteiro .logo-claro { display: block !important; }
+  body.so-roteiro .logo-escuro { display: none !important; }
+  body.so-roteiro .wrap > :not(#result):not(.brand),
+  body.so-roteiro #result > :not(#roteiro-card),
+  body.so-roteiro .nao-imprimir { display: none !important; }
+  body.so-roteiro .wrap { padding: 0; }
+  body.so-roteiro #roteiro-card { border: 0; padding: 0; }
+  body.so-roteiro .day { break-inside: avoid; }
+}
 </style>
 </head>
 <body>
@@ -300,7 +321,7 @@ button.voando .frase { display: inline-block; animation: frase 2.4s ease both; }
   <section class="card" id="minhas" hidden></section>
   <section class="result" id="result" aria-live="polite"></section>
 
-  <p class="fine">Passagens: preços encontrados no Aviasales a partir de buscas recentes, ou estimativa quando não há busca para a rota. Hospedagem, comida e passeios: médias estimadas por destino. Confira os valores nos sites parceiros antes de reservar. Alguns links geram comissão, sem custo extra para você.</p>
+  <p class="fine">Passagens: preços encontrados no Aviasales a partir de buscas recentes, ou estimativa quando não há busca para a rota. Hospedagem, comida e passeios: médias estimadas por destino. Confira os valores nos sites parceiros antes de reservar. Alguns links geram comissão, sem custo extra para você. <a href="/privacidade.html">Política de privacidade</a>.</p>
 </div>
 <script type="module" src="./app.js"></script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});</script>
