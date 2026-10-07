@@ -499,7 +499,7 @@ function renderRoteiro() {
     card.innerHTML = `
       <h3>Roteiro dia a dia em ${esc(state.atual.destino.n)}</h3>
       <div class="days">${ro.dias.map(d => `
-        <div class="day"><span class="n">DIA ${esc(d.dia)}</span><div><h4>${esc(d.titulo)}</h4>${state.atual.paradas && d.cidade ? `<small class="hint">${esc(d.cidade)}</small>` : ""}<ul>${itensDoDia(d).map(a => `<li${a.refeicao ? ' class="ref"' : ""}><span class="p">${esc(a.periodo)}</span><a class="lugar" href="${mapa(a.nome, d.cidade)}" target="_blank" rel="noopener">${esc(a.nome)} ↗</a><span class="c">${Number(a.custo) ? brl(a.custo) : "grátis"}</span></li>`).join("")}</ul></div></div>`).join("")}
+        <div class="day"><span class="n">DIA ${esc(d.dia)}</span><div><h4>${esc(d.titulo)}</h4>${regiaoDoDia(d) ? `<small class="hint">${esc(regiaoDoDia(d))}</small>` : ""}<ul>${itensDoDia(d).map(a => `<li${a.refeicao ? ' class="ref"' : ""}><span class="p">${esc(a.periodo)}</span><a class="lugar" href="${mapa(a.nome, d.cidade, a.bairro)}" target="_blank" rel="noopener">${esc(a.nome)} ↗</a><span class="c">${Number(a.custo) ? brl(a.custo) : "grátis"}</span></li>`).join("")}</ul></div></div>`).join("")}
       </div>
       ${ro.totalPasseios != null ? `<p class="hint">Passeios: ${brl(ro.totalPasseios)} de ${brl(ro.verba)} de verba.${ro.totalRefeicoes ? ` Almoços e jantares sugeridos: cerca de ${brl(ro.totalRefeicoes)} (já contam na alimentação).` : ""}</p>` : ""}
       ${ro.acimaDaVerba ? `<div class="warn-box">Este roteiro passou da verba de passeios. Troque alguma atividade paga por uma grátis.</div>` : ""}
@@ -522,13 +522,17 @@ function renderRoteiro() {
 const ORDEM = ["manh", "almo", "tard", "jant", "noit"];
 const posicao = periodo => { const i = ORDEM.findIndex(o => String(periodo).toLowerCase().startsWith(o)); return i < 0 ? 2 : i; };
 function itensDoDia(d) {
-  const refeicoes = [["almoço", d.almoco], ["jantar", d.jantar]].filter(([, r]) => r?.nome).map(([periodo, r]) => ({ periodo, nome: r.nome, custo: r.custo, refeicao: true }));
+  const refeicoes = [["almoço", d.almoco], ["jantar", d.jantar]].filter(([, r]) => r?.nome).map(([periodo, r]) => ({ periodo, nome: r.nome, bairro: r.bairro, custo: r.custo, refeicao: true }));
   return [...(d.atividades || []), ...refeicoes].map((a, i) => ({ a, i })).sort((x, y) => posicao(x.a.periodo) - posicao(y.a.periodo) || x.i - y.i).map(x => x.a);
 }
 
-// Busca o lugar no Google Maps, onde a pessoa vê nota, fotos e avaliações.
-function mapa(nome, cidade) {
-  const q = state.atual.paradas ? `${nome}, ${cidade || state.atual.paradas[0].n}` : `${nome}, ${state.atual.destino.n}, ${state.atual.destino.p}`;
+// Região do dia (ex.: "Barra"), e a cidade quando a viagem tem várias.
+const regiaoDoDia = d => [d.regiao, state.atual.paradas && d.cidade].filter(Boolean).join(" · ");
+
+// Busca o lugar no Google Maps, onde a pessoa vê nota, fotos e avaliações. O bairro ajuda a achar o lugar certo.
+function mapa(nome, cidade, bairro) {
+  const local = [nome, bairro].filter(Boolean).join(", ");
+  const q = state.atual.paradas ? `${local}, ${cidade || state.atual.paradas[0].n}` : `${local}, ${state.atual.destino.n}, ${state.atual.destino.p}`;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
