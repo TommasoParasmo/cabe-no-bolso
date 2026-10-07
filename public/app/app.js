@@ -706,7 +706,10 @@ function pedirEmail() {
         body: JSON.stringify({ email, novidades: $("lead-novidades").checked, destino: state.atual.destino.n }) });
       if (r.status === 400) { st.className = "status err"; st.textContent = (await r.json().catch(() => ({}))).erro || "Confira o e-mail."; return; }
       // Só deixa de pedir o e-mail quando ele foi mesmo salvo.
-      if (r.ok && (await r.json().catch(() => ({}))).guardado) { try { localStorage.setItem(LEAD, "1"); } catch {} }
+      if (r.ok && (await r.json().catch(() => ({}))).guardado) {
+        try { localStorage.setItem(LEAD, "1"); } catch {}
+        window.fbq?.("track", "Lead"); // conversão para os anúncios da Meta
+      }
     } catch {} // Falha nossa (rede, servidor) não impede o download.
     $("baixar-box").innerHTML = '<button type="button" class="primary" id="baixar">Baixar roteiro em PDF</button>';
     $("baixar").onclick = baixarRoteiro;
