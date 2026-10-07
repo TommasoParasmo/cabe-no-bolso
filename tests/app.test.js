@@ -4,7 +4,7 @@ import { DESTINOS } from "../public/lib/dados.js";
 import { custo, acharDestino, noitesQueCabem } from "../public/lib/custo.js";
 import { precoVoo } from "../server/precos.js";
 import { montarVeredito, EntradaInvalida } from "../server/veredito.js";
-import { gerarRoteiro, validarPedido, LimiteAtingido, LIMITE_DIA, foraDaRegiao } from "../server/roteiro.js";
+import { gerarRoteiro, validarPedido, LimiteAtingido, LIMITE_DIA, limiteDia, foraDaRegiao } from "../server/roteiro.js";
 
 const base = {
   orcamento: 7000, origem: "São Paulo", destino: "", ida: "2026-11-20", volta: "2026-11-25",
@@ -155,6 +155,17 @@ test("roteiro novo tem limite por IP por dia", () => comCache(async () => {
   await assert.rejects(gerarRoteiro({ destino: "Salvador", noites: 3, verbaPasseios: 9000 }, {}, resposta([0]), "1.2.3.4"), LimiteAtingido);
   const repetido = await gerarRoteiro({ destino: "Salvador", noites: 3, verbaPasseios: 1000 }, {}, resposta([0]), "1.2.3.4");
   assert.equal(repetido.cache, true);
+}));
+
+test("limite de roteiros por dia pode ser mudado pela variável da Cloudflare", () => comCache(async () => {
+  assert.equal(limiteDia({}), LIMITE_DIA);
+  assert.equal(limiteDia({ ROTEIRO_LIMITE_DIA: "30" }), 30);
+  assert.equal(limiteDia({ ROTEIRO_LIMITE_DIA: "0" }), LIMITE_DIA);
+  assert.equal(limiteDia({ ROTEIRO_LIMITE_DIA: "abc" }), LIMITE_DIA);
+  assert.equal(limiteDia({ ROTEIRO_LIMITE_DIA: "5000" }), LIMITE_DIA);
+  const env = { ROTEIRO_LIMITE_DIA: "2" };
+  for (let i = 0; i < 2; i++) await gerarRoteiro({ destino: "Salvador", noites: 3, verbaPasseios: 1000 + i * 100 }, env, resposta([0]), "5.6.7.8");
+  await assert.rejects(gerarRoteiro({ destino: "Salvador", noites: 3, verbaPasseios: 9000 }, env, resposta([0]), "5.6.7.8"), /montou 2 roteiros/);
 }));
 
 test("roteiro usa o interesse livre no prompt, limpo e curto", async () => {
