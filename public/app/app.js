@@ -501,10 +501,12 @@ function renderRoteiro() {
       <div class="days">${ro.dias.map(d => `
         <div class="day"><span class="n">DIA ${esc(d.dia)}</span><div><h4>${esc(d.titulo)}</h4>${regiaoDoDia(d) ? `<small class="hint">${esc(regiaoDoDia(d))}</small>` : ""}<ul>${itensDoDia(d).map(a => `<li${a.refeicao ? ' class="ref"' : ""}><span class="p">${esc(String(a.periodo).toLowerCase())}</span><a class="lugar" href="${a.maps ? esc(a.maps) : mapa(a.nome, d.cidade, a.bairro)}" target="_blank" rel="noopener">${esc(a.nome)} ↗</a><span class="c">${Number(a.custo) ? brl(a.custo) : "grátis"}</span></li>`).join("")}</ul></div></div>`).join("")}
       </div>
-      ${(ro.fontes || []).length ? `<details class="fontes"><summary class="hint">Fontes: Google Maps (${ro.fontes.length} lugares)</summary><ul class="hint">${ro.fontes.map(f => `<li><a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.nome)}</a> · Google Maps</li>`).join("")}</ul></details>` : ""}
+      ${(ro.fontes || []).length ? `<details class="fontes"><summary class="hint">Fontes: Google Maps (${ro.fontes.length} ${ro.fontes.length > 1 ? "lugares" : "lugar"})</summary><ul class="hint">${ro.fontes.map(f => `<li><a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.nome)}</a> · Google Maps</li>`).join("")}</ul></details>` : ""}
       ${ro.totalPasseios != null ? `<p class="hint">Passeios: ${brl(ro.totalPasseios)} de ${brl(ro.verba)} de verba.${ro.totalRefeicoes ? ` Almoços e jantares sugeridos: cerca de ${brl(ro.totalRefeicoes)} (já contam na alimentação).` : ""}</p>` : ""}
       ${ro.acimaDaVerba ? `<div class="warn-box">Este roteiro passou da verba de passeios. Troque alguma atividade paga por uma grátis.</div>` : ""}
-      ${(ro.dicas || []).length ? `<h3>Como economizar</h3><ul class="tips">${ro.dicas.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}`;
+      ${(ro.dicas || []).length ? `<h3>Como economizar</h3><ul class="tips">${ro.dicas.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
+      <div class="baixar nao-imprimir" id="baixar-box"><button type="button" class="primary" id="baixar">Baixar roteiro em PDF</button></div>`;
+    $("baixar").onclick = () => leadOk() ? baixarRoteiro() : pedirEmail();
     return;
   }
   const busy = ro?.loading;
@@ -638,3 +640,68 @@ async function compartilhar() {
   } catch {}
 }
 lerSalvas();
+
+// ---- Baixar o roteiro: na primeira vez pede o e-mail (lead), depois baixa direto ----
+const LEAD = "lead-ok";
+const leadOk = () => { try { return localStorage.getItem(LEAD) === "1"; } catch { return false; } };
+function pedirEmail() {
+  const box = $("baixar-box");
+  box.innerHTML = `
+    <form class="lead" id="lead-form" novalidate>
+      <label for="lead-email">Seu e-mail para liberar o download</label>
+      <input id="lead-email" type="email" required autocomplete="email" inputmode="email" maxlength="254" placeholder="voce@email.com">
+      <label class="check"><input type="checkbox" id="lead-novidades"><span>Quero receber dicas e promoções de viagem por e-mail</span></label>
+      <p class="fine">Só mandamos novidades se você marcar a opção acima. Veja a <a href="/privacidade.html" target="_blank" rel="noopener">política de privacidade</a>.</p>
+      <button type="submit" class="primary">Liberar e baixar</button>
+      <div class="status" id="lead-status" role="status" aria-live="polite"></div>
+    </form>`;
+  $("lead-email").focus();
+  $("lead-form").onsubmit = async ev => {
+    ev.preventDefault();
+    const email = $("lead-email").value.trim();
+    const st = $("lead-status");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { st.className = "status err"; st.textContent = "Confira o e-mail."; return; }
+    st.className = "status"; st.textContent = "Liberando…";
+    try {
+      const r = await fetch(`${API}/api/lead`, { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email, novidades: $("lead-novidades").checked, destino: state.atual.destino.n }) });
+      if (r.status === 400) { st.className = "status err"; st.textContent = (await r.json().catch(() => ({}))).erro || "Confira o e-mail."; return; }
+    } catch {} // Falha nossa (rede, servidor) não impede o download.
+    try { localStorage.setItem(LEAD, "1"); } catch {}
+    $("baixar-box").innerHTML = '<button type="button" class="primary" id="baixar">Baixar roteiro em PDF</button>';
+    $("baixar").onclick = baixarRoteiro;
+    baixarRoteiro();
+  };
+}
+
+// No site, abre a janela de impressão só com o roteiro, onde dá para "Salvar como PDF".
+// No app de celular a impressão não existe: manda o roteiro em texto pelo compartilhar do aparelho.
+async function baixarRoteiro() {
+  const Share = plugin("Share");
+  if (Share) {
+    try { await Share.share({ title: `Roteiro ${state.atual.destino.n}`, text: textoRoteiro() }); } catch {}
+    return;
+  }
+  const det = document.querySelector("#roteiro-card details.fontes");
+  const aberto = det?.open;
+  if (det) det.open = true;
+  const titulo = document.title;
+  document.title = `Roteiro ${state.atual.destino.n} - Vai Dar Viagem`;
+  document.body.classList.add("so-roteiro");
+  const fim = () => {
+    document.body.classList.remove("so-roteiro");
+    document.title = titulo;
+    if (det) det.open = aberto;
+    window.removeEventListener("afterprint", fim);
+  };
+  window.addEventListener("afterprint", fim);
+  window.print();
+}
+
+function textoRoteiro() {
+  const ro = state.roteiro;
+  const dias = ro.dias.map(d => [`Dia ${d.dia}: ${d.titulo}${d.regiao ? ` (${d.regiao})` : ""}`,
+    ...itensDoDia(d).map(a => `- ${a.periodo}: ${a.nome}${Number(a.custo) ? ` · ${brl(a.custo)}` : ""}${a.maps ? ` · ${a.maps}` : ""}`)].join("\n"));
+  const fontes = (ro.fontes || []).length ? `\n\nFontes: Google Maps\n${ro.fontes.map(f => `${f.nome} · Google Maps · ${f.url}`).join("\n")}` : "";
+  return `Roteiro em ${state.atual.destino.n} · Vai Dar Viagem\n\n${dias.join("\n\n")}${fontes}\n\nMonte o seu: https://vaidarviagem.com.br/app/`;
+}

@@ -463,3 +463,19 @@ test("roteiro do Gemini com restaurante fora do Maps mesmo refeito aparece mas n
     assert.equal((await gerarRoteiro(pedido, { GEMINI_API_KEY: "k" }, null, null, g.fetchFn)).cache, true);
   });
 });
+
+test("cadastro de e-mail guarda no KV só o necessário e vale a última escolha de novidades", async () => {
+  const { guardarLead, LeadInvalido } = await import("../server/lead.js");
+  const kv = new Map();
+  const LEADS = { get: async (k) => (kv.has(k) ? JSON.parse(kv.get(k)) : null), put: async (k, v) => { kv.set(k, v); } };
+  await assert.rejects(guardarLead({ email: "sem-arroba" }, { LEADS }), LeadInvalido);
+  await assert.rejects(guardarLead({ email: "a@b" }, { LEADS }), LeadInvalido);
+  assert.deepEqual(await guardarLead({ email: " Ana@Email.com ", novidades: true, destino: "Lima" }, { LEADS }), { ok: true });
+  await guardarLead({ email: "ana@email.com", novidades: false, destino: "Salvador" }, { LEADS });
+  const l = JSON.parse(kv.get("ana@email.com"));
+  assert.equal(l.novidades, false);
+  assert.deepEqual(l.destinos, ["Lima", "Salvador"]);
+  assert.deepEqual(Object.keys(l).sort(), ["destinos", "email", "novidades", "primeiro", "ultimo"]);
+  // Sem o KV ligado, o download segue liberado.
+  assert.deepEqual(await guardarLead({ email: "b@email.com" }, {}), { ok: true });
+});
