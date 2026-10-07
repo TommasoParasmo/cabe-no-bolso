@@ -302,6 +302,9 @@ async function postar(caminho, dados, signal) {
 let state = null;
 let pedido = null;
 
+// Eventos do Pixel da Meta, para medir o funil nos anúncios (sem pixel, como no app de celular, não faz nada).
+const evento = (nome, dados) => window.fbq?.("trackCustom", nome, dados);
+
 async function calcular() {
   pedido?.abort();
   const meu = pedido = new AbortController();
@@ -310,6 +313,7 @@ async function calcular() {
   const parar = voando($("go"), FRASES_CALCULO);
   try {
     const form = lerForm();
+    evento("VerSeVaiDar", { tipo: form.destinos.length ? "destino" : "sugestao", orcamento: form.orcamento });
     const r = await postar("/api/veredito", form, meu.signal);
     // O foco (ex.: "Pokémon") não volta do servidor: guarda o que foi pedido para o roteiro.
     state = { ...r, foco: form.foco, roteiro: null };
@@ -583,6 +587,7 @@ async function gerarRoteiro() {
   const { entrada: f, atual: c } = state;
   const alvo = c;
   ctlRoteiro = new AbortController();
+  evento("MontarRoteiro", { destino: c.destino?.n, veredito: c.estado });
   state.roteiro = { loading: true };
   renderRoteiro();
   try {
@@ -594,6 +599,7 @@ async function gerarRoteiro() {
     }, ctlRoteiro.signal);
     if (state.atual !== alvo) return;
     state.roteiro = r;
+    evento("RoteiroPronto", { destino: c.destino?.n });
     if (salvas.some(v => v.id === idViagem())) salvarViagem();
   } catch (e) {
     if (state.atual !== alvo) return;
@@ -720,6 +726,7 @@ function pedirEmail() {
 // No site, abre a janela de impressão só com o roteiro, onde dá para "Salvar como PDF".
 // No app de celular a impressão não existe: manda o roteiro em texto pelo compartilhar do aparelho.
 async function baixarRoteiro() {
+  evento("BaixarRoteiro", { destino: state.atual.destino?.n });
   const Share = plugin("Share");
   if (Share) {
     try { await Share.share({ title: `Roteiro ${state.atual.destino.n}`, text: textoRoteiro() }); } catch {}
