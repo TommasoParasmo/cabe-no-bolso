@@ -275,3 +275,22 @@ test("roteiro pede almoço e jantar dentro da verba de comida e devolve as refei
   assert.equal(r.totalRefeicoes, 120);
   assert.equal(r.totalPasseios, 0);
 });
+
+test("roteiro organiza cada dia por região, com refeições perto dos passeios e só na cidade", async () => {
+  let pedido;
+  const client = { messages: { parse: async req => { pedido = req; return { parsed_output: { dias: [{ dia: 1, cidade: "Salvador", regiao: "Barra", titulo: "Barra",
+    atividades: [{ periodo: "manhã", nome: "Farol da Barra", bairro: "Barra", custo: 0 }],
+    almoco: { nome: "Restaurante A", bairro: "Barra", custo: 80 }, jantar: { nome: "Restaurante B", bairro: "Barra", custo: 90 } }], dicas: [] } }; } } };
+  const r = await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 2, verbaPasseios: 300 }, {}, client);
+  const prompt = pedido.messages[0].content;
+  assert.match(prompt, /almoço fica no mesmo bairro da atividade da manhã/);
+  assert.match(prompt, /jantar no mesmo bairro da atividade da tarde/);
+  assert.match(prompt, /cada dia acontece numa região só/);
+  assert.match(prompt, /nada de atrações de outras cidades/);
+  assert.match(prompt, /Quando o destino é uma região e não uma cidade/);
+  const esquema = JSON.stringify(pedido.output_config.format);
+  assert.match(esquema, /regiao/);
+  assert.match(esquema, /bairro/);
+  assert.equal(r.dias[0].regiao, "Barra");
+  assert.equal(r.dias[0].almoco.bairro, "Barra");
+});
