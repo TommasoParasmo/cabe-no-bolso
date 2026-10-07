@@ -54,7 +54,15 @@ export const DESTINOS = [
   { n: "Lisboa", p: "Portugal", lat: 38.77, lon: -9.13, ap: "LIS", iata: "LIS", int: true, hotel: [350, 600, 1200], idx: 1.8, tags: ["cultura", "gastronomia", "noite"] },
   { n: "Orlando", p: "Estados Unidos", lat: 28.43, lon: -81.31, ap: "MCO", iata: "ORL", int: true, hotel: [400, 700, 1300], idx: 2.2, pf: 2.0, tags: ["criancas", "compras"] },
   { n: "Tóquio", p: "Japão", lat: 35.77, lon: 140.39, ap: "NRT", iata: "TYO", int: true, hotel: [350, 650, 1300], idx: 1.7, tags: ["cultura", "gastronomia", "compras", "noite"] },
-  { n: "Paris", p: "França", lat: 49.01, lon: 2.55, ap: "CDG", iata: "PAR", int: true, hotel: [550, 900, 1800], idx: 2.6, tags: ["cultura", "gastronomia", "compras"] }
+  { n: "Paris", p: "França", lat: 49.01, lon: 2.55, ap: "CDG", iata: "PAR", int: true, hotel: [550, 900, 1800], idx: 2.6, tags: ["cultura", "gastronomia", "compras"] },
+  { n: "Madri", p: "Espanha", lat: 40.47, lon: -3.56, ap: "MAD", iata: "MAD", int: true, hotel: [400, 700, 1400], idx: 2.0, tags: ["cultura", "gastronomia", "noite", "compras"] },
+  { n: "Barcelona", p: "Espanha", lat: 41.30, lon: 2.08, ap: "BCN", iata: "BCN", int: true, hotel: [450, 800, 1600], idx: 2.1, tags: ["praia", "cultura", "gastronomia", "noite"] },
+  { n: "Roma", p: "Itália", lat: 41.80, lon: 12.25, ap: "FCO", iata: "ROM", int: true, hotel: [450, 800, 1600], idx: 2.2, tags: ["cultura", "gastronomia"] },
+  { n: "Londres", p: "Reino Unido", lat: 51.47, lon: -0.45, ap: "LHR", iata: "LON", int: true, hotel: [650, 1100, 2200], idx: 2.8, tags: ["cultura", "compras", "noite"] },
+  { n: "Nova York", p: "Estados Unidos", lat: 40.64, lon: -73.78, ap: "JFK", iata: "NYC", int: true, hotel: [700, 1200, 2400], idx: 2.9, tags: ["cultura", "compras", "gastronomia", "noite"] },
+  { n: "Miami", p: "Estados Unidos", lat: 25.79, lon: -80.29, ap: "MIA", iata: "MIA", int: true, hotel: [500, 850, 1600], idx: 2.3, tags: ["praia", "compras", "noite"] },
+  { n: "Bariloche", p: "Argentina", lat: -41.15, lon: -71.16, ap: "BRC", iata: "BRC", int: true, hotel: [220, 400, 800], idx: 1.2, tags: ["natureza", "gastronomia", "criancas"] },
+  { n: "Punta Cana", p: "República Dominicana", lat: 18.57, lon: -68.36, ap: "PUJ", iata: "PUJ", int: true, hotel: [400, 700, 1400], idx: 1.8, tags: ["praia", "criancas"] }
 ];
 
 export const ESTILOS = ["econômico", "equilibrado", "conforto"];

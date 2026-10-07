@@ -171,7 +171,7 @@ test("roteiro usa o interesse livre no prompt, limpo e curto", async () => {
 test("veredito compara vários destinos: país vira todas as cidades dele", async () => {
   const r = await montarVeredito({ ...base, orcamento: 9000, destinos: ["Argentina", "Chile", "Salvador"] });
   assert.equal(r.modo, "comparar");
-  assert.deepEqual(r.opcoes.map(o => o.destino.n).sort(), ["Buenos Aires", "Salvador", "Santiago"]);
+  assert.deepEqual(r.opcoes.map(o => o.destino.n).sort(), ["Bariloche", "Buenos Aires", "Salvador", "Santiago"]);
   assert.equal(r.atual, r.opcoes[0]);
   const brasil = await montarVeredito({ ...base, destinos: ["Brasil"] });
   assert.equal(brasil.modo, "comparar");

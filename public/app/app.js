@@ -78,6 +78,14 @@ const EXEMPLOS = {
   "Orlando": "Disney, Universal, outlets",
   "Tóquio": "Akihabara, Shibuya, sushi em Tsukiji",
   "Paris": "Torre Eiffel, Louvre, Disneyland Paris",
+  "Madri": "Museu do Prado, Parque del Retiro, tapas no Mercado de San Miguel",
+  "Barcelona": "Sagrada Família, Park Güell, jogo no Camp Nou",
+  "Roma": "Coliseu, Vaticano, Fontana di Trevi",
+  "Londres": "Big Ben, Museu Britânico, estúdio do Harry Potter",
+  "Nova York": "Central Park, Times Square, musical na Broadway",
+  "Miami": "South Beach, Wynwood, outlets",
+  "Bariloche": "Cerro Catedral, Circuito Chico, chocolates",
+  "Punta Cana": "Ilha Saona, Hoyo Azul, catamarã",
   "Brasil": "praias, cachoeiras, comida típica",
   "Argentina": "show de tango, parrilla, La Boca e Caminito",
   "Chile": "Valle Nevado, vinícolas, Cerro San Cristóbal",
@@ -85,9 +93,13 @@ const EXEMPLOS = {
   "Peru": "ceviche, Miraflores, Barranco",
   "México": "cenotes, Isla Mujeres, Xcaret",
   "Portugal": "pastel de Belém, elétrico 28, fado em Alfama",
-  "Estados Unidos": "Disney, Universal, outlets",
+  "Estados Unidos": "Disney, Times Square, outlets",
   "Japão": "Akihabara, Shibuya, sushi em Tsukiji",
-  "França": "Torre Eiffel, Louvre, Disneyland Paris"
+  "França": "Torre Eiffel, Louvre, Disneyland Paris",
+  "Espanha": "Sagrada Família, Museu do Prado, tapas",
+  "Itália": "Coliseu, Vaticano, Fontana di Trevi",
+  "Reino Unido": "Big Ben, Museu Britânico, estúdio do Harry Potter",
+  "República Dominicana": "Ilha Saona, Hoyo Azul, catamarã"
 };
 function atualizarExemplo() {
   const alvo = escolhidos[0] || OPCOES.find(o => norm(o.v) === norm($("destino").value))?.v;
