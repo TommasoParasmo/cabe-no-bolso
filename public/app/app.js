@@ -306,7 +306,7 @@ async function calcular() {
   pedido?.abort();
   const meu = pedido = new AbortController();
   $("go").disabled = $("sugerir").disabled = true;
-  setStatus("Calculando…");
+  const parar = voando($("go"), FRASES_CALCULO);
   try {
     const form = lerForm();
     const r = await postar("/api/veredito", form, meu.signal);
@@ -318,7 +318,7 @@ async function calcular() {
     if (e.name !== "AbortError") setStatus(e.message, true);
   } finally {
     // Só o pedido mais recente libera os botões.
-    if (pedido === meu) $("go").disabled = $("sugerir").disabled = false;
+    if (pedido === meu) { parar(); $("go").disabled = $("sugerir").disabled = false; }
   }
 }
 
@@ -488,10 +488,29 @@ function render(fresh) {
   renderRoteiro();
 }
 
+// ---- Botão "voando": avião cruzando o botão e frases que se alternam enquanto espera ----
+const FRASES_CALCULO = ["Calculando os melhores preços…", "Procurando passagens…", "Comparando hospedagens…", "Vendo se vai dar…"];
+const FRASES_ROTEIRO = ["Montando o melhor roteiro para sua viagem…", "Procurando restaurantes no Google Maps…", "Organizando os passeios por bairro…", "Conferindo a verba de cada dia…", "Quase lá…"];
+function voando(botao, frases) {
+  if (!botao) return () => {};
+  const original = botao.innerHTML;
+  let i = 0;
+  const pintar = () => {
+    // A última frase fica parada até a resposta chegar.
+    botao.innerHTML = `<span class="aviao" aria-hidden="true">✈\uFE0E</span><span class="frase">${frases[Math.min(i++, frases.length - 1)]}</span>`;
+  };
+  botao.classList.add("voando");
+  pintar();
+  const t = setInterval(pintar, 2400);
+  return () => { clearInterval(t); botao.classList.remove("voando"); if (botao.isConnected) botao.innerHTML = original; };
+}
+let pararRoteiro = null;
+
 // ---- Roteiro com IA: só quando a pessoa pede ----
 let ctlRoteiro = null;
 
 function renderRoteiro() {
+  pararRoteiro?.(); pararRoteiro = null;
   const card = $("roteiro-card");
   if (!card) return;
   const ro = state.roteiro;
@@ -512,9 +531,10 @@ function renderRoteiro() {
     <div class="roteiro-cta">
       <h3>Quer o roteiro dia a dia?</h3>
       <p class="hint" style="margin:0">Montamos passeios, almoço e jantar de cada dia dentro da verba acima.</p>
-      <div class="actions"><button type="button" class="primary" id="gerar" ${busy ? "disabled" : ""}>${busy ? "Montando o roteiro…" : "Montar roteiro"}</button>${busy ? '<button type="button" id="parar">Parar</button>' : ""}</div>
+      <div class="actions"><button type="button" class="primary" id="gerar" ${busy ? "disabled" : ""}>Montar roteiro</button>${busy ? '<button type="button" id="parar">Parar</button>' : ""}</div>
       ${ro?.erro ? `<div class="warn-box">${esc(ro.erro)}</div>` : ""}
     </div>`;
+  if (busy) pararRoteiro = voando($("gerar"), FRASES_ROTEIRO);
   $("gerar")?.addEventListener("click", gerarRoteiro);
   $("parar")?.addEventListener("click", () => ctlRoteiro?.abort());
 }
