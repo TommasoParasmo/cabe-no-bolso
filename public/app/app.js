@@ -13,12 +13,11 @@ const iso = d => d.toISOString().slice(0, 10);
   const b = new Date(a); b.setDate(b.getDate() + 5);
   $("ida").value = iso(a); $("volta").value = iso(b);
 })();
-// Botões de faixa: preenchem o valor e já calculam.
+// Botões de faixa: só preenchem o valor; o resultado aparece ao clicar em "Ver se vai dar".
 const marcarFaixa = () => document.querySelectorAll(".faixas button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === $("orcamento").value.replace(/\D/g, ""))));
 document.querySelectorAll(".faixas button").forEach(b => b.onclick = () => {
   $("orcamento").value = Number(b.dataset.v).toLocaleString("pt-BR");
   marcarFaixa();
-  calcular();
 });
 $("orcamento").addEventListener("input", marcarFaixa);
 $("orcamento").addEventListener("input", e => {
@@ -42,12 +41,67 @@ function addDestino(v) {
   $("destino").value = "";
   renderEscolhidos();
 }
+// Exemplos do campo "Algo específico" conforme o destino escolhido (o primeiro da lista).
+// Só coisas na própria cidade (ou bate-volta curto): o roteiro é gerado para a cidade do app.
+const EXEMPLOS = {
+  "Rio de Janeiro": "Cristo Redentor, trilha do Morro Dois Irmãos, samba na Lapa",
+  "Salvador": "Pelourinho, acarajé, show do Olodum",
+  "Porto de Galinhas": "piscinas naturais, passeio de jangada, Praia de Muro Alto",
+  "Fortaleza": "Beach Park, Praia do Futuro, forró",
+  "Natal": "passeio de buggy nas dunas, Genipabu, Maracajaú",
+  "Maceió": "Praia do Gunga, piscinas de Pajuçara, Praia do Francês",
+  "Florianópolis": "Lagoa da Conceição, trilha da Lagoinha do Leste, ostras",
+  "Gramado": "Snowland, fondue, Lago Negro",
+  "Foz do Iguaçu": "Cataratas, Itaipu, compras no Paraguai",
+  "Bonito": "flutuação no Rio da Prata, Gruta do Lago Azul, Buraco das Araras",
+  "Jericoacoara": "Pedra Furada, pôr do sol na duna, kitesurf",
+  "Porto Seguro": "Arraial d'Ajuda, Trancoso, Recife de Fora",
+  "Paraty": "centro histórico, passeio de escuna, cachaçarias",
+  "Ubatuba": "Praia do Félix, Ilha Anchieta, trilha das 7 praias",
+  "Campos do Jordão": "Morro do Elefante, chocolate quente, Amantikir",
+  "Búzios": "Rua das Pedras, Praia de Geribá, passeio de barco",
+  "Arraial do Cabo": "Prainhas do Pontal do Atalaia, mergulho, Gruta Azul",
+  "Ouro Preto": "igrejas barrocas, Mina da Passagem, comida mineira",
+  "Pirenópolis": "cachoeiras, Cavalhadas, centro histórico",
+  "Chapada dos Veadeiros": "Vale da Lua, Cachoeira Santa Bárbara, trilhas",
+  "Balneário Camboriú": "roda-gigante, Unipraias, Beto Carrero",
+  "Praia do Forte": "Projeto Tamar, piscinas naturais, Castelo Garcia d'Ávila",
+  "Canoa Quebrada": "falésias, passeio de buggy, Broadway",
+  "Salinópolis": "Praia do Atalaia, Lago da Coca-Cola, caranguejo",
+  "Presidente Figueiredo": "cachoeiras, cavernas, Maroaga",
+  "Buenos Aires": "show de tango, parrilla, La Boca e Caminito",
+  "Santiago": "Valle Nevado, vinícolas, Cerro San Cristóbal",
+  "Montevidéu": "Mercado del Puerto, Ciudad Vieja, Rambla",
+  "Lima": "ceviche, Miraflores, Barranco",
+  "Cancún": "cenotes, Isla Mujeres, Xcaret",
+  "Lisboa": "pastel de Belém, elétrico 28, fado em Alfama",
+  "Orlando": "Disney, Universal, outlets",
+  "Tóquio": "Akihabara, Shibuya, sushi em Tsukiji",
+  "Paris": "Torre Eiffel, Louvre, Disneyland Paris",
+  "Brasil": "praias, cachoeiras, comida típica",
+  "Argentina": "show de tango, parrilla, La Boca e Caminito",
+  "Chile": "Valle Nevado, vinícolas, Cerro San Cristóbal",
+  "Uruguai": "Mercado del Puerto, Ciudad Vieja, Rambla",
+  "Peru": "ceviche, Miraflores, Barranco",
+  "México": "cenotes, Isla Mujeres, Xcaret",
+  "Portugal": "pastel de Belém, elétrico 28, fado em Alfama",
+  "Estados Unidos": "Disney, Universal, outlets",
+  "Japão": "Akihabara, Shibuya, sushi em Tsukiji",
+  "França": "Torre Eiffel, Louvre, Disneyland Paris"
+};
+function atualizarExemplo() {
+  const alvo = escolhidos[0] || OPCOES.find(o => norm(o.v) === norm($("destino").value))?.v;
+  $("foco").placeholder = "Ex.: " + (EXEMPLOS[alvo] || "museus, trilhas, vida noturna");
+}
+$("destino").addEventListener("input", atualizarExemplo);
+
 let tipo = "comparar";
 function renderEscolhidos() {
   $("escolhidos").innerHTML = escolhidos.map((v, i) => `<button type="button" data-i="${i}" aria-label="Tirar ${esc(v)}">${esc(v)} ✕</button>`).join("");
   $("tipo").hidden = escolhidos.length < 2;
   $("escolhidos").querySelectorAll("button").forEach(b => b.onclick = () => { escolhidos.splice(Number(b.dataset.i), 1); renderEscolhidos(); });
   $("destino").placeholder = escolhidos.length ? "Adicionar outro" : "Vazio = sugerimos";
+  atualizarExemplo();
 }
 document.querySelectorAll('input[name="tipo"]').forEach(r => r.onchange = () => { tipo = r.value; });
 
@@ -386,7 +440,6 @@ $("form").addEventListener("submit", e => {
   e.preventDefault();
   calcular().then(() => state && $("result").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }));
 });
-calcular();
 
 // ---- Minhas viagens: ficam guardadas no aparelho (no app, pelo armazenamento nativo) ----
 // Sem bundler: usa o plugin já exposto pela ponte nativa ou registra pelo nome.
