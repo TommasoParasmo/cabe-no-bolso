@@ -42,13 +42,14 @@ function addDestino(v) {
   renderEscolhidos();
 }
 // Exemplos do campo "Algo específico" conforme o destino escolhido (o primeiro da lista).
+// Só coisas na própria cidade (ou bate-volta curto): o roteiro é gerado para a cidade do app.
 const EXEMPLOS = {
   "Rio de Janeiro": "Cristo Redentor, trilha do Morro Dois Irmãos, samba na Lapa",
   "Salvador": "Pelourinho, acarajé, show do Olodum",
-  "Porto de Galinhas": "piscinas naturais, passeio de jangada, Praia dos Carneiros",
+  "Porto de Galinhas": "piscinas naturais, passeio de jangada, Praia de Muro Alto",
   "Fortaleza": "Beach Park, Praia do Futuro, forró",
   "Natal": "passeio de buggy nas dunas, Genipabu, Maracajaú",
-  "Maceió": "Praia do Gunga, piscinas de Pajuçara, São Miguel dos Milagres",
+  "Maceió": "Praia do Gunga, piscinas de Pajuçara, Praia do Francês",
   "Florianópolis": "Lagoa da Conceição, trilha da Lagoinha do Leste, ostras",
   "Gramado": "Snowland, fondue, Lago Negro",
   "Foz do Iguaçu": "Cataratas, Itaipu, compras no Paraguai",
@@ -70,23 +71,23 @@ const EXEMPLOS = {
   "Presidente Figueiredo": "cachoeiras, cavernas, Maroaga",
   "Buenos Aires": "show de tango, parrilla, La Boca e Caminito",
   "Santiago": "Valle Nevado, vinícolas, Cerro San Cristóbal",
-  "Montevidéu": "Mercado del Puerto, Ciudad Vieja, Punta del Este",
-  "Lima": "ceviche, Miraflores, Machu Picchu",
-  "Cancún": "Chichén Itzá, cenotes, Isla Mujeres",
+  "Montevidéu": "Mercado del Puerto, Ciudad Vieja, Rambla",
+  "Lima": "ceviche, Miraflores, Barranco",
+  "Cancún": "cenotes, Isla Mujeres, Xcaret",
   "Lisboa": "pastel de Belém, elétrico 28, fado em Alfama",
   "Orlando": "Disney, Universal, outlets",
-  "Tóquio": "Akihabara, Monte Fuji, sushi em Tsukiji",
+  "Tóquio": "Akihabara, Shibuya, sushi em Tsukiji",
   "Paris": "Torre Eiffel, Louvre, Disneyland Paris",
   "Brasil": "praias, cachoeiras, comida típica",
-  "Argentina": "show de tango, neve em Bariloche, vinícolas em Mendoza",
-  "Chile": "Valle Nevado, vinícolas, Deserto do Atacama",
-  "Uruguai": "Punta del Este, Colonia del Sacramento, parrilla",
-  "Peru": "Machu Picchu, ceviche, Vale Sagrado",
-  "México": "Chichén Itzá, cenotes, tacos",
-  "Portugal": "pastel de Belém, Porto e vinhos, fado",
+  "Argentina": "show de tango, parrilla, La Boca e Caminito",
+  "Chile": "Valle Nevado, vinícolas, Cerro San Cristóbal",
+  "Uruguai": "Mercado del Puerto, Ciudad Vieja, Rambla",
+  "Peru": "ceviche, Miraflores, Barranco",
+  "México": "cenotes, Isla Mujeres, Xcaret",
+  "Portugal": "pastel de Belém, elétrico 28, fado em Alfama",
   "Estados Unidos": "Disney, Universal, outlets",
-  "Japão": "Akihabara, Monte Fuji, templos de Quioto",
-  "França": "Torre Eiffel, Louvre, vinhos"
+  "Japão": "Akihabara, Shibuya, sushi em Tsukiji",
+  "França": "Torre Eiffel, Louvre, Disneyland Paris"
 };
 function atualizarExemplo() {
   const alvo = escolhidos[0] || OPCOES.find(o => norm(o.v) === norm($("destino").value))?.v;
