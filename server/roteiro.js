@@ -124,14 +124,21 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null) {
   // A IA às vezes erra a conta ou mistura regiões num dia: isso é conferido aqui e, se falhar, ela tenta de novo uma vez.
   let roteiro, avisos = "";
   for (let tentativa = 0; tentativa < 2; tentativa++) {
-    const resposta = await anthropic.messages.parse({
-      model: MODELO,
-      max_tokens: 16000,
-      messages: [{ role: "user", content: montarPrompt(p) + avisos }],
-      output_config: { effort: "low", format: zodOutputFormat(Roteiro) }
-    });
-    const r = resposta.parsed_output;
-    if (!r || !r.dias.length) throw new Error("Resposta da IA sem roteiro");
+    // Às vezes a resposta para no limite de tokens (stop_reason "max_tokens") e o JSON fica incompleto:
+    // conta como tentativa falha e tenta de novo. Erros da API (rede, limite, chave) sobem direto.
+    let r = null;
+    try {
+      const resposta = await anthropic.messages.parse({
+        model: MODELO,
+        max_tokens: 16000,
+        messages: [{ role: "user", content: montarPrompt(p) + avisos }],
+        output_config: { effort: "low", format: zodOutputFormat(Roteiro) }
+      });
+      if (resposta.stop_reason !== "max_tokens") r = resposta.parsed_output;
+    } catch (e) {
+      if (e instanceof Anthropic.APIError) throw e;
+    }
+    if (!r?.dias?.length) continue;
     const inteiro = v => Math.max(0, Math.round(v) || 0);
     const dias = r.dias.slice(0, p.dias).map(d => ({
       ...d, atividades: d.atividades.map(a => ({ ...a, custo: inteiro(a.custo) })),
@@ -148,6 +155,7 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null) {
     avisos = (novo.totalPasseios > p.verba ? `\nAtenção: a soma dos custos tem que ser no máximo R$ ${p.verba}.` : "") +
       (fora.length ? `\nAtenção: na tentativa anterior estes lugares ficaram fora da região do dia. Troque por lugares da região ou mude a região do dia: ${fora.slice(0, 12).map(f => `dia ${f.dia} (${f.regiao}): ${f.nome}, em ${f.bairro}`).join("; ")}.` : "");
   }
+  if (!roteiro) throw new Error("Resposta da IA sem roteiro");
   if (roteiro.totalPasseios <= p.verba) {
     await gravarCache(chave, roteiro, SETE_DIAS);
     return { ...roteiro, cache: false };

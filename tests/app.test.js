@@ -335,3 +335,17 @@ test("roteiro que mistura regiões num dia pede de novo apontando os lugares for
   assert.equal(m, 2);
   assert.equal(r3.dias[0].regiao, "Pelourinho e Comércio");
 });
+
+test("roteiro cortado no limite de tokens tenta de novo; erro da API não", async () => {
+  let n = 0;
+  const cortado = { messages: { parse: async req => (++n === 1
+    ? { stop_reason: "max_tokens", parsed_output: null }
+    : resposta([0]).messages.parse(req)) } };
+  const r = await gerarRoteiro({ destino: "Salvador", noites: 3, pessoas: 5, verbaPasseios: 400 }, {}, cortado);
+  assert.equal(n, 2);
+  assert.equal(r.dias.length, 1);
+  let m = 0;
+  const sempre = { messages: { parse: async () => { m++; throw new SyntaxError("JSON incompleto"); } } };
+  await assert.rejects(gerarRoteiro({ destino: "Salvador", noites: 3, pessoas: 6, verbaPasseios: 400 }, {}, sempre), /sem roteiro/);
+  assert.equal(m, 2);
+});
