@@ -169,6 +169,9 @@ async function comGemini(p, chave, fetchFn) {
     .map(r => `o restaurante ${r.nome} (dia ${d.dia}) não está na lista do Google Maps, troque por um restaurante da lista`));
   const roteiro = await tentar(p, avisos => montarComGemini(montarPrompt(p) + lista + avisos, Roteiro, chave, fetchFn), semMaps);
   if (!roteiro) throw new ErroGemini("Gemini sem roteiro válido");
+  // Se mesmo refeito ficou restaurante fora do Maps, mostra (com link de busca) mas não guarda no cache,
+  // para o próximo pedido tentar de novo em vez de repetir o restaurante não conferido por 7 dias.
+  roteiro.semConferir = semMaps(roteiro.dias).length;
   const usados = new Set();
   const comLink = l => l && { ...l, maps: linkDoMaps(l.nome, lugares, usados) };
   roteiro.dias = roteiro.dias.map(d => ({ ...d, atividades: d.atividades.map(comLink), almoco: comLink(d.almoco), jantar: comLink(d.jantar) }));
@@ -179,7 +182,7 @@ async function comGemini(p, chave, fetchFn) {
 
 export async function gerarRoteiro(body, env = {}, client = null, ip = null, fetchFn = globalThis.fetch) {
   const p = validarPedido(body);
-  const chave = `https://cache.cabenobolso/roteiro/v10?${new URLSearchParams({
+  const chave = `https://cache.cabenobolso/roteiro/v11?${new URLSearchParams({
     d: p.paradas.map(x => `${x.dest.n}:${x.noites}`).join(","), n: p.dias, q: p.pessoas, e: p.estilo, i: p.interesses.join(","), f: p.foco.toLowerCase(), v: p.verba, c: p.comidaDia
   })}`;
   const guardado = await lerCache(chave);
@@ -206,11 +209,10 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null, fet
   }
   if (!roteiro) throw new Error("Resposta da IA sem roteiro");
   // Aparece no log em tempo real da Cloudflare: qual IA montou e quantas fontes do Maps vieram.
-  console.log(`roteiro: feito por ${roteiro.fonte}${roteiro.fontes ? `, ${roteiro.fontes.length} fontes do Google Maps` : ""}`);
-  if (roteiro.totalPasseios <= p.verba) {
-    await gravarCache(chave, roteiro, SETE_DIAS);
-    return { ...roteiro, cache: false };
-  }
-  // Continuou acima da verba: mostra com aviso e não guarda no cache.
-  return { ...roteiro, acimaDaVerba: true, cache: false };
+  const { semConferir, ...guardar } = roteiro;
+  console.log(`roteiro: feito por ${roteiro.fonte}${roteiro.fontes ? `, ${roteiro.fontes.length} fontes do Google Maps` : ""}${semConferir ? `, ${semConferir} restaurante(s) fora do Maps` : ""}`);
+  // Acima da verba: mostra com aviso e não guarda no cache.
+  if (guardar.totalPasseios > p.verba) return { ...guardar, acimaDaVerba: true, cache: false };
+  if (!semConferir) await gravarCache(chave, guardar, SETE_DIAS);
+  return { ...guardar, cache: false };
 }

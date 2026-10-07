@@ -448,3 +448,18 @@ test("restaurante do Gemini que não veio do Google Maps faz o roteiro ser refei
   assert.match(pedidos[2].corpo.contents[0].parts[0].text, /Cantina Que Não Existe \(dia 1\) não está na lista do Google Maps/);
   assert.equal(r.dias[0].almoco.nome, "Restaurante Axego");
 });
+
+test("roteiro do Gemini com restaurante fora do Maps mesmo refeito aparece mas não vai para o cache", async () => {
+  await comCache(async () => {
+    const inventado = { content: { parts: [{ text: JSON.stringify({ dias: [{ ...diaGemini, almoco: { nome: "Cantina Que Não Existe", bairro: "Pelourinho", custo: 50 } }], dicas: [] }) }] }, finishReason: "STOP" };
+    const pedido = { destino: "Salvador", noites: 2, pessoas: 9, verbaPasseios: 300 };
+    const r = await gerarRoteiro(pedido, { GEMINI_API_KEY: "k" }, null, null, geminiFalso([mapsOk, inventado, inventado]).fetchFn);
+    assert.equal(r.dias[0].almoco.nome, "Cantina Que Não Existe");
+    assert.equal(r.semConferir, undefined);
+    const g = geminiFalso([mapsOk, jsonOk]);
+    const r2 = await gerarRoteiro(pedido, { GEMINI_API_KEY: "k" }, null, null, g.fetchFn);
+    assert.equal(r2.cache, false);
+    assert.equal(g.pedidos.length, 2);
+    assert.equal((await gerarRoteiro(pedido, { GEMINI_API_KEY: "k" }, null, null, g.fetchFn)).cache, true);
+  });
+});
