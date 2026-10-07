@@ -185,12 +185,12 @@ let pedido = null;
 
 async function calcular() {
   pedido?.abort();
-  pedido = new AbortController();
-  $("go").disabled = true;
+  const meu = pedido = new AbortController();
+  $("go").disabled = $("sugerir").disabled = true;
   setStatus("Calculando…");
   try {
     const form = lerForm();
-    const r = await postar("/api/veredito", form, pedido.signal);
+    const r = await postar("/api/veredito", form, meu.signal);
     // O foco (ex.: "Pokémon") não volta do servidor: guarda o que foi pedido para o roteiro.
     state = { ...r, foco: form.foco, roteiro: null };
     setStatus("");
@@ -198,7 +198,8 @@ async function calcular() {
   } catch (e) {
     if (e.name !== "AbortError") setStatus(e.message, true);
   } finally {
-    $("go").disabled = false;
+    // Só o pedido mais recente libera os botões.
+    if (pedido === meu) $("go").disabled = $("sugerir").disabled = false;
   }
 }
 
