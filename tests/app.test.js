@@ -101,11 +101,12 @@ test("veredito rejeita entrada inválida", async () => {
   await assert.rejects(montarVeredito({ ...base, destino: "Atlântida" }), EntradaInvalida);
 });
 
-test("roteiro chama o modelo barato com a verba no prompt e devolve dias e dicas", async () => {
+test("roteiro chama o Sonnet com esforço baixo e a verba no prompt e devolve dias e dicas", async () => {
   let pedido;
   const client = { messages: { parse: async req => { pedido = req; return { parsed_output: { dias: [{ dia: 1, titulo: "Centro", atividades: [{ periodo: "Manhã", nome: "Pelourinho", custo: 0 }] }], dicas: ["a", "b", "c", "d"] } }; } } };
   const r = await gerarRoteiro({ destino: "Salvador", noites: 5, pessoas: 2, estilo: 0, interesses: ["praia"], verbaPasseios: 724 }, {}, client);
-  assert.equal(pedido.model, "claude-haiku-4-5");
+  assert.equal(pedido.model, "claude-sonnet-5-5");
+  assert.equal(pedido.output_config.effort, "low");
   assert.match(pedido.messages[0].content, /R\$ 700/);
   assert.ok(pedido.output_config?.format);
   assert.equal(r.dias.length, 1);
@@ -333,4 +334,18 @@ test("roteiro que mistura regiões num dia pede de novo apontando os lugares for
   const r3 = await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 4, verbaPasseios: 300 }, {}, pior);
   assert.equal(m, 2);
   assert.equal(r3.dias[0].regiao, "Pelourinho e Comércio");
+});
+
+test("roteiro cortado no limite de tokens tenta de novo; erro da API não", async () => {
+  let n = 0;
+  const cortado = { messages: { parse: async req => (++n === 1
+    ? { stop_reason: "max_tokens", parsed_output: null }
+    : resposta([0]).messages.parse(req)) } };
+  const r = await gerarRoteiro({ destino: "Salvador", noites: 3, pessoas: 5, verbaPasseios: 400 }, {}, cortado);
+  assert.equal(n, 2);
+  assert.equal(r.dias.length, 1);
+  let m = 0;
+  const sempre = { messages: { parse: async () => { m++; throw new SyntaxError("JSON incompleto"); } } };
+  await assert.rejects(gerarRoteiro({ destino: "Salvador", noites: 3, pessoas: 6, verbaPasseios: 400 }, {}, sempre), /sem roteiro/);
+  assert.equal(m, 2);
 });
