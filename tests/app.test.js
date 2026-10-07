@@ -101,11 +101,12 @@ test("veredito rejeita entrada inválida", async () => {
   await assert.rejects(montarVeredito({ ...base, destino: "Atlântida" }), EntradaInvalida);
 });
 
-test("roteiro chama o modelo barato com a verba no prompt e devolve dias e dicas", async () => {
+test("roteiro chama o Sonnet com esforço baixo e a verba no prompt e devolve dias e dicas", async () => {
   let pedido;
   const client = { messages: { parse: async req => { pedido = req; return { parsed_output: { dias: [{ dia: 1, titulo: "Centro", atividades: [{ periodo: "Manhã", nome: "Pelourinho", custo: 0 }] }], dicas: ["a", "b", "c", "d"] } }; } } };
   const r = await gerarRoteiro({ destino: "Salvador", noites: 5, pessoas: 2, estilo: 0, interesses: ["praia"], verbaPasseios: 724 }, {}, client);
-  assert.equal(pedido.model, "claude-haiku-4-5");
+  assert.equal(pedido.model, "claude-sonnet-5-5");
+  assert.equal(pedido.output_config.effort, "low");
   assert.match(pedido.messages[0].content, /R\$ 700/);
   assert.ok(pedido.output_config?.format);
   assert.equal(r.dias.length, 1);
