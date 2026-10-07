@@ -4,7 +4,7 @@ import { DESTINOS } from "../public/lib/dados.js";
 import { custo, acharDestino, noitesQueCabem } from "../public/lib/custo.js";
 import { precoVoo } from "../server/precos.js";
 import { montarVeredito, EntradaInvalida } from "../server/veredito.js";
-import { gerarRoteiro, validarPedido, LimiteAtingido, LIMITE_DIA } from "../server/roteiro.js";
+import { gerarRoteiro, validarPedido, LimiteAtingido, LIMITE_DIA, foraDaRegiao } from "../server/roteiro.js";
 
 const base = {
   orcamento: 7000, origem: "São Paulo", destino: "", ida: "2026-11-20", volta: "2026-11-25",
@@ -293,4 +293,33 @@ test("roteiro organiza cada dia por região, com refeições perto dos passeios 
   assert.match(esquema, /bairro/);
   assert.equal(r.dias[0].regiao, "Barra");
   assert.equal(r.dias[0].almoco.bairro, "Barra");
+});
+
+test("roteiro que mistura regiões num dia pede de novo apontando os lugares fora", async () => {
+  const dia = (tarde, bairro) => ({ dia: 1, cidade: "Salvador", regiao: "Pelourinho", titulo: "Centro",
+    atividades: [{ periodo: "manhã", nome: "Elevador Lacerda", bairro: "Comércio", custo: 0 }, { periodo: "tarde", nome: tarde, bairro, custo: 0 }],
+    almoco: { nome: "Restaurante do SENAC", bairro: "Pelourinho", custo: 90 }, jantar: { nome: "Restaurante B", bairro: "Pelourinho", custo: 90 } });
+  assert.deepEqual(foraDaRegiao([dia("Farol da Barra", "Barra")]).map(f => f.nome), ["Elevador Lacerda", "Farol da Barra"]);
+  assert.deepEqual(foraDaRegiao([{ ...dia("Farol", "Barra"), regiao: "Pelourinho, Comércio e Barra" }]), []);
+  assert.deepEqual(foraDaRegiao([{ ...dia("Farol", "Barra"), regiao: "Centro (Pelourinho / Comércio) - Barra" }]), []);
+  assert.deepEqual(foraDaRegiao([{ ...dia("Praia", "Barra da Tijuca"), regiao: "Pelourinho, Comércio e Barra" }]).map(f => f.nome), ["Praia"]);
+  const pedidos = [];
+  const respostas = [dia("Farol da Barra", "Barra"), { ...dia("Igreja de São Francisco", "Pelourinho"), regiao: "Pelourinho e Comércio" }];
+  const client = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: { dias: [respostas[pedidos.length - 1]], dicas: [] } }; } } };
+  const r = await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 2, verbaPasseios: 300 }, {}, client);
+  assert.equal(pedidos.length, 2);
+  assert.match(pedidos[1], /fora da região do dia.*Farol da Barra, em Barra/);
+  assert.equal(r.dias[0].atividades[1].nome, "Igreja de São Francisco");
+  // Se já vem certo, não chama de novo.
+  let n = 0;
+  const certo = { messages: { parse: async () => { n++; return { parsed_output: { dias: [{ ...dia("Farol", "Barra"), regiao: "Pelourinho, Comércio e Barra" }], dicas: [] } }; } } };
+  await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 3, verbaPasseios: 300 }, {}, certo);
+  assert.equal(n, 1);
+  // Se a segunda tentativa for pior, fica a primeira.
+  const tentativas = [{ ...dia("Farol da Barra", "Barra"), regiao: "Pelourinho e Comércio" }, dia("Farol da Barra", "Barra")];
+  let m = 0;
+  const pior = { messages: { parse: async () => ({ parsed_output: { dias: [tentativas[m++]], dicas: [] } }) } };
+  const r3 = await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 4, verbaPasseios: 300 }, {}, pior);
+  assert.equal(m, 2);
+  assert.equal(r3.dias[0].regiao, "Pelourinho e Comércio");
 });
