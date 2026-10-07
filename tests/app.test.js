@@ -287,6 +287,7 @@ test("roteiro organiza cada dia por região, com refeições perto dos passeios 
   assert.match(prompt, /jantar no mesmo bairro da atividade da tarde/);
   assert.match(prompt, /cada dia acontece numa região só/);
   assert.match(prompt, /nada de atrações de outras cidades/);
+  assert.match(prompt, /Quando o destino é uma região e não uma cidade/);
   const esquema = JSON.stringify(pedido.output_config.format);
   assert.match(esquema, /regiao/);
   assert.match(esquema, /bairro/);

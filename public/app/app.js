@@ -532,7 +532,8 @@ const regiaoDoDia = d => [d.regiao, state.atual.paradas && d.cidade].filter(Bool
 // Busca o lugar no Google Maps, onde a pessoa vê nota, fotos e avaliações. O bairro ajuda a achar o lugar certo.
 function mapa(nome, cidade, bairro) {
   const local = [nome, bairro].filter(Boolean).join(", ");
-  const q = state.atual.paradas ? `${local}, ${cidade || state.atual.paradas[0].n}` : `${local}, ${state.atual.destino.n}, ${state.atual.destino.p}`;
+  // A cidade do dia vale também em bate-volta de viagem com um destino só.
+  const q = state.atual.paradas ? `${local}, ${cidade || state.atual.paradas[0].n}` : `${local}, ${cidade || state.atual.destino.n}, ${state.atual.destino.p}`;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
