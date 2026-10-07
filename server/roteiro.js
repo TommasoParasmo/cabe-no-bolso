@@ -194,8 +194,13 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null, fet
       console.error("roteiro: Gemini falhou, usando o Claude:", e.message);
     }
   }
-  if (!roteiro) roteiro = await comClaude(p, client || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }));
+  if (!roteiro) {
+    roteiro = await comClaude(p, client || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }));
+    if (roteiro) roteiro.fonte = "claude";
+  }
   if (!roteiro) throw new Error("Resposta da IA sem roteiro");
+  // Aparece no log em tempo real da Cloudflare: qual IA montou e quantas fontes do Maps vieram.
+  console.log(`roteiro: feito por ${roteiro.fonte}${roteiro.fontes ? `, ${roteiro.fontes.length} fontes do Google Maps` : ""}`);
   if (roteiro.totalPasseios <= p.verba) {
     await gravarCache(chave, roteiro, SETE_DIAS);
     return { ...roteiro, cache: false };

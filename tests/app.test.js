@@ -401,7 +401,7 @@ test("roteiro cai para o Claude quando o Gemini falha", async () => {
   const r = await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 3, verbaPasseios: 300 }, { GEMINI_API_KEY: "k", ANTHROPIC_API_KEY: "a" }, client, null, fetchFn);
   assert.equal(pedidos.length, 1);
   assert.equal(claude, 1);
-  assert.equal(r.fonte, undefined);
+  assert.equal(r.fonte, "claude");
   // Sem a chave do Claude, o erro do Gemini sobe.
   await assert.rejects(gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 4, verbaPasseios: 300 }, { GEMINI_API_KEY: "k" }, null, null, geminiFalso([{ status: 500 }]).fetchFn), /Gemini 500/);
 });
