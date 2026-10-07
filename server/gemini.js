@@ -98,7 +98,7 @@ export function linkDoMaps(nome, lugares, usados = new Set()) {
   if (!n.length) return undefined;
   let melhor, nota = 0;
   for (const l of lugares) {
-    const t = palavras(l.title);
+    const t = palavras(semSufixo(l.title));
     const comuns = n.filter(w => t.includes(w)).length;
     // Quase todas as palavras do nome no título, e o título não muito maior que o nome.
     if (comuns / n.length < 0.75 || comuns / t.length < 0.5) continue;
@@ -109,10 +109,13 @@ export function linkDoMaps(nome, lugares, usados = new Set()) {
   return linkSeguro(melhor?.uri);
 }
 
+// O título do Maps às vezes vem com " - Google Maps" no fim; a página já escreve a atribuição ao lado.
+const semSufixo = t => String(t).replace(/\s*[-–|]\s*Google Maps\s*$/i, "");
+
 // Fontes do Google Maps para mostrar logo depois do roteiro (nome e link de cada uma, sem repetir).
 export function fontesDoMaps(lugares) {
   const vistos = new Set();
-  return lugares.map(l => ({ nome: String(l.title).slice(0, 120), url: linkSeguro(l.uri) }))
+  return lugares.map(l => ({ nome: semSufixo(l.title).slice(0, 120), url: linkSeguro(l.uri) }))
     .filter(f => f.url && !vistos.has(f.url) && vistos.add(f.url)).slice(0, 60);
 }
 
