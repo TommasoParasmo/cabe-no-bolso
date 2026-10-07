@@ -301,6 +301,8 @@ test("roteiro que mistura regiões num dia pede de novo apontando os lugares for
     almoco: { nome: "Restaurante do SENAC", bairro: "Pelourinho", custo: 90 }, jantar: { nome: "Restaurante B", bairro: "Pelourinho", custo: 90 } });
   assert.deepEqual(foraDaRegiao([dia("Farol da Barra", "Barra")]).map(f => f.nome), ["Elevador Lacerda", "Farol da Barra"]);
   assert.deepEqual(foraDaRegiao([{ ...dia("Farol", "Barra"), regiao: "Pelourinho, Comércio e Barra" }]), []);
+  assert.deepEqual(foraDaRegiao([{ ...dia("Farol", "Barra"), regiao: "Centro (Pelourinho / Comércio) - Barra" }]), []);
+  assert.deepEqual(foraDaRegiao([{ ...dia("Praia", "Barra da Tijuca"), regiao: "Pelourinho, Comércio e Barra" }]).map(f => f.nome), ["Praia"]);
   const pedidos = [];
   const respostas = [dia("Farol da Barra", "Barra"), { ...dia("Igreja de São Francisco", "Pelourinho"), regiao: "Pelourinho e Comércio" }];
   const client = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: { dias: [respostas[pedidos.length - 1]], dicas: [] } }; } } };
