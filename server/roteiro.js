@@ -6,7 +6,9 @@ import { ESTILOS, INTERESSES } from "../public/lib/dados.js";
 import { acharDestino, norm } from "../public/lib/custo.js";
 import { lerCache, gravarCache } from "./cache.js";
 import { EntradaInvalida } from "./veredito.js";
+import { buscarLugares, montarComGemini, linkDoMaps, fontesDoMaps, ErroGemini } from "./gemini.js";
 
+// Claude: reserva quando o Gemini (server/gemini.js) falha ou não tem chave.
 // Sonnet conhece muito mais restaurantes e atrações reais por bairro que o Haiku (que inventava nomes).
 // Esforço baixo: o roteiro pede conhecimento de lugares, não raciocínio longo, e assim o custo fica em centavos.
 const MODELO = "claude-sonnet-5-5";
@@ -108,36 +110,13 @@ export function foraDaRegiao(dias) {
 
 const somaCustos = dias => dias.reduce((t, d) => t + d.atividades.reduce((s, a) => s + a.custo, 0), 0);
 
-export async function gerarRoteiro(body, env = {}, client = null, ip = null) {
-  const p = validarPedido(body);
-  const chave = `https://cache.cabenobolso/roteiro/v9?${new URLSearchParams({
-    d: p.paradas.map(x => `${x.dest.n}:${x.noites}`).join(","), n: p.dias, q: p.pessoas, e: p.estilo, i: p.interesses.join(","), f: p.foco.toLowerCase(), v: p.verba, c: p.comidaDia
-  })}`;
-  const guardado = await lerCache(chave);
-  if (guardado) return { ...guardado, cache: true };
-
-  if (!client && !env.ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY não configurada");
-  const limite = limiteDia(env);
-  if (!(await dentroDoLimite(ip, limite))) throw new LimiteAtingido(`Você já montou ${limite} roteiros novos hoje. Volte amanhã para montar mais.`);
-  const anthropic = client || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-
-  // A IA às vezes erra a conta ou mistura regiões num dia: isso é conferido aqui e, se falhar, ela tenta de novo uma vez.
+// Pede o roteiro até duas vezes. A IA às vezes erra a conta ou mistura regiões num dia: isso é conferido aqui
+// e, se falhar, ela tenta de novo com o aviso. `pedir(avisos)` devolve o roteiro da IA ou null (resposta cortada
+// ou fora do formato, que conta como tentativa falha). Devolve a melhor tentativa, ou null se nenhuma veio.
+async function tentar(p, pedir) {
   let roteiro, avisos = "";
   for (let tentativa = 0; tentativa < 2; tentativa++) {
-    // Às vezes a resposta para no limite de tokens (stop_reason "max_tokens") e o JSON fica incompleto:
-    // conta como tentativa falha e tenta de novo. Erros da API (rede, limite, chave) sobem direto.
-    let r = null;
-    try {
-      const resposta = await anthropic.messages.parse({
-        model: MODELO,
-        max_tokens: 16000,
-        messages: [{ role: "user", content: montarPrompt(p) + avisos }],
-        output_config: { effort: "low", format: zodOutputFormat(Roteiro) }
-      });
-      if (resposta.stop_reason !== "max_tokens") r = resposta.parsed_output;
-    } catch (e) {
-      if (e instanceof Anthropic.APIError) throw e;
-    }
+    const r = await pedir(avisos);
     if (!r?.dias?.length) continue;
     const inteiro = v => Math.max(0, Math.round(v) || 0);
     const dias = r.dias.slice(0, p.dias).map(d => ({
@@ -155,6 +134,67 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null) {
     avisos = (novo.totalPasseios > p.verba ? `\nAtenção: a soma dos custos tem que ser no máximo R$ ${p.verba}.` : "") +
       (fora.length ? `\nAtenção: na tentativa anterior estes lugares ficaram fora da região do dia. Troque por lugares da região ou mude a região do dia: ${fora.slice(0, 12).map(f => `dia ${f.dia} (${f.regiao}): ${f.nome}, em ${f.bairro}`).join("; ")}.` : "");
   }
+  return roteiro || null;
+}
+
+// Claude Sonnet: conhece os lugares de memória, sem consultar mapa.
+function comClaude(p, anthropic) {
+  return tentar(p, async avisos => {
+    // Às vezes a resposta para no limite de tokens (stop_reason "max_tokens") e o JSON fica incompleto:
+    // conta como tentativa falha. Erros da API (rede, limite, chave) sobem direto.
+    try {
+      const resposta = await anthropic.messages.parse({
+        model: MODELO,
+        max_tokens: 16000,
+        messages: [{ role: "user", content: montarPrompt(p) + avisos }],
+        output_config: { effort: "low", format: zodOutputFormat(Roteiro) }
+      });
+      return resposta.stop_reason === "max_tokens" ? null : resposta.parsed_output;
+    } catch (e) {
+      if (e instanceof Anthropic.APIError) throw e;
+      return null;
+    }
+  });
+}
+
+// Gemini: levanta lugares reais no Google Maps e monta o roteiro só com eles, cada um com o link do Maps.
+async function comGemini(p, chave, fetchFn) {
+  const { plano, lugares } = await buscarLugares(p, chave, fetchFn);
+  const lista = `\nUse somente os lugares desta lista, levantada agora no Google Maps, com o nome exatamente como está nela e mantendo a região e o bairro de cada dia. Escreva título, região e dicas em português. Os preços da lista são por pessoa, em reais. Se precisar trocar algum lugar (verba ou região), troque por outro da própria lista.\nLista:\n${plano}\n`;
+  const roteiro = await tentar(p, avisos => montarComGemini(montarPrompt(p) + lista + avisos, Roteiro, chave, fetchFn));
+  if (!roteiro) throw new ErroGemini("Gemini sem roteiro válido");
+  const usados = new Set();
+  const comLink = l => l && { ...l, maps: linkDoMaps(l.nome, lugares, usados) };
+  roteiro.dias = roteiro.dias.map(d => ({ ...d, atividades: d.atividades.map(comLink), almoco: comLink(d.almoco), jantar: comLink(d.jantar) }));
+  roteiro.fonte = "gemini";
+  roteiro.fontes = fontesDoMaps(lugares);
+  return roteiro;
+}
+
+export async function gerarRoteiro(body, env = {}, client = null, ip = null, fetchFn = globalThis.fetch) {
+  const p = validarPedido(body);
+  const chave = `https://cache.cabenobolso/roteiro/v10?${new URLSearchParams({
+    d: p.paradas.map(x => `${x.dest.n}:${x.noites}`).join(","), n: p.dias, q: p.pessoas, e: p.estilo, i: p.interesses.join(","), f: p.foco.toLowerCase(), v: p.verba, c: p.comidaDia
+  })}`;
+  const guardado = await lerCache(chave);
+  if (guardado) return { ...guardado, cache: true };
+
+  // Com a chave do Gemini, ele vem primeiro; o Claude fica de reserva se o Gemini falhar.
+  const usarGemini = Boolean(env.GEMINI_API_KEY);
+  if (!usarGemini && !client && !env.ANTHROPIC_API_KEY) throw new Error("Nenhuma chave de IA configurada (GEMINI_API_KEY ou ANTHROPIC_API_KEY)");
+  const limite = limiteDia(env);
+  if (!(await dentroDoLimite(ip, limite))) throw new LimiteAtingido(`Você já montou ${limite} roteiros novos hoje. Volte amanhã para montar mais.`);
+
+  let roteiro = null;
+  if (usarGemini) {
+    try {
+      roteiro = await comGemini(p, env.GEMINI_API_KEY, fetchFn);
+    } catch (e) {
+      if (!env.ANTHROPIC_API_KEY) throw e;
+      console.error("roteiro: Gemini falhou, usando o Claude:", e.message);
+    }
+  }
+  if (!roteiro) roteiro = await comClaude(p, client || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }));
   if (!roteiro) throw new Error("Resposta da IA sem roteiro");
   if (roteiro.totalPasseios <= p.verba) {
     await gravarCache(chave, roteiro, SETE_DIAS);

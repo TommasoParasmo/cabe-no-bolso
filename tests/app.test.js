@@ -349,3 +349,92 @@ test("roteiro cortado no limite de tokens tenta de novo; erro da API não", asyn
   await assert.rejects(gerarRoteiro({ destino: "Salvador", noites: 3, pessoas: 6, verbaPasseios: 400 }, {}, sempre), /sem roteiro/);
   assert.equal(m, 2);
 });
+
+// Gemini falso: a 1ª chamada (com Google Maps) devolve a lista de lugares, as seguintes devolvem o roteiro em JSON.
+const diaGemini = { dia: 1, cidade: "Salvador", regiao: "Pelourinho, Comércio", titulo: "Centro Histórico",
+  atividades: [{ periodo: "Manhã", nome: "Igreja de São Francisco", bairro: "Pelourinho", custo: 20 }],
+  almoco: { nome: "Restaurante Axego", bairro: "Pelourinho", custo: 120 }, jantar: { nome: "Lugar Inventado", bairro: "Comércio", custo: 100 } };
+function geminiFalso(respostas) {
+  const pedidos = [];
+  const fetchFn = async (url, init) => {
+    const corpo = JSON.parse(init.body);
+    pedidos.push({ url, corpo, chave: init.headers["x-goog-api-key"] });
+    const r = respostas[pedidos.length - 1];
+    if (r.status) return new Response("erro", { status: r.status });
+    return new Response(JSON.stringify({ candidates: [r] }), { status: 200 });
+  };
+  return { pedidos, fetchFn };
+}
+const mapsOk = { content: { parts: [{ text: "Day 1 - Salvador - Area: Pelourinho\n- Morning: Igreja de São Francisco | Pelourinho | 10" }] }, finishReason: "STOP",
+  groundingMetadata: { groundingChunks: [
+    { maps: { title: "Igreja e Convento de São Francisco", uri: "https://maps.google.com/?cid=1" } },
+    { maps: { title: "Restaurante Axego", uri: "https://maps.google.com/?cid=2" } },
+    { maps: { title: "Lugar Inventado", uri: "javascript:alert(1)" } }
+  ] } };
+const jsonOk = { content: { parts: [{ text: JSON.stringify({ dias: [diaGemini], dicas: ["a"] }) }] }, finishReason: "STOP" };
+
+test("roteiro com GEMINI_API_KEY consulta o Google Maps e monta o roteiro só com esses lugares", async () => {
+  const { pedidos, fetchFn } = geminiFalso([mapsOk, jsonOk]);
+  const r = await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 2, verbaPasseios: 300 }, { GEMINI_API_KEY: "k" }, null, null, fetchFn);
+  assert.equal(pedidos.length, 2);
+  assert.match(pedidos[0].url, /gemini-3\.8-flash:generateContent$/);
+  assert.equal(pedidos[0].chave, "k");
+  assert.deepEqual(pedidos[0].corpo.tools, [{ googleMaps: {} }]);
+  assert.ok(pedidos[0].corpo.toolConfig.retrievalConfig.latLng.latitude < -12);
+  assert.match(pedidos[0].corpo.contents[0].parts[0].text, /Use Google Maps to plan a 3-day trip to Salvador/);
+  // 2ª chamada: sem ferramentas, JSON com esquema e a lista do Maps no prompt.
+  assert.equal(pedidos[1].corpo.tools, undefined);
+  assert.equal(pedidos[1].corpo.generationConfig.responseMimeType, "application/json");
+  assert.equal(pedidos[1].corpo.generationConfig.responseJsonSchema.$schema, undefined);
+  assert.match(pedidos[1].corpo.contents[0].parts[0].text, /Lista:\nDay 1 - Salvador/);
+  assert.equal(r.fonte, "gemini");
+  assert.equal(r.dias[0].atividades[0].maps, "https://maps.google.com/?cid=1");
+  assert.equal(r.dias[0].almoco.maps, "https://maps.google.com/?cid=2");
+  // Link que não é https do Google não entra.
+  assert.equal(r.dias[0].jantar.maps, undefined);
+});
+
+test("roteiro cai para o Claude quando o Gemini falha", async () => {
+  const { pedidos, fetchFn } = geminiFalso([{ status: 429 }]);
+  let claude = 0;
+  const client = { messages: { parse: async () => { claude++; return { parsed_output: { dias: [diaGemini], dicas: [] } }; } } };
+  const r = await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 3, verbaPasseios: 300 }, { GEMINI_API_KEY: "k", ANTHROPIC_API_KEY: "a" }, client, null, fetchFn);
+  assert.equal(pedidos.length, 1);
+  assert.equal(claude, 1);
+  assert.equal(r.fonte, undefined);
+  // Sem a chave do Claude, o erro do Gemini sobe.
+  await assert.rejects(gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 4, verbaPasseios: 300 }, { GEMINI_API_KEY: "k" }, null, null, geminiFalso([{ status: 500 }]).fetchFn), /Gemini 500/);
+});
+
+test("roteiro do Gemini cortado ou fora do formato tenta de novo uma vez", async () => {
+  const cortado = { content: { parts: [{ text: "{\"dias\": [" }] }, finishReason: "MAX_TOKENS" };
+  const { pedidos, fetchFn } = geminiFalso([mapsOk, cortado, jsonOk]);
+  const r = await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 5, verbaPasseios: 300 }, { GEMINI_API_KEY: "k" }, null, null, fetchFn);
+  assert.equal(pedidos.length, 3);
+  assert.equal(r.dias.length, 1);
+});
+
+test("roteiro do Gemini devolve as fontes do Google Maps e não aceita lista do Maps cortada", async () => {
+  const { fetchFn } = geminiFalso([mapsOk, jsonOk]);
+  const r = await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 6, verbaPasseios: 300 }, { GEMINI_API_KEY: "k" }, null, null, fetchFn);
+  assert.deepEqual(r.fontes, [
+    { nome: "Igreja e Convento de São Francisco", url: "https://maps.google.com/?cid=1" },
+    { nome: "Restaurante Axego", url: "https://maps.google.com/?cid=2" }
+  ]);
+  const cortado = { ...mapsOk, finishReason: "MAX_TOKENS" };
+  let claude = 0;
+  const client = { messages: { parse: async () => { claude++; return { parsed_output: { dias: [diaGemini], dicas: [] } }; } } };
+  const g = geminiFalso([cortado]);
+  await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 7, verbaPasseios: 300 }, { GEMINI_API_KEY: "k", ANTHROPIC_API_KEY: "a" }, client, null, g.fetchFn);
+  assert.equal(g.pedidos.length, 1);
+  assert.equal(claude, 1);
+});
+
+test("link do Maps de rede com várias unidades vai para unidades diferentes", async () => {
+  const { linkDoMaps } = await import("../server/gemini.js");
+  const lugares = [{ title: "Coco Bambu", uri: "https://maps.google.com/?cid=10" }, { title: "Coco Bambu", uri: "https://maps.google.com/?cid=11" }];
+  const usados = new Set();
+  assert.equal(linkDoMaps("Coco Bambu", lugares, usados), "https://maps.google.com/?cid=10");
+  assert.equal(linkDoMaps("Coco Bambu", lugares, usados), "https://maps.google.com/?cid=11");
+  assert.equal(linkDoMaps("Outro Lugar", lugares, usados), undefined);
+});
