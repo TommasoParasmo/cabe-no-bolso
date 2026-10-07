@@ -306,6 +306,7 @@ async function calcular() {
   pedido?.abort();
   const meu = pedido = new AbortController();
   $("go").disabled = $("sugerir").disabled = true;
+  setStatus(""); // erro da tentativa anterior não fica na tela durante a nova
   const parar = voando($("go"), FRASES_CALCULO);
   try {
     const form = lerForm();
@@ -494,15 +495,23 @@ const FRASES_ROTEIRO = ["Montando o melhor roteiro para sua viagem…", "Procura
 function voando(botao, frases) {
   if (!botao) return () => {};
   const original = botao.innerHTML;
-  let i = 0;
+  let i = 0, t;
   const pintar = () => {
+    botao.innerHTML = `<span class="aviao" aria-hidden="true">✈\uFE0E</span><span class="frase" aria-hidden="true">${frases[i]}</span>`;
     // A última frase fica parada até a resposta chegar.
-    botao.innerHTML = `<span class="aviao" aria-hidden="true">✈\uFE0E</span><span class="frase">${frases[Math.min(i++, frases.length - 1)]}</span>`;
+    if (++i >= frases.length) clearInterval(t);
   };
+  // Leitor de tela ouve um aviso só (o botão pode estar numa região aria-live), não cada troca de frase.
+  botao.setAttribute("aria-label", frases[0]);
   botao.classList.add("voando");
   pintar();
-  const t = setInterval(pintar, 2400);
-  return () => { clearInterval(t); botao.classList.remove("voando"); if (botao.isConnected) botao.innerHTML = original; };
+  if (i < frases.length) t = setInterval(pintar, 2400);
+  return () => {
+    clearInterval(t);
+    botao.classList.remove("voando");
+    botao.removeAttribute("aria-label");
+    if (botao.isConnected) botao.innerHTML = original;
+  };
 }
 let pararRoteiro = null;
 
