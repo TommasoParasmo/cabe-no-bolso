@@ -11,7 +11,12 @@ import { EntradaInvalida } from "./veredito.js";
 const MODELO = "claude-haiku-4-5";
 const SETE_DIAS = 7 * 86400;
 // Roteiros novos (que chamam a IA) por IP por dia. Roteiros do cache não contam.
+// Dá para mudar sem mexer no código pela variável ROTEIRO_LIMITE_DIA na Cloudflare (de 1 a 100).
 export const LIMITE_DIA = 5;
+export const limiteDia = env => {
+  const n = Math.round(Number(env?.ROTEIRO_LIMITE_DIA));
+  return n >= 1 && n <= 100 ? n : LIMITE_DIA;
+};
 
 export class LimiteAtingido extends Error {}
 
@@ -76,11 +81,11 @@ Organize por região: cada dia acontece numa região só (um bairro ou bairros v
 
 // Contador por IP no cache da Cloudflare. É aproximado (cada data center conta separado),
 // então o teto de gasto de verdade fica no limite mensal configurado no console da Anthropic.
-async function dentroDoLimite(ip) {
+async function dentroDoLimite(ip, limite) {
   if (!ip) return true;
   const chave = `https://cache.cabenobolso/limite?${new URLSearchParams({ ip, d: new Date().toISOString().slice(0, 10) })}`;
   const usados = (await lerCache(chave))?.n || 0;
-  if (usados >= LIMITE_DIA) return false;
+  if (usados >= limite) return false;
   await gravarCache(chave, { n: usados + 1 }, 86400);
   return true;
 }
@@ -111,7 +116,8 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null) {
   if (guardado) return { ...guardado, cache: true };
 
   if (!client && !env.ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY não configurada");
-  if (!(await dentroDoLimite(ip))) throw new LimiteAtingido(`Você já montou ${LIMITE_DIA} roteiros novos hoje. Volte amanhã para montar mais.`);
+  const limite = limiteDia(env);
+  if (!(await dentroDoLimite(ip, limite))) throw new LimiteAtingido(`Você já montou ${limite} roteiros novos hoje. Volte amanhã para montar mais.`);
   const anthropic = client || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
 
   // A IA às vezes erra a conta ou mistura regiões num dia: isso é conferido aqui e, se falhar, ela tenta de novo uma vez.
