@@ -420,7 +420,8 @@ function cartaoPassagem(c, f, L) {
 }
 
 // Sugestão que não cabe: o app não diz "não vai dar", mostra quanto falta ("com mais um pouquinho você iria").
-const quase = o => state.modo === "sugestao" && o.estado === "nao_cabe";
+const quase = (o, modo = state?.modo) => modo === "sugestao" && o.estado === "nao_cabe";
+const rotulo = (o, modo) => quase(o, modo) ? `com mais ${brl(-o.diff)}` : ESTADO[o.estado];
 
 function opcoesHtml(opcoes, atual, filtro = () => true) {
   return `<div class="options">${opcoes.map((o, i) => filtro(o) ? `
@@ -655,7 +656,7 @@ function renderSalvas() {
   el.hidden = !salvas.length;
   el.innerHTML = salvas.length ? `<h3>Minhas viagens</h3><ul class="salvas">${salvas.map((v, i) => {
     const { entrada: f, atual: c } = v.estado;
-    return `<li><button type="button" class="abrir" data-i="${i}"><b>${esc(c.destino.n)}</b><small>${dataCurta(f.ida)} a ${dataCurta(f.volta)} · ${brl(c.total)} · ${ESTADO[c.estado]}${v.estado.roteiro ? " · com roteiro" : ""}</small></button><button type="button" class="tirar" data-i="${i}" aria-label="Apagar ${esc(c.destino.n)}">✕</button></li>`;
+    return `<li><button type="button" class="abrir" data-i="${i}"><b>${esc(c.destino.n)}</b><small>${dataCurta(f.ida)} a ${dataCurta(f.volta)} · ${brl(c.total)} · ${rotulo(c, v.estado.modo)}${v.estado.roteiro ? " · com roteiro" : ""}</small></button><button type="button" class="tirar" data-i="${i}" aria-label="Apagar ${esc(c.destino.n)}">✕</button></li>`;
   }).join("")}</ul>` : "";
   el.querySelectorAll(".abrir").forEach(b => b.onclick = () => {
     pedido?.abort(); setStatus(""); // um cálculo pendente não pode substituir a viagem aberta
@@ -667,7 +668,7 @@ function renderSalvas() {
 }
 async function compartilhar() {
   const { entrada: f, atual: c } = state;
-  const texto = `${c.destino.n}: ${ESTADO[c.estado]}. ${f.noites} noites para ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} por cerca de ${brl(c.total)}. Simule a sua viagem:`;
+  const texto = `${c.destino.n}: ${quase(c) ? `com mais ${brl(-c.diff)} vai dar viagem` : ESTADO[c.estado]}. ${f.noites} noites para ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} por cerca de ${brl(c.total)}. Simule a sua viagem:`;
   const url = "https://vaidarviagem.com.br/app/";
   try {
     const Share = plugin("Share");
