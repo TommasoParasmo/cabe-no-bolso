@@ -306,7 +306,8 @@ async function calcular() {
   pedido?.abort();
   const meu = pedido = new AbortController();
   $("go").disabled = $("sugerir").disabled = true;
-  setStatus("Calculando…");
+  setStatus(""); // erro da tentativa anterior não fica na tela durante a nova
+  const parar = voando($("go"), FRASES_CALCULO);
   try {
     const form = lerForm();
     const r = await postar("/api/veredito", form, meu.signal);
@@ -318,7 +319,7 @@ async function calcular() {
     if (e.name !== "AbortError") setStatus(e.message, true);
   } finally {
     // Só o pedido mais recente libera os botões.
-    if (pedido === meu) $("go").disabled = $("sugerir").disabled = false;
+    if (pedido === meu) { parar(); $("go").disabled = $("sugerir").disabled = false; }
   }
 }
 
@@ -488,10 +489,37 @@ function render(fresh) {
   renderRoteiro();
 }
 
+// ---- Botão "voando": avião cruzando o botão e frases que se alternam enquanto espera ----
+const FRASES_CALCULO = ["Calculando os melhores preços…", "Procurando passagens…", "Comparando hospedagens…", "Vendo se vai dar…"];
+const FRASES_ROTEIRO = ["Montando o melhor roteiro para sua viagem…", "Procurando restaurantes no Google Maps…", "Organizando os passeios por bairro…", "Conferindo a verba de cada dia…", "Quase lá…"];
+function voando(botao, frases) {
+  if (!botao) return () => {};
+  const original = botao.innerHTML;
+  let i = 0, t;
+  const pintar = () => {
+    botao.innerHTML = `<span class="aviao" aria-hidden="true">✈\uFE0E</span><span class="frase" aria-hidden="true">${frases[i]}</span>`;
+    // A última frase fica parada até a resposta chegar.
+    if (++i >= frases.length) clearInterval(t);
+  };
+  // Leitor de tela ouve um aviso só (o botão pode estar numa região aria-live), não cada troca de frase.
+  botao.setAttribute("aria-label", frases[0]);
+  botao.classList.add("voando");
+  pintar();
+  if (i < frases.length) t = setInterval(pintar, 2400);
+  return () => {
+    clearInterval(t);
+    botao.classList.remove("voando");
+    botao.removeAttribute("aria-label");
+    if (botao.isConnected) botao.innerHTML = original;
+  };
+}
+let pararRoteiro = null;
+
 // ---- Roteiro com IA: só quando a pessoa pede ----
 let ctlRoteiro = null;
 
 function renderRoteiro() {
+  pararRoteiro?.(); pararRoteiro = null;
   const card = $("roteiro-card");
   if (!card) return;
   const ro = state.roteiro;
@@ -514,9 +542,10 @@ function renderRoteiro() {
     <div class="roteiro-cta">
       <h3>Quer o roteiro dia a dia?</h3>
       <p class="hint" style="margin:0">Montamos passeios, almoço e jantar de cada dia dentro da verba acima.</p>
-      <div class="actions"><button type="button" class="primary" id="gerar" ${busy ? "disabled" : ""}>${busy ? "Montando o roteiro…" : "Montar roteiro"}</button>${busy ? '<button type="button" id="parar">Parar</button>' : ""}</div>
+      <div class="actions"><button type="button" class="primary" id="gerar" ${busy ? "disabled" : ""}>Montar roteiro</button>${busy ? '<button type="button" id="parar">Parar</button>' : ""}</div>
       ${ro?.erro ? `<div class="warn-box">${esc(ro.erro)}</div>` : ""}
     </div>`;
+  if (busy) pararRoteiro = voando($("gerar"), FRASES_ROTEIRO);
   $("gerar")?.addEventListener("click", gerarRoteiro);
   $("parar")?.addEventListener("click", () => ctlRoteiro?.abort());
 }

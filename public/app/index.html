@@ -200,6 +200,15 @@ button:disabled { opacity: .55; cursor: default; }
 .opt small { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
 .roteiro-cta { display: grid; gap: 8px; }
 .roteiro-cta button { justify-self: start; }
+button.voando { position: relative; overflow: hidden; opacity: 1; cursor: progress; }
+button.voando .aviao { position: absolute; top: 50%; left: -28px; transform: translateY(-50%); font-size: 18px; animation: voo 2.4s linear infinite; }
+button.voando .frase { display: inline-block; animation: frase 2.4s ease both; }
+@keyframes voo { to { left: calc(100% + 28px); } }
+@keyframes frase { from { opacity: 0; transform: translateY(4px); } 15% { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  button.voando .aviao { animation: none; left: 14px; }
+  button.voando .frase { animation: none; }
+}
 .warn-box { background: var(--warn-bg); color: var(--ink); border-radius: 12px; padding: 12px 14px; font-size: 14px; }
 .baixar { display: grid; gap: 8px; padding-top: 4px; }
 .lead { display: grid; gap: 10px; }
