@@ -3,7 +3,7 @@ import { gerarRoteiro, LimiteAtingido } from "../../server/roteiro.js";
 import { EntradaInvalida } from "../../server/veredito.js";
 
 export async function onRequestPost({ request, env }) {
-  if (!env.ANTHROPIC_API_KEY) return json({ erro: "O roteiro com IA ainda não está ligado." }, 503);
+  if (!env.GEMINI_API_KEY && !env.ANTHROPIC_API_KEY) return json({ erro: "O roteiro com IA ainda não está ligado." }, 503);
   let body;
   try {
     body = await request.json();
