@@ -100,7 +100,7 @@ function renderEscolhidos() {
   $("escolhidos").innerHTML = escolhidos.map((v, i) => `<button type="button" data-i="${i}" aria-label="Tirar ${esc(v)}">${esc(v)} ✕</button>`).join("");
   $("tipo").hidden = escolhidos.length < 2;
   $("escolhidos").querySelectorAll("button").forEach(b => b.onclick = () => { escolhidos.splice(Number(b.dataset.i), 1); renderEscolhidos(); });
-  $("destino").placeholder = escolhidos.length ? "Adicionar outro" : "Vazio = sugerimos";
+  $("destino").placeholder = escolhidos.length ? "Adicionar outro" : "Digite uma cidade ou país";
   atualizarExemplo();
 }
 document.querySelectorAll('input[name="tipo"]').forEach(r => r.onchange = () => { tipo = r.value; });
@@ -172,7 +172,7 @@ function lerForm() {
 }
 
 // No app de celular as telas vêm de dentro do aparelho, então a API é chamada no endereço do site.
-const API = window.Capacitor?.isNativePlatform?.() ? "https://vai-dar-viagem.pages.dev" : "";
+const API = window.Capacitor?.isNativePlatform?.() ? "https://vaidarviagem.com.br" : "";
 async function postar(caminho, dados, signal) {
   const r = await fetch(API + caminho, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(dados), signal });
   const corpo = await r.json().catch(() => ({}));
@@ -185,12 +185,12 @@ let pedido = null;
 
 async function calcular() {
   pedido?.abort();
-  pedido = new AbortController();
-  $("go").disabled = true;
+  const meu = pedido = new AbortController();
+  $("go").disabled = $("sugerir").disabled = true;
   setStatus("Calculando…");
   try {
     const form = lerForm();
-    const r = await postar("/api/veredito", form, pedido.signal);
+    const r = await postar("/api/veredito", form, meu.signal);
     // O foco (ex.: "Pokémon") não volta do servidor: guarda o que foi pedido para o roteiro.
     state = { ...r, foco: form.foco, roteiro: null };
     setStatus("");
@@ -198,7 +198,8 @@ async function calcular() {
   } catch (e) {
     if (e.name !== "AbortError") setStatus(e.message, true);
   } finally {
-    $("go").disabled = false;
+    // Só o pedido mais recente libera os botões.
+    if (pedido === meu) $("go").disabled = $("sugerir").disabled = false;
   }
 }
 
@@ -436,9 +437,20 @@ async function gerarRoteiro() {
 }
 
 function setStatus(msg, err) { $("status").textContent = msg; $("status").className = "status" + (err ? " err" : ""); }
+const calcularEMostrar = () => calcular().then(() => state && $("result").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }));
 $("form").addEventListener("submit", e => {
   e.preventDefault();
-  calcular().then(() => state && $("result").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }));
+  // Sem destino, as sugestões só vêm pelo botão "me sugira destinos".
+  if (!lerForm().destinos.length) {
+    return setStatus("Escolha um destino ou toque em “me sugira destinos”.", true);
+  }
+  calcularEMostrar();
+});
+$("sugerir").addEventListener("click", () => {
+  escolhidos.length = 0;
+  $("destino").value = "";
+  renderEscolhidos();
+  calcularEMostrar();
 });
 
 // ---- Minhas viagens: ficam guardadas no aparelho (no app, pelo armazenamento nativo) ----
@@ -491,7 +503,7 @@ function renderSalvas() {
 async function compartilhar() {
   const { entrada: f, atual: c } = state;
   const texto = `${c.destino.n}: ${ESTADO[c.estado]}. ${f.noites} noites para ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} por cerca de ${brl(c.total)}. Simule a sua viagem:`;
-  const url = "https://vai-dar-viagem.pages.dev/app/";
+  const url = "https://vaidarviagem.com.br/app/";
   try {
     const Share = plugin("Share");
     if (Share) return await Share.share({ title: "Vai Dar Viagem", text: texto, url });

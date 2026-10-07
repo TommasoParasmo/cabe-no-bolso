@@ -93,6 +93,8 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; le
 .escolhidos { display: flex; flex-wrap: wrap; gap: 6px; }
 .escolhidos:empty { display: none; }
 .faixas { margin: 10px 0 2px; }
+.sugerir { justify-self: start; margin-top: 8px; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--accent); background: transparent; color: var(--accent); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.sugerir:hover { background: var(--accent); color: var(--accent-ink); }
 .faixas button { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--chip); color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .faixas button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .grupo-titulo { margin: 14px 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
@@ -225,10 +227,11 @@ button:disabled { opacity: .55; cursor: default; }
       <div class="field">
         <label for="destino">Para onde</label>
         <div class="combo">
-          <input id="destino" role="combobox" aria-expanded="false" aria-controls="sugestoes" aria-autocomplete="list" placeholder="Vazio = sugerimos" autocomplete="off" aria-describedby="dest-hint">
+          <input id="destino" role="combobox" aria-expanded="false" aria-controls="sugestoes" aria-autocomplete="list" placeholder="Digite uma cidade ou país" autocomplete="off" aria-describedby="dest-hint">
           <ul id="sugestoes" class="sugestoes" role="listbox" aria-label="Destinos" hidden></ul>
         </div>
         <div class="hint" id="dest-hint">Pode escolher vários países e cidades.</div>
+        <button type="button" class="sugerir" id="sugerir">Não sei para onde: me sugira destinos</button>
         <div class="escolhidos" id="escolhidos" aria-live="polite"></div>
         <div class="seg dois" id="tipo" role="radiogroup" aria-label="Como usar os destinos" hidden>
           <label><input type="radio" name="tipo" value="comparar" checked><span>Comparar e escolher um</span></label>
