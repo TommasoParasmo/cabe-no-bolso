@@ -368,7 +368,7 @@ function geminiFalso(respostas) {
 const mapsOk = { content: { parts: [{ text: "Day 1 - Salvador - Area: Pelourinho\n- Morning: Igreja de São Francisco | Pelourinho | 10" }] }, finishReason: "STOP",
   groundingMetadata: { groundingChunks: [
     { maps: { title: "Igreja e Convento de São Francisco", uri: "https://maps.google.com/?cid=1" } },
-    { maps: { title: "Restaurante Axego", uri: "https://maps.google.com/?cid=2" } },
+    { maps: { title: "Restaurante Axego - Google Maps", uri: "https://maps.google.com/?cid=2" } },
     { maps: { title: "Lugar Inventado", uri: "javascript:alert(1)" } }
   ] } };
 const jsonOk = { content: { parts: [{ text: JSON.stringify({ dias: [diaGemini], dicas: ["a"] }) }] }, finishReason: "STOP" };
