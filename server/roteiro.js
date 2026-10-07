@@ -6,7 +6,7 @@ import { ESTILOS, INTERESSES } from "../public/lib/dados.js";
 import { acharDestino, norm } from "../public/lib/custo.js";
 import { lerCache, gravarCache } from "./cache.js";
 import { EntradaInvalida } from "./veredito.js";
-import { buscarLugares, montarComGemini, linkDoMaps, fontesDoMaps, ErroGemini } from "./gemini.js";
+import { buscarLugares, montarComGemini, linkDoMaps, achaNoMaps, fontesDoMaps, ErroGemini } from "./gemini.js";
 
 // Claude: reserva quando o Gemini (server/gemini.js) falha ou não tem chave.
 // Sonnet conhece muito mais restaurantes e atrações reais por bairro que o Haiku (que inventava nomes).
@@ -112,8 +112,9 @@ const somaCustos = dias => dias.reduce((t, d) => t + d.atividades.reduce((s, a) 
 
 // Pede o roteiro até duas vezes. A IA às vezes erra a conta ou mistura regiões num dia: isso é conferido aqui
 // e, se falhar, ela tenta de novo com o aviso. `pedir(avisos)` devolve o roteiro da IA ou null (resposta cortada
-// ou fora do formato, que conta como tentativa falha). Devolve a melhor tentativa, ou null se nenhuma veio.
-async function tentar(p, pedir) {
+// ou fora do formato, que conta como tentativa falha). `conferir(dias)` lista outros problemas que pedem
+// nova tentativa (no Gemini, restaurante que não veio do Google Maps). Devolve a melhor tentativa, ou null.
+async function tentar(p, pedir, conferir = () => []) {
   let roteiro, avisos = "";
   for (let tentativa = 0; tentativa < 2; tentativa++) {
     const r = await pedir(avisos);
@@ -127,12 +128,14 @@ async function tentar(p, pedir) {
     const novo = { dias, dicas: r.dicas.slice(0, 3), totalPasseios: somaCustos(dias), verba: p.verba,
       totalRefeicoes: dias.reduce((t, d) => t + (d.almoco?.custo || 0) + (d.jantar?.custo || 0), 0) };
     const fora = foraDaRegiao(dias);
+    const outros = conferir(dias);
     // Fica com a melhor tentativa: dentro da verba vale mais; depois, menos lugares fora da região.
-    const nota = x => (x.totalPasseios <= p.verba ? 0 : 1000) + foraDaRegiao(x.dias).length;
+    const nota = x => (x.totalPasseios <= p.verba ? 0 : 1000) + foraDaRegiao(x.dias).length + conferir(x.dias).length;
     if (!roteiro || nota(novo) < nota(roteiro)) roteiro = novo;
-    if (novo.totalPasseios <= p.verba && !fora.length) break;
+    if (novo.totalPasseios <= p.verba && !fora.length && !outros.length) break;
     avisos = (novo.totalPasseios > p.verba ? `\nAtenção: a soma dos custos tem que ser no máximo R$ ${p.verba}.` : "") +
-      (fora.length ? `\nAtenção: na tentativa anterior estes lugares ficaram fora da região do dia. Troque por lugares da região ou mude a região do dia: ${fora.slice(0, 12).map(f => `dia ${f.dia} (${f.regiao}): ${f.nome}, em ${f.bairro}`).join("; ")}.` : "");
+      (fora.length ? `\nAtenção: na tentativa anterior estes lugares ficaram fora da região do dia. Troque por lugares da região ou mude a região do dia: ${fora.slice(0, 12).map(f => `dia ${f.dia} (${f.regiao}): ${f.nome}, em ${f.bairro}`).join("; ")}.` : "") +
+      (outros.length ? `\nAtenção: ${outros.slice(0, 12).join("; ")}.` : "");
   }
   return roteiro || null;
 }
@@ -161,7 +164,10 @@ function comClaude(p, anthropic) {
 async function comGemini(p, chave, fetchFn) {
   const { plano, lugares } = await buscarLugares(p, chave, fetchFn);
   const lista = `\nUse somente os lugares desta lista, levantada agora no Google Maps, com o nome exatamente como está nela e mantendo a região e o bairro de cada dia. Escreva título, região e dicas em português. Os preços da lista são por pessoa, em reais. Se precisar trocar algum lugar (verba ou região), troque por outro da própria lista.\nLista:\n${plano}\n`;
-  const roteiro = await tentar(p, avisos => montarComGemini(montarPrompt(p) + lista + avisos, Roteiro, chave, fetchFn));
+  // Almoço e jantar têm que ser restaurantes que vieram do Google Maps (decisão do Tom: conferir só restaurantes).
+  const semMaps = dias => dias.flatMap(d => [d.almoco, d.jantar].filter(r => r?.nome && !achaNoMaps(r.nome, lugares))
+    .map(r => `o restaurante ${r.nome} (dia ${d.dia}) não está na lista do Google Maps, troque por um restaurante da lista`));
+  const roteiro = await tentar(p, avisos => montarComGemini(montarPrompt(p) + lista + avisos, Roteiro, chave, fetchFn), semMaps);
   if (!roteiro) throw new ErroGemini("Gemini sem roteiro válido");
   const usados = new Set();
   const comLink = l => l && { ...l, maps: linkDoMaps(l.nome, lugares, usados) };
