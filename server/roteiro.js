@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { ESTILOS, INTERESSES } from "../public/lib/dados.js";
-import { acharDestino } from "../public/lib/custo.js";
+import { acharDestino, norm } from "../public/lib/custo.js";
 import { lerCache, gravarCache } from "./cache.js";
 import { EntradaInvalida } from "./veredito.js";
 
@@ -85,11 +85,24 @@ async function dentroDoLimite(ip) {
   return true;
 }
 
+// Lugares cujo bairro (informado pela própria IA) não bate com a região do dia.
+// A região pode juntar bairros vizinhos ("Barra e Ondina"), então basta um conter o outro.
+export function foraDaRegiao(dias) {
+  return dias.flatMap(d => {
+    const regiao = norm(d.regiao);
+    if (!regiao) return [];
+    return [...d.atividades, d.almoco, d.jantar].filter(l => {
+      const b = norm(l?.bairro);
+      return b && !regiao.includes(b) && !b.includes(regiao);
+    }).map(l => ({ dia: d.dia, regiao: d.regiao, nome: l.nome, bairro: l.bairro }));
+  });
+}
+
 const somaCustos = dias => dias.reduce((t, d) => t + d.atividades.reduce((s, a) => s + a.custo, 0), 0);
 
 export async function gerarRoteiro(body, env = {}, client = null, ip = null) {
   const p = validarPedido(body);
-  const chave = `https://cache.cabenobolso/roteiro/v7?${new URLSearchParams({
+  const chave = `https://cache.cabenobolso/roteiro/v8?${new URLSearchParams({
     d: p.paradas.map(x => `${x.dest.n}:${x.noites}`).join(","), n: p.dias, q: p.pessoas, e: p.estilo, i: p.interesses.join(","), f: p.foco.toLowerCase(), v: p.verba, c: p.comidaDia
   })}`;
   const guardado = await lerCache(chave);
@@ -99,13 +112,13 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null) {
   if (!(await dentroDoLimite(ip))) throw new LimiteAtingido(`Você já montou ${LIMITE_DIA} roteiros novos hoje. Volte amanhã para montar mais.`);
   const anthropic = client || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
 
-  // A IA às vezes erra a conta: a soma é conferida aqui e, se passar da verba, pede de novo uma vez.
-  let roteiro;
+  // A IA às vezes erra a conta ou mistura regiões num dia: isso é conferido aqui e, se falhar, ela tenta de novo uma vez.
+  let roteiro, avisos = "";
   for (let tentativa = 0; tentativa < 2; tentativa++) {
     const resposta = await anthropic.messages.parse({
       model: MODELO,
       max_tokens: 9000,
-      messages: [{ role: "user", content: montarPrompt(p) + (tentativa ? `\nAtenção: a soma dos custos tem que ser no máximo R$ ${p.verba}.` : "") }],
+      messages: [{ role: "user", content: montarPrompt(p) + avisos }],
       output_config: { format: zodOutputFormat(Roteiro) }
     });
     const r = resposta.parsed_output;
@@ -116,12 +129,19 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null) {
       almoco: d.almoco && { ...d.almoco, custo: inteiro(d.almoco.custo) },
       jantar: d.jantar && { ...d.jantar, custo: inteiro(d.jantar.custo) }
     }));
-    roteiro = { dias, dicas: r.dicas.slice(0, 3), totalPasseios: somaCustos(dias), verba: p.verba,
+    const novo = { dias, dicas: r.dicas.slice(0, 3), totalPasseios: somaCustos(dias), verba: p.verba,
       totalRefeicoes: dias.reduce((t, d) => t + (d.almoco?.custo || 0) + (d.jantar?.custo || 0), 0) };
-    if (roteiro.totalPasseios <= p.verba) {
-      await gravarCache(chave, roteiro, SETE_DIAS);
-      return { ...roteiro, cache: false };
-    }
+    const fora = foraDaRegiao(dias);
+    // Fica com a melhor tentativa: dentro da verba vale mais; depois, menos lugares fora da região.
+    const nota = x => (x.totalPasseios <= p.verba ? 0 : 1000) + foraDaRegiao(x.dias).length;
+    if (!roteiro || nota(novo) < nota(roteiro)) roteiro = novo;
+    if (novo.totalPasseios <= p.verba && !fora.length) break;
+    avisos = (novo.totalPasseios > p.verba ? `\nAtenção: a soma dos custos tem que ser no máximo R$ ${p.verba}.` : "") +
+      (fora.length ? `\nAtenção: na tentativa anterior estes lugares ficaram fora da região do dia. Troque por lugares da região ou mude a região do dia: ${fora.slice(0, 12).map(f => `dia ${f.dia} (${f.regiao}): ${f.nome}, em ${f.bairro}`).join("; ")}.` : "");
+  }
+  if (roteiro.totalPasseios <= p.verba) {
+    await gravarCache(chave, roteiro, SETE_DIAS);
+    return { ...roteiro, cache: false };
   }
   // Continuou acima da verba: mostra com aviso e não guarda no cache.
   return { ...roteiro, acimaDaVerba: true, cache: false };
