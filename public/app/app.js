@@ -13,12 +13,11 @@ const iso = d => d.toISOString().slice(0, 10);
   const b = new Date(a); b.setDate(b.getDate() + 5);
   $("ida").value = iso(a); $("volta").value = iso(b);
 })();
-// Botões de faixa: preenchem o valor e já calculam.
+// Botões de faixa: só preenchem o valor; o resultado aparece ao clicar em "Ver se vai dar".
 const marcarFaixa = () => document.querySelectorAll(".faixas button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === $("orcamento").value.replace(/\D/g, ""))));
 document.querySelectorAll(".faixas button").forEach(b => b.onclick = () => {
   $("orcamento").value = Number(b.dataset.v).toLocaleString("pt-BR");
   marcarFaixa();
-  calcular();
 });
 $("orcamento").addEventListener("input", marcarFaixa);
 $("orcamento").addEventListener("input", e => {
@@ -440,7 +439,6 @@ $("form").addEventListener("submit", e => {
   e.preventDefault();
   calcular().then(() => state && $("result").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }));
 });
-calcular();
 
 // ---- Minhas viagens: ficam guardadas no aparelho (no app, pelo armazenamento nativo) ----
 // Sem bundler: usa o plugin já exposto pela ponte nativa ou registra pelo nome.
