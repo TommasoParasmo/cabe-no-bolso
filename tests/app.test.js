@@ -413,3 +413,28 @@ test("roteiro do Gemini cortado ou fora do formato tenta de novo uma vez", async
   assert.equal(pedidos.length, 3);
   assert.equal(r.dias.length, 1);
 });
+
+test("roteiro do Gemini devolve as fontes do Google Maps e não aceita lista do Maps cortada", async () => {
+  const { fetchFn } = geminiFalso([mapsOk, jsonOk]);
+  const r = await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 6, verbaPasseios: 300 }, { GEMINI_API_KEY: "k" }, null, null, fetchFn);
+  assert.deepEqual(r.fontes, [
+    { nome: "Igreja e Convento de São Francisco", url: "https://maps.google.com/?cid=1" },
+    { nome: "Restaurante Axego", url: "https://maps.google.com/?cid=2" }
+  ]);
+  const cortado = { ...mapsOk, finishReason: "MAX_TOKENS" };
+  let claude = 0;
+  const client = { messages: { parse: async () => { claude++; return { parsed_output: { dias: [diaGemini], dicas: [] } }; } } };
+  const g = geminiFalso([cortado]);
+  await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 7, verbaPasseios: 300 }, { GEMINI_API_KEY: "k", ANTHROPIC_API_KEY: "a" }, client, null, g.fetchFn);
+  assert.equal(g.pedidos.length, 1);
+  assert.equal(claude, 1);
+});
+
+test("link do Maps de rede com várias unidades vai para unidades diferentes", async () => {
+  const { linkDoMaps } = await import("../server/gemini.js");
+  const lugares = [{ title: "Coco Bambu", uri: "https://maps.google.com/?cid=10" }, { title: "Coco Bambu", uri: "https://maps.google.com/?cid=11" }];
+  const usados = new Set();
+  assert.equal(linkDoMaps("Coco Bambu", lugares, usados), "https://maps.google.com/?cid=10");
+  assert.equal(linkDoMaps("Coco Bambu", lugares, usados), "https://maps.google.com/?cid=11");
+  assert.equal(linkDoMaps("Outro Lugar", lugares, usados), undefined);
+});

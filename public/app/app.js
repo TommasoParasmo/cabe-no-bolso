@@ -501,7 +501,7 @@ function renderRoteiro() {
       <div class="days">${ro.dias.map(d => `
         <div class="day"><span class="n">DIA ${esc(d.dia)}</span><div><h4>${esc(d.titulo)}</h4>${regiaoDoDia(d) ? `<small class="hint">${esc(regiaoDoDia(d))}</small>` : ""}<ul>${itensDoDia(d).map(a => `<li${a.refeicao ? ' class="ref"' : ""}><span class="p">${esc(a.periodo)}</span><a class="lugar" href="${a.maps ? esc(a.maps) : mapa(a.nome, d.cidade, a.bairro)}" target="_blank" rel="noopener">${esc(a.nome)} ↗</a><span class="c">${Number(a.custo) ? brl(a.custo) : "grátis"}</span></li>`).join("")}</ul></div></div>`).join("")}
       </div>
-      ${ro.fonte === "gemini" ? `<p class="hint fonte">Lugares e links: Google Maps</p>` : ""}
+      ${(ro.fontes || []).length ? `<details class="fontes"><summary class="hint">Fontes: Google Maps (${ro.fontes.length} lugares)</summary><ul class="hint">${ro.fontes.map(f => `<li><a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.nome)}</a> · Google Maps</li>`).join("")}</ul></details>` : ""}
       ${ro.totalPasseios != null ? `<p class="hint">Passeios: ${brl(ro.totalPasseios)} de ${brl(ro.verba)} de verba.${ro.totalRefeicoes ? ` Almoços e jantares sugeridos: cerca de ${brl(ro.totalRefeicoes)} (já contam na alimentação).` : ""}</p>` : ""}
       ${ro.acimaDaVerba ? `<div class="warn-box">Este roteiro passou da verba de passeios. Troque alguma atividade paga por uma grátis.</div>` : ""}
       ${(ro.dicas || []).length ? `<h3>Como economizar</h3><ul class="tips">${ro.dicas.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}`;

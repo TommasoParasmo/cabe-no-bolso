@@ -51,8 +51,10 @@ export async function buscarLugares(p, chave, fetchFn) {
     contents: [{ role: "user", parts: [{ text: promptMaps(p) }] }],
     tools: [{ googleMaps: {} }],
     toolConfig: { retrievalConfig: { latLng: { latitude: p.dest.lat, longitude: p.dest.lon } } },
-    generationConfig: { maxOutputTokens: 8000, thinkingConfig: { thinkingLevel: "LOW" } }
+    generationConfig: { maxOutputTokens: 12000, thinkingConfig: { thinkingLevel: "LOW" } }
   });
+  // Lista cortada no limite de tokens deixaria dias de fora: melhor cair para o Claude.
+  if (r.cortado) throw new ErroGemini("Lista do Maps cortada");
   if (!r.texto.trim() || !r.lugares.length) throw new ErroGemini("Maps sem lugares");
   return { plano: r.texto.trim(), lugares: r.lugares };
 }
@@ -88,8 +90,10 @@ export async function montarComGemini(texto, Roteiro, chave, fetchFn) {
 
 // Liga cada lugar do roteiro ao link que veio do Google Maps. O nome pode vir encurtado
 // ("Igreja de São Francisco" para "Igreja e Convento de São Francisco"): compara as palavras.
+// Lugares com o mesmo nome (redes com várias unidades) vêm na ordem do plano: cada fonte já usada perde
+// para uma igual ainda livre, assim a segunda unidade não abre o link da primeira.
 const palavras = s => norm(s).split(/[^a-z0-9]+/).filter(w => w.length > 2);
-export function linkDoMaps(nome, lugares) {
+export function linkDoMaps(nome, lugares, usados = new Set()) {
   const n = palavras(nome);
   if (!n.length) return undefined;
   let melhor, nota = 0;
@@ -98,10 +102,18 @@ export function linkDoMaps(nome, lugares) {
     const comuns = n.filter(w => t.includes(w)).length;
     // Quase todas as palavras do nome no título, e o título não muito maior que o nome.
     if (comuns / n.length < 0.75 || comuns / t.length < 0.5) continue;
-    const x = comuns / n.length + comuns / t.length;
-    if (x > nota) { melhor = l; nota = x; }
+    const x = comuns / n.length + comuns / t.length - (usados.has(l) ? 1 : 0);
+    if (melhor === undefined || x > nota) { melhor = l; nota = x; }
   }
+  if (melhor) usados.add(melhor);
   return linkSeguro(melhor?.uri);
+}
+
+// Fontes do Google Maps para mostrar logo depois do roteiro (nome e link de cada uma, sem repetir).
+export function fontesDoMaps(lugares) {
+  const vistos = new Set();
+  return lugares.map(l => ({ nome: String(l.title).slice(0, 120), url: linkSeguro(l.uri) }))
+    .filter(f => f.url && !vistos.has(f.url) && vistos.add(f.url)).slice(0, 60);
 }
 
 // Só links https do próprio Google Maps entram na página.

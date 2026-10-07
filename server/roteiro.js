@@ -6,7 +6,7 @@ import { ESTILOS, INTERESSES } from "../public/lib/dados.js";
 import { acharDestino, norm } from "../public/lib/custo.js";
 import { lerCache, gravarCache } from "./cache.js";
 import { EntradaInvalida } from "./veredito.js";
-import { buscarLugares, montarComGemini, linkDoMaps, ErroGemini } from "./gemini.js";
+import { buscarLugares, montarComGemini, linkDoMaps, fontesDoMaps, ErroGemini } from "./gemini.js";
 
 // Claude: reserva quando o Gemini (server/gemini.js) falha ou não tem chave.
 // Sonnet conhece muito mais restaurantes e atrações reais por bairro que o Haiku (que inventava nomes).
@@ -163,9 +163,11 @@ async function comGemini(p, chave, fetchFn) {
   const lista = `\nUse somente os lugares desta lista, levantada agora no Google Maps, com o nome exatamente como está nela e mantendo a região e o bairro de cada dia. Escreva título, região e dicas em português. Os preços da lista são por pessoa, em reais. Se precisar trocar algum lugar (verba ou região), troque por outro da própria lista.\nLista:\n${plano}\n`;
   const roteiro = await tentar(p, avisos => montarComGemini(montarPrompt(p) + lista + avisos, Roteiro, chave, fetchFn));
   if (!roteiro) throw new ErroGemini("Gemini sem roteiro válido");
-  const comLink = l => l && { ...l, maps: linkDoMaps(l.nome, lugares) };
+  const usados = new Set();
+  const comLink = l => l && { ...l, maps: linkDoMaps(l.nome, lugares, usados) };
   roteiro.dias = roteiro.dias.map(d => ({ ...d, atividades: d.atividades.map(comLink), almoco: comLink(d.almoco), jantar: comLink(d.jantar) }));
   roteiro.fonte = "gemini";
+  roteiro.fontes = fontesDoMaps(lugares);
   return roteiro;
 }
 
