@@ -1,0 +1,10 @@
+# Cabeçalhos de segurança de todas as páginas (Cloudflare Pages).
+# CSP em modo só relatório primeiro: o Meta Pixel, o script do Travelpayouts e as fontes do Google
+# precisam ser conferidos antes de virar bloqueio.
+/*
+  Strict-Transport-Security: max-age=15552000
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'unsafe-inline' https://connect.facebook.net https://emrld.ltd https://*.emrld.ltd https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://vaidarviagem.com.br https://www.facebook.com https://*.facebook.com https://emrld.ltd https://*.emrld.ltd; frame-src https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
