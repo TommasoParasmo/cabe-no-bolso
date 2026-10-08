@@ -19,11 +19,15 @@ export const acharDestino = nome => {
 
 const r10 = v => Math.round(v / 10) * 10;
 
-// Alta temporada: dezembro, janeiro e julho, salvo o destino que tem a sua (dest.alta, meses de 1 a 12).
+// Alta temporada: dezembro, janeiro e julho, salvo o destino que tem a sua (dest.alta).
+// Cada item é um mês (1 a 12) ou um período ["MM-DD", "MM-DD"], que pode virar o ano (ex.: Natal Luz).
 const ALTA_PADRAO = [12, 1, 7];
 export function altaTemporada(ida, dest) {
-  const mes = ida ? new Date(ida + "T12:00:00").getMonth() + 1 : 0;
-  return (dest?.alta || ALTA_PADRAO).includes(mes);
+  if (!ida) return false;
+  const mes = Number(ida.slice(5, 7)), dia = ida.slice(5, 10);
+  return (dest?.alta || ALTA_PADRAO).some(a => Array.isArray(a)
+    ? (a[0] <= a[1] ? dia >= a[0] && dia <= a[1] : dia >= a[0] || dia <= a[1])
+    : a === mes);
 }
 
 // Passagem ida e volta por pessoa quando não há preço real: fórmula por distância.

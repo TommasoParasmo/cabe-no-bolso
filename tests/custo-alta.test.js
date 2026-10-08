@@ -34,3 +34,16 @@ test("no roteiro com várias cidades, cada uma usa a temporada do dia em que se 
   assert.equal(r.paradas.find(p => p.n === "Rio de Janeiro").diaria, 190);
   assert.equal(r.alta, true);
 });
+
+test("Natal Luz de Gramado: alta de 22/10 a 17/01, virando o ano", () => {
+  const gramado = d("Gramado");
+  assert.equal(altaTemporada("2027-10-21", gramado), false);
+  assert.equal(altaTemporada("2027-10-22", gramado), true);
+  assert.equal(altaTemporada("2028-01-17", gramado), true);
+  assert.equal(altaTemporada("2028-01-18", gramado), false);
+  assert.equal(altaTemporada("2027-07-15", gramado), true);
+});
+
+test("Tel Aviv é destino próprio", () => {
+  assert.equal(d("Tel Aviv")?.ap, "TLV");
+});
