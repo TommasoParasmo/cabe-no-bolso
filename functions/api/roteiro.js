@@ -17,6 +17,7 @@ export async function onRequestPost({ request, env }) {
     if (body?.completo) {
       if (!pixLigado(env)) return json({ erro: "O roteiro completo ainda não está à venda." }, 503);
       await conferirPagamento(body.pagamento, body, env);
+      // O conteúdo do roteiro completo (horários, dicas) é do thread do app; aqui só o pagamento libera.
       return json(await gerarRoteiro(body, env, null, null, globalThis.fetch, { completo: true }));
     }
     // completoAVenda: o app só oferece o roteiro completo quando o Pix está ligado.
