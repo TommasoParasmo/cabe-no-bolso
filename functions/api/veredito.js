@@ -12,9 +12,12 @@ export async function onRequestPost({ request, env }) {
   } catch (e) {
     if (e instanceof EntradaInvalida) return json({ erro: e.message }, 400);
     console.error("veredito", e);
-    return json({ erro: "Algo falhou ao calcular. Tente de novo." }, 500);
+    return json({ erro: "Algo falhou ao calcular. Tente de novo." }, FALHA);
   }
 }
+
+// Falha nossa: 424, não 5xx (no domínio a Cloudflare troca 5xx pela página de erro dela e a mensagem some).
+const FALHA = 424;
 
 const json = (dados, status = 200) =>
   new Response(JSON.stringify(dados), { status, headers: { "content-type": "application/json; charset=utf-8" } });

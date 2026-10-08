@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
+<script>/* O endereço .pages.dev é só da hospedagem: quem cair nele vai para o site. */if (location.hostname.endsWith(".pages.dev")) location.replace("https://vaidarviagem.com.br" + location.pathname + location.search + location.hash);</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Vai Dar Viagem · Planejar viagem</title>
@@ -121,6 +122,7 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; le
 .seg input:checked + span { background: var(--deep); color: #fff; font-weight: 700; }
 .seg input:focus-visible + span { outline: 3px solid var(--gold); }
 .verdict .clima { margin: 4px 0 0; font-size: 14px; opacity: .85; }
+.estilo-desc { margin: 6px 2px 0; min-height: 2.6em; }
 /* O que vocês curtem: os quatro principais com foto, o resto em botões */
 .chips { display: flex; flex-wrap: wrap; gap: 10px; }
 .chip { position: relative; }
@@ -475,20 +477,8 @@ button.voando .frase { display: inline-block; animation: frase 2.4s ease both; }
   .top-fim h2 { font-size: 44pt; }
 }
 </style>
-<!-- Meta Pixel Code -->
-<script>
-// No app de celular (Capacitor) o pixel fica de fora: rastreio ali exige outro consentimento.
-if (!window.Capacitor) !function(f,b,e,v,n,t,s)
-{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-n.queue=[];t=b.createElement(e);t.async=!0;
-t.src=v;s=b.getElementsByTagName(e)[0];
-s.parentNode.insertBefore(t,s)}(window, document,'script',
-'https://connect.facebook.net/en_US/fbevents.js');
-if (window.fbq) { fbq('init', '1648295673479841'); fbq('track', 'PageView'); }
-</script>
-<!-- End Meta Pixel Code -->
+<!-- Pixel da Meta: só carrega depois de aceitar os cookies (aviso em /lib/cookies.js) -->
+<script src="/lib/cookies.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -568,11 +558,12 @@ if (window.fbq) { fbq('init', '1648295673479841'); fbq('track', 'PageView'); }
       </div>
       <div class="field">
         <span class="rotulo">Estilo</span>
-        <div class="seg" role="radiogroup" aria-label="Estilo da viagem">
+        <div class="seg" role="radiogroup" aria-label="Estilo da viagem" aria-describedby="estilo-desc">
           <label><input type="radio" name="estilo" id="estilo-eco" value="0"><span>Econômico</span></label>
           <label><input type="radio" name="estilo" id="estilo-eq" value="1" checked><span>Equilibrado</span></label>
           <label><input type="radio" name="estilo" id="estilo-conf" value="2"><span>Conforto</span></label>
         </div>
+        <p class="hint estilo-desc" id="estilo-desc" aria-live="polite">Hotéis de preço médio, bons restaurantes e as principais atrações pagas.</p>
       </div>
       <details class="field full mais" id="mais-opcoes">
       <summary>Mais opções: o que vocês curtem e algo específico</summary>
@@ -621,7 +612,8 @@ if (window.fbq) { fbq('init', '1648295673479841'); fbq('track', 'PageView'); }
   </details>
   <section class="result" id="result" aria-live="polite"></section>
 
-  <p class="fine">Passagens: preços encontrados no Aviasales a partir de buscas recentes, ou estimativa quando não há busca para a rota. Hospedagem, comida e passeios: médias estimadas por destino. Confira os valores nos sites parceiros antes de reservar. Alguns links geram comissão, sem custo extra para você. <a href="/privacidade.html">Política de privacidade</a>.</p>
+  <p class="fine">Passagens: preços encontrados no Aviasales a partir de buscas recentes, ou estimativa quando não há busca para a rota. Hospedagem, comida e passeios: médias estimadas por destino. Confira os valores nos sites parceiros antes de reservar. Alguns links geram comissão, sem custo extra para você.</p>
+  <p class="fine">Vai Dar Viagem · <a href="mailto:contato@vaidarviagem.com.br">contato@vaidarviagem.com.br</a> · <a href="/termos.html">Termos de uso</a> · <a href="/privacidade.html">Política de privacidade</a> · <a href="/termos.html#reembolso">Reembolso</a> · <a href="/privacidade.html#cookies" data-cookies>Cookies</a></p>
 </div>
 <script type="module" src="./app.js"></script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});</script>

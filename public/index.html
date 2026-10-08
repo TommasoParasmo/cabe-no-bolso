@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
+<script>/* O endereço .pages.dev é só da hospedagem: quem cair nele vai para o site. */if (location.hostname.endsWith(".pages.dev")) location.replace("https://vaidarviagem.com.br" + location.pathname + location.search + location.hash);</script>
 <meta charset="utf-8">
 <script nowprocket data-noptimize="1" data-cfasync="false" data-wpfc-render="false" seraph-accel-crit="1" data-no-defer="1" data-cmp-ab="2">
   (function () {
@@ -131,23 +132,8 @@ footer img{height:46px;width:auto}
 footer p{font-size:13px;opacity:.65;max-width:62ch}
 @media (prefers-reduced-motion:reduce){.btn{transition:none}}
 </style>
-<!-- Meta Pixel Code -->
-<script>
-// No app de celular (Capacitor) o pixel fica de fora: rastreio ali exige outro consentimento.
-if (!window.Capacitor) !function(f,b,e,v,n,t,s)
-{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-n.queue=[];t=b.createElement(e);t.async=!0;
-t.src=v;s=b.getElementsByTagName(e)[0];
-s.parentNode.insertBefore(t,s)}(window, document,'script',
-'https://connect.facebook.net/en_US/fbevents.js');
-if (window.fbq) { fbq('init', '1648295673479841'); fbq('track', 'PageView'); }
-</script>
-<noscript><img height="1" width="1" style="display:none"
-src="https://www.facebook.com/tr?id=1648295673479841&ev=PageView&noscript=1"
-/></noscript>
-<!-- End Meta Pixel Code -->
+<!-- Pixel da Meta: só carrega depois de aceitar os cookies (aviso em /lib/cookies.js) -->
+<script src="/lib/cookies.js"></script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -243,7 +229,7 @@ src="https://www.facebook.com/tr?id=1648295673479841&ev=PageView&noscript=1"
   <div class="final"><h2>Sua próxima viagem, do tamanho do seu bolso</h2><p>Planeje sem susto: primeiro o orçamento, depois a mala.</p><a class="btn deep" href="/app/">Planejar minha viagem</a></div>
 </section>
 </main>
-<footer><div class="wrap"><img src="/marca/logo-escuro.png" alt="Vai Dar Viagem" width="132" height="46"><p>Preços de passagens e hotéis fornecidos por parceiros. Alguns links podem gerar comissão, sem custo extra para você. © 2026 Vai Dar Viagem. <a href="/privacidade.html">Política de privacidade</a>.</p></div></footer>
+<footer><div class="wrap"><img src="/marca/logo-escuro.png" alt="Vai Dar Viagem" width="132" height="46"><p>Preços de passagens e hotéis fornecidos por parceiros. Alguns links podem gerar comissão, sem custo extra para você. © 2026 Vai Dar Viagem · contato@vaidarviagem.com.br · <a href="/termos.html">Termos de uso</a> · <a href="/privacidade.html">Política de privacidade</a> · <a href="/termos.html#reembolso">Reembolso</a> · <a href="/privacidade.html#cookies" data-cookies>Cookies</a></p></div></footer>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});</script>
 </body>
 </html>

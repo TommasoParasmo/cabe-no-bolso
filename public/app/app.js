@@ -151,6 +151,7 @@ const EXEMPLOS = {
   "Capadócia": "passeio de balão, Göreme, cidade subterrânea",
   "Dubai": "Burj Khalifa, Dubai Mall, safári no deserto",
   "Cairo": "Pirâmides de Gizé, Museu Egípcio, Khan el-Khalili",
+  "Jerusalém": "Muro das Lamentações, Santo Sepulcro, Monte das Oliveiras",
   "Marrakech": "Praça Jemaa el-Fna, Jardim Majorelle, souks",
   "Cidade do Cabo": "Table Mountain, Cabo da Boa Esperança, pinguins de Boulders",
   "Las Vegas": "Strip, show do Cirque du Soleil, Fremont Street",
@@ -324,6 +325,29 @@ async function postar(caminho, dados, signal) {
   // 524/504 sem JSON: a Cloudflare cortou uma resposta que demorou demais.
   if (!r.ok) throw new Error(corpo.erro || ([504, 524].includes(r.status) ? "Demorou mais que o normal. Tente de novo." : "Algo falhou. Tente de novo."));
   return corpo;
+}
+
+// Turnstile (o "não sou robô" invisível da Cloudflare) no roteiro grátis e no Pix. Desligado enquanto a chave
+// do site estiver vazia; ligar junto com o TURNSTILE_SECRET na Cloudflare (sem a chave aqui, o servidor recusaria).
+const TURNSTILE_SITE_KEY = "";
+let turnstilePronto = null;
+function tokenTurnstile() {
+  if (!TURNSTILE_SITE_KEY) return Promise.resolve(undefined);
+  turnstilePronto ||= new Promise((ok, erro) => {
+    const s = document.createElement("script");
+    s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    s.onload = ok; s.onerror = () => { turnstilePronto = null; erro(new Error("Não deu para carregar a verificação. Recarregue a página.")); };
+    document.head.appendChild(s);
+  });
+  return turnstilePronto.then(() => new Promise((ok, erro) => {
+    const caixa = document.createElement("div");
+    document.body.appendChild(caixa);
+    const id = window.turnstile.render(caixa, {
+      sitekey: TURNSTILE_SITE_KEY, appearance: "interaction-only",
+      callback: t => { ok(t); setTimeout(() => { window.turnstile.remove(id); caixa.remove(); }, 0); },
+      "error-callback": () => { erro(new Error("Não conseguimos confirmar que é você. Tente de novo.")); caixa.remove(); }
+    });
+  }));
 }
 
 let state = null;
@@ -828,7 +852,7 @@ async function gerarRoteiro() {
   state.roteiro = { loading: true };
   renderRoteiro();
   try {
-    const r = await postar("/api/roteiro", pedidoRoteiro(), ctlRoteiro.signal);
+    const r = await postar("/api/roteiro", { ...pedidoRoteiro(), turnstile: await tokenTurnstile() }, ctlRoteiro.signal);
     if (state.atual !== alvo) return;
     state.roteiro = r;
     evento("RoteiroPronto", { destino: c.destino?.n });
@@ -917,6 +941,7 @@ function cartaoCompleto() {
           <input id="pix-nome" type="text" required autocomplete="given-name" maxlength="40" placeholder="Ana" value="${esc(v.nome || "")}">
           <label for="pix-email">Seu e-mail (vai no comprovante)</label>
           <input id="pix-email" type="email" required autocomplete="email" inputmode="email" maxlength="254" placeholder="voce@email.com" value="${esc(v.email || "")}">
+          <p class="hint resumo-compra"><b>Roteiro Detalhado: ${reais(PRECO_COMPLETO)}, pagamento único por Pix.</b> Você recebe na tela, logo depois do pagamento, um roteiro dia a dia em PDF para esta simulação. Os preços são estimativas e podem mudar até a hora de reservar. Se mudar de ideia, devolvemos o valor em até 7 dias, sem perguntas. Ao pagar, você aceita os <a href="/termos.html" target="_blank" rel="noopener">Termos de uso</a>.</p>
           <button type="submit" class="primary">Pagar ${reais(PRECO_COMPLETO)} no Pix</button>
         </form>`}
       <div class="status${v.erro ? " err" : ""}" id="pix-status" role="status" aria-live="polite">${esc(v.aviso || "")}</div>
@@ -952,7 +977,7 @@ function ligarCompleto() {
       v.pedido = { ...pedidoRoteiro(v.ordem), completo: true, nome };
       // A tela da viagem vai junto e fica guardada 30 dias: quem pagar e perder o roteiro remonta tudo em outro aparelho.
       const viagem = { entrada: state.entrada, atual: state.atual, modo: state.modo, noitesMax: state.noitesMax, foco: state.foco };
-      const pix = await postar("/api/pix", { pedido: v.pedido, email, viagem });
+      const pix = await postar("/api/pix", { pedido: v.pedido, email, viagem, turnstile: await tokenTurnstile() });
       if (state.roteiro !== ro) return;
       v.pix = pix; v.email = email; v.aviso = "";
       guardarPendente(idViagem(), { pix, pedido: v.pedido, email, ordem: v.ordem?.map(p => p.n) || [], criado: Date.now() });
@@ -1124,6 +1149,18 @@ $("rec-form").addEventListener("submit", async ev => {
 });
 
 // ---- Formulário preenchido pelo link (anúncios): ?destino=Maceió&orcamento=2000&pessoas=1&estilo=economico&noites=4&ida=2026-11-20 ----
+// O que cada estilo quer dizer, do jeito que o custo.js calcula: hotel (dados.js), comida e passeios por dia.
+const ESTILO_DESC = [
+  "Pousadas e hotéis simples bem avaliados, refeições práticas e passeios grátis ou baratos.",
+  "Hotéis de preço médio, bons restaurantes e as principais atrações pagas.",
+  "Hotéis entre os melhores da cidade, restaurantes melhores e mais verba para passeios pagos."
+];
+function mostrarEstilo() {
+  const v = Number(document.querySelector('input[name="estilo"]:checked')?.value ?? 1);
+  $("estilo-desc").textContent = ESTILO_DESC[v] || "";
+}
+document.querySelectorAll('input[name="estilo"]').forEach(r => r.addEventListener("change", mostrarEstilo));
+
 // destino aceita vários separados por vírgula; estilo aceita 0/1/2 ou economico/equilibrado/conforto; origem é a cidade de saída.
 // Com destino e orçamento no link, o resultado já aparece, sem a pessoa precisar rolar até o botão.
 (function preencherPeloLink() {
@@ -1136,6 +1173,7 @@ $("rec-form").addEventListener("submit", async ev => {
   const chaveEstilo = norm(q.get("estilo") || "");
   const estilo = Object.hasOwn(ESTILO_LINK, chaveEstilo) ? ESTILO_LINK[chaveEstilo] : undefined;
   if (estilo !== undefined) document.querySelector(`input[name="estilo"][value="${estilo}"]`).checked = true;
+  mostrarEstilo();
   const origem = ORIGENS.find(o => norm(o.n) === norm(q.get("origem") || ""));
   if (origem) $("origem").value = origem.n;
   // noites (1 a 15) e ida (AAAA-MM-DD, a partir de amanhã): a volta é a ida mais as noites. Sem ida, fica a ida padrão.

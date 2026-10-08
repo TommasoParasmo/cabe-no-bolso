@@ -19,9 +19,11 @@ export const acharDestino = nome => {
 
 const r10 = v => Math.round(v / 10) * 10;
 
-function altaTemporada(ida) {
+// Alta temporada: dezembro, janeiro e julho, salvo o destino que tem a sua (dest.alta, meses de 1 a 12).
+const ALTA_PADRAO = [12, 1, 7];
+export function altaTemporada(ida, dest) {
   const mes = ida ? new Date(ida + "T12:00:00").getMonth() + 1 : 0;
-  return [12, 1, 7].includes(mes);
+  return (dest?.alta || ALTA_PADRAO).includes(mes);
 }
 
 // Passagem ida e volta por pessoa quando não há preço real: fórmula por distância.
@@ -29,7 +31,7 @@ export function estimarVoo(origem, dest, ida, hoje = new Date()) {
   const dist = km(origem, dest);
   if (dist < 150) return 0;
   const diasAte = ida ? (new Date(ida + "T12:00:00") - hoje) / 864e5 : 60;
-  const fator = (altaTemporada(ida) ? 1.25 : 1) * (diasAte < 21 ? 1.2 : 1);
+  const fator = (altaTemporada(ida, dest) ? 1.25 : 1) * (diasAte < 21 ? 1.2 : 1);
   return (dest.int ? 900 + 0.42 * dist : 300 + 0.45 * dist) * fator;
 }
 
@@ -41,7 +43,7 @@ export function estimarOnibus(de, para, data, estilo = 1) {
   if (de.int || para.int) return null;
   const estrada = km(de, para) * 1.3;
   if (estrada > 1100) return null;
-  const porPessoa = Math.max(40, estrada * ONIBUS_KM[estilo]) * (altaTemporada(data) ? 1.15 : 1);
+  const porPessoa = Math.max(40, estrada * ONIBUS_KM[estilo]) * (altaTemporada(data, para) ? 1.15 : 1);
   return { porPessoa, horas: Math.max(1, Math.round(estrada / 70)) };
 }
 
@@ -67,7 +69,7 @@ function escolherMeio(de, para, data, estilo, aviao, vezes) {
  */
 export function custo(dest, f, voo) {
   const origem = acharOrigem(f.origem);
-  const alta = altaTemporada(f.ida);
+  const alta = altaTemporada(f.ida, dest);
   // Arredonda por pessoa e por diária antes de multiplicar, para a conta mostrada bater.
   const mesmaCidade = km(origem, dest) < 30;
   const aviao = voo?.porPessoa ?? estimarVoo(origem, dest, f.ida);
@@ -135,7 +137,7 @@ export function estimarTrecho(de, para, data, hoje = new Date()) {
   const dist = km(de, para);
   if (dist < 150) return 0;
   const diasAte = data ? (new Date(data + "T12:00:00") - hoje) / 864e5 : 60;
-  const fator = (altaTemporada(data) ? 1.25 : 1) * (diasAte < 21 ? 1.2 : 1);
+  const fator = (altaTemporada(data, para) ? 1.25 : 1) * (diasAte < 21 ? 1.2 : 1);
   const longo = (de.int || para.int) && dist > 3000;
   return (longo ? 900 + 0.42 * dist : 300 + 0.45 * dist) * fator * 0.6;
 }
@@ -146,7 +148,6 @@ export function estimarTrecho(de, para, data, hoje = new Date()) {
  */
 export function custoMulti(paradas, f, voos = []) {
   const origem = acharOrigem(f.origem);
-  const alta = altaTemporada(f.ida);
   const quartos = Math.ceil(f.pessoas / 2);
   const trechos = trechosDaViagem(origem, paradas, f.ida).map((t, i) => {
     const real = voos[i];
@@ -162,16 +163,20 @@ export function custoMulti(paradas, f, voos = []) {
     };
   });
   const vooPessoa = trechos.reduce((s, t) => s + t.porPessoa, 0);
-  let hosp = 0, comida = 0, passeios = 0, transp = 0;
+  let hosp = 0, comida = 0, passeios = 0, transp = 0, alta = false;
   const ps = paradas.map((p, i) => {
     const d = p.dest, dias = p.noites + (i === 0 ? 1 : 0);
-    const diaria = r10(d.hotel[f.estilo] * (alta ? 1.25 : 1));
+    // Cada cidade usa a temporada do dia em que se chega nela, não a da partida.
+    const checkin = somarDias(f.ida, paradas.slice(0, i).reduce((s, x) => s + x.noites, 0));
+    const altaAqui = altaTemporada(checkin, d);
+    alta ||= altaAqui;
+    const diaria = r10(d.hotel[f.estilo] * (altaAqui ? 1.25 : 1));
     hosp += diaria * quartos * p.noites;
     comida += [70, 130, 250][f.estilo] * d.idx * f.pessoas * dias;
     passeios += [30, 80, 180][f.estilo] * d.idx * (d.pf || 1) * f.pessoas * p.noites;
     // Traslado do aeroporto só quando se chega de avião.
     transp += ([20, 45, 100][f.estilo] * d.idx * dias + (trechos[i].meio === "aviao" ? d.extra || 0 : 0)) * f.pessoas;
-    return { n: d.n, p: d.p, ap: d.ap, noites: p.noites, diaria, checkin: somarDias(f.ida, paradas.slice(0, i).reduce((s, x) => s + x.noites, 0)) };
+    return { n: d.n, p: d.p, ap: d.ap, noites: p.noites, diaria, checkin };
   });
   const dias = f.noites + 1;
   const reais = trechos.filter(t => t.fonte === "aviasales").length;

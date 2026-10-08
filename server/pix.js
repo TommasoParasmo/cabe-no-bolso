@@ -47,7 +47,8 @@ export async function criarPix({ pedido, email }, env, fetchFn = globalThis.fetc
     })
   });
   const order = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(`Mercado Pago ${r.status}: ${JSON.stringify(order).slice(0, 300)}`);
+  // Só o status e o código do erro: o corpo da resposta pode trazer o e-mail de quem paga.
+  if (!r.ok) throw new Error(`Mercado Pago ${r.status}${order?.errors?.[0]?.code ? ` (${order.errors[0].code})` : ""}`);
   const pag = order.transactions?.payments?.[0] || {};
   const pm = pag.payment_method || {};
   if (!pm.qr_code) throw new Error("Mercado Pago sem QR Code do Pix");
@@ -59,7 +60,8 @@ export async function criarPix({ pedido, email }, env, fetchFn = globalThis.fetc
 async function lerOrder(id, env, fetchFn) {
   if (!/^ORD[0-9A-Z]{6,40}$/i.test(String(id))) throw new PixInvalido("Pagamento não encontrado.");
   const r = await fetchFn(`${API}/${id}`, { headers: cabecalho(env.MP_ACCESS_TOKEN) });
-  if (r.status === 404) throw new PixInvalido("Pagamento não encontrado.");
+  // Número que não existe: o Mercado Pago responde 404 ou 400. Os dois são "não encontrado", não falha nossa.
+  if (r.status === 404 || r.status === 400) throw new PixInvalido("Pagamento não encontrado.");
   if (!r.ok) throw new Error(`Mercado Pago ${r.status}`);
   return r.json();
 }
@@ -80,6 +82,34 @@ export async function situacaoPix(id, env, fetchFn = globalThis.fetch, agora = D
   return { status: ["expired", "canceled", "failed"].includes(o.status) || venceu(o, agora) ? "expirado" : "esperando" };
 }
 
+// ---- Roteiro Detalhado liberado por um pagamento ----
+// O pedido vale o que foi guardado no KV quando o Pix foi criado (destino, ordem das cidades, nome), nunca o que
+// o navegador manda depois: senão, trocando só o nome, um Pix virava gerações de IA sem fim.
+// Cada pagamento dá direito a GERACOES_POR_PAGAMENTO roteiros novos (tentativas que chamam a IA); depois, só o cache.
+// Os direitos ficam num registro próprio (roteiros:ORD), para os kits de créditos poderem mudar o limite depois.
+export const GERACOES_POR_PAGAMENTO = 3;
+const chaveDireitos = id => `roteiros:${String(id).toUpperCase()}`;
+export class SemGeracoes extends Error {}
+
+export async function liberarDetalhado(id, body, env, fetchFn = globalThis.fetch) {
+  const o = await lerOrder(id, env, fetchFn);
+  if (!pago(o)) throw new PixNaoPago("O pagamento ainda não caiu.");
+  const guardado = await env.LEADS?.get(chavePedido(id), "json").catch(() => null);
+  // Pix criado antes de o pedido ser guardado no KV: vale o do navegador, conferido pela referência.
+  const pedido = guardado?.pedido || body;
+  if (o.external_reference !== await referencia(pedido)) throw new PixInvalido("Esse pagamento é de outro roteiro.");
+  return pedido;
+}
+
+// Antes de cada roteiro novo (fora do cache) do Detalhado: conta uma geração do pagamento ou recusa.
+export const contarGeracao = (id, env) => async () => {
+  if (!env?.LEADS) return;
+  const chave = chaveDireitos(id);
+  const d = (await env.LEADS.get(chave, "json").catch(() => null)) || { usados: 0, limite: GERACOES_POR_PAGAMENTO };
+  if (d.usados >= d.limite) throw new SemGeracoes("Esse pedido já gerou o Roteiro Detalhado. Se ele não apareceu, escreva para contato@vaidarviagem.com.br com o número do pedido.");
+  await env.LEADS.put(chave, JSON.stringify({ ...d, usados: d.usados + 1 }), { expirationTtl: GUARDA_DIAS * 86400 });
+};
+
 // Confere que a order foi paga e é deste roteiro. Devolve a referência.
 export async function conferirPagamento(id, body, env, fetchFn = globalThis.fetch) {
   const o = await lerOrder(id, env, fetchFn);
@@ -94,7 +124,9 @@ export async function conferirPagamento(id, body, env, fetchFn = globalThis.fetc
 // Quem pagou e perdeu o roteiro (trocou de aparelho, limpou o navegador) recupera com o número do
 // pedido e o e-mail do Pix, conferidos no Mercado Pago. Só o e-mail nunca basta: mostraria a viagem de outra pessoa.
 export const GUARDA_DIAS = 30;
-const MAX_GUARDADO = 100_000;
+const MAX_GUARDADO = 30_000;
+// Pix novos por IP por hora: um robô não enche o Mercado Pago de cobranças nem o KV de pedidos.
+const PIX_IP_HORA = 5;
 const RECUPERAR_IP_DIA = 20;
 const chavePedido = id => `pedido:${String(id).toUpperCase()}`;
 
@@ -115,6 +147,15 @@ export async function guardarPedido(id, { pedido, viagem, email }, env) {
   // Tela grande demais (não deveria acontecer) não entra; o pedido sozinho ainda refaz o roteiro.
   if (valor.length > MAX_GUARDADO) valor = JSON.stringify({ ...base, viagem: null });
   await env.LEADS.put(chavePedido(id), valor, { expirationTtl: GUARDA_DIAS * 86400 });
+  return true;
+}
+
+export async function podeCriarPix(ip) {
+  if (!ip) return true;
+  const chave = `https://cache.cabenobolso/pix-limite?${new URLSearchParams({ ip, h: new Date().toISOString().slice(0, 13) })}`;
+  const n = (await lerCache(chave))?.n || 0;
+  if (n >= PIX_IP_HORA) return false;
+  await gravarCache(chave, { n: n + 1 }, 3600);
   return true;
 }
 

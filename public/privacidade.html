@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
+<script>/* O endereço .pages.dev é só da hospedagem: quem cair nele vai para o site. */if (location.hostname.endsWith(".pages.dev")) location.replace("https://vaidarviagem.com.br" + location.pathname + location.search + location.hash);</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Política de privacidade · Vai Dar Viagem</title>
@@ -21,31 +22,17 @@ p, li { color: var(--ink); }
 a { color: var(--accent); }
 ul { padding-left: 20px; }
 </style>
-<!-- Meta Pixel Code -->
-<script>
-// No app de celular (Capacitor) o pixel fica de fora: rastreio ali exige outro consentimento.
-if (!window.Capacitor) !function(f,b,e,v,n,t,s)
-{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-n.queue=[];t=b.createElement(e);t.async=!0;
-t.src=v;s=b.getElementsByTagName(e)[0];
-s.parentNode.insertBefore(t,s)}(window, document,'script',
-'https://connect.facebook.net/en_US/fbevents.js');
-if (window.fbq) { fbq('init', '1648295673479841'); fbq('track', 'PageView'); }
-</script>
-<noscript><img height="1" width="1" style="display:none"
-src="https://www.facebook.com/tr?id=1648295673479841&ev=PageView&noscript=1"
-/></noscript>
-<!-- End Meta Pixel Code -->
+<!-- Pixel da Meta: só carrega depois de aceitar os cookies (aviso em /lib/cookies.js) -->
+<script src="/lib/cookies.js"></script>
 </head>
 <body>
 <main>
   <p><a href="/app/">← Voltar para o Vai Dar Viagem</a></p>
   <h1>Política de privacidade</h1>
-  <p class="data">Última atualização: 7 de outubro de 2026</p>
+  <p class="data">Última atualização: 8 de outubro de 2026</p>
 
   <p>O Vai Dar Viagem (vaidarviagem.com.br e o aplicativo de celular) ajuda você a descobrir se uma viagem cabe no seu orçamento e monta um roteiro dia a dia. Esta página explica quais dados usamos, por que e como você pode pedir para apagá-los, conforme a Lei Geral de Proteção de Dados (LGPD, Lei 13.709/2018).</p>
+  <p>O responsável pelos seus dados (controlador) é o Vai Dar Viagem. Contato: <a href="mailto:contato@vaidarviagem.com.br">contato@vaidarviagem.com.br</a>.</p>
 
   <h2>Quais dados coletamos</h2>
   <ul>
@@ -62,7 +49,7 @@ src="https://www.facebook.com/tr?id=1648295673479841&ev=PageView&noscript=1"
     <li>Permitir que você recupere o Roteiro Detalhado pago em outro aparelho. Para isso pedimos o número do pedido e o e-mail usado no Pix, e conferimos os dois com o Mercado Pago. Só o e-mail nunca basta.</li>
     <li>Enviar dicas e promoções de viagem, somente se você marcou essa opção. Você pode cancelar a qualquer momento.</li>
   </ul>
-  <p>A base legal é o seu consentimento para o envio de novidades e o legítimo interesse para liberar o download e melhorar o serviço.</p>
+  <p>O e-mail e os dados do pedido do Roteiro Detalhado são tratados para cumprir a compra (execução de contrato). O envio de novidades depende do seu consentimento. A medição de visitas pelo Pixel da Meta só acontece se você aceitar os cookies. A liberação do download gratuito e a melhoria do serviço se baseiam no legítimo interesse.</p>
 
   <h2>Com quem compartilhamos</h2>
   <ul>
@@ -70,19 +57,25 @@ src="https://www.facebook.com/tr?id=1648295673479841&ev=PageView&noscript=1"
     <li><b>Google (Gemini e Google Maps)</b> e <b>Anthropic (Claude)</b>, que montam o roteiro a partir do destino, das datas e das preferências. No Roteiro Detalhado, o primeiro nome que você escreve também vai para eles, só para personalizar o texto. Seu e-mail não é enviado a eles.</li>
     <li><b>Wikimedia (Wikipédia e Wikimedia Commons)</b>, de onde vêm as fotos dos lugares principais do Roteiro Detalhado. Só o nome do lugar e da cidade é usado na busca, e as fotos carregam direto de upload.wikimedia.org.</li>
     <li><b>Mercado Pago</b>, que processa o Pix do Roteiro Detalhado. Para isso recebe seu e-mail e o valor; os dados do pagamento ficam com o Mercado Pago, conforme a política dele.</li>
-    <li><b>Meta (Facebook e Instagram)</b>: o site usa o Pixel da Meta para medir visitas, cadastros e o uso do simulador (orçamento, destino escolhido e resultado, sem nome nem e-mail) por quem vem dos nossos anúncios. A Meta pode usar cookies e dados de navegação conforme a política dela; seu e-mail não é enviado a ela.</li>
+    <li><b>Meta (Facebook e Instagram)</b>: se você aceitar os cookies, o site usa o Pixel da Meta para medir visitas, cadastros e o uso do simulador (orçamento, destino escolhido e resultado, sem nome nem e-mail) por quem vem dos nossos anúncios. A Meta pode usar cookies e dados de navegação conforme a política dela; seu e-mail não é enviado a ela.</li>
     <li><b>Sites parceiros</b> (como Aviasales, Booking, Klook e seguradoras): quando você clica num link, passa a valer a política de privacidade do site parceiro. Alguns links geram comissão para nós, sem custo extra para você.</li>
   </ul>
   <p>Não vendemos seus dados.</p>
 
+  <h2>Dados fora do Brasil</h2>
+  <p>Alguns desses parceiros (Cloudflare, Google, Anthropic e Meta) guardam ou processam dados em servidores fora do Brasil, principalmente nos Estados Unidos. Escolhemos parceiros que se comprometem com padrões de proteção de dados compatíveis com a LGPD.</p>
+
+  <h2 id="cookies">Cookies</h2>
+  <p>No site, o Pixel da Meta só é carregado se você clicar em "Aceitar" no aviso de cookies. Se você recusar, nada da Meta é carregado. A escolha fica guardada no seu navegador e você pode mudar quando quiser: <a href="#cookies" data-cookies>rever minha escolha de cookies</a>. O aplicativo de celular não usa o Pixel.</p>
+
   <h2>Por quanto tempo guardamos</h2>
-  <p>Mantemos o cadastro enquanto você usar o serviço ou até você pedir a exclusão. Cadastros sem uso por 2 anos são apagados. O pedido do Roteiro Detalhado fica guardado por 30 dias depois de gerado o Pix e é apagado automaticamente depois disso.</p>
+  <p>Mantemos o cadastro enquanto você usar o serviço ou até você pedir a exclusão. Cadastros sem uso por 2 anos são apagados. O pedido do Roteiro Detalhado fica guardado por 30 dias depois de gerado o Pix e é apagado automaticamente depois disso. Registros de pagamento são guardados por 5 anos, porque a lei fiscal exige. Por isso, eles continuam guardados mesmo se você pedir a exclusão do cadastro.</p>
 
   <h2>Seus direitos</h2>
   <p>Você pode pedir a qualquer momento para ver, corrigir ou apagar seus dados, ou para deixar de receber e-mails. Basta escrever para <a href="mailto:contato@vaidarviagem.com.br">contato@vaidarviagem.com.br</a> a partir do e-mail cadastrado. Respondemos em até 15 dias.</p>
 
   <h2>Mudanças nesta política</h2>
-  <p>Se mudarmos algo importante, atualizaremos esta página e a data no topo.</p>
+  <p>Se mudarmos algo importante, atualizaremos esta página e a data no topo. As regras de compra estão nos <a href="/termos.html">Termos de uso</a>.</p>
 </main>
 </body>
 </html>
