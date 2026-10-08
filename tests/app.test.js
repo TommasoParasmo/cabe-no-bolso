@@ -614,6 +614,7 @@ test("roteiro completo pede horários, uma dica por lugar e mais dicas, com cach
   const r = await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true });
   assert.match(pedidos[0].messages[0].content, /horario/);
   assert.match(pedidos[0].messages[0].content, /8 dicas/);
+  assert.match(pedidos[0].messages[0].content, /5 ou 6 atividades por dia: 2 de manhã, 2 à tarde e 1 ou 2 à noite/);
   assert.equal(r.dicas.length, 8);
   assert.equal(r.dias[0].almoco.horario, "12:00–13:30");
   assert.equal(r.dias[0].atividades[0].dica, "Dica de Pelourinho 1");
@@ -644,6 +645,64 @@ test("roteiro completo pede ao Google Maps o horário de funcionamento e segue a
   const { promptMaps } = await import("../server/gemini.js");
   const p = { ...validarPedido({ paradas: [{ destino: "Seul", noites: 3 }, { destino: "Bangkok", noites: 4 }] }), completo: true };
   assert.match(promptMaps(p), /opening hours/);
+  assert.match(promptMaps(p), /5 or 6 attractions/);
+  assert.match(promptMaps(p), /- Evening: Place name/);
   assert.match(promptMaps(p), /Seul, Coreia do Sul \(3 nights\); then Bangkok/);
   assert.doesNotMatch(promptMaps({ ...p, completo: false }), /opening hours/);
 });
+
+test("roteiro completo aproveita o simples do cache: mantém os lugares, acrescenta atividades, horários e dicas", () => comCache(async () => {
+  const pedido = { destino: "Salvador", noites: 1, pessoas: 4, estilo: 1, verbaPasseios: 500 };
+  const dia = n => ({ dia: n, cidade: "Salvador", regiao: "Centro", titulo: "Centro", atividades: [{ periodo: "Manhã", nome: `Museu ${n}`, bairro: "Centro", custo: 0 }],
+    almoco: { nome: `Restô ${n}`, bairro: "Centro", custo: 50 }, jantar: { nome: `Bar ${n}`, bairro: "Centro", custo: 60 } });
+  const hora = (horario, dica) => ({ horario, dica });
+  const ativ = (nome, periodo, horario, custo = 0) => ({ nome, bairro: "Centro", custo, periodo, horario, dica: `Dica ${nome}` });
+  const cheio = n => [ativ(`Museu ${n}`, "manhã", "09:00–10:30"), ativ(`Igreja ${n}`, "manhã", "10:45–11:45"), ativ(`Forte ${n}`, "tarde", "14:00–15:30", 40.4),
+    ativ(`Praça ${n}`, "tarde", "16:00–17:00"), ativ(`Mirante ${n}`, "noite", "21:00–22:00")];
+  const respostas = [
+    { dias: [dia(1), dia(2)], dicas: ["a", "b", "c"] },
+    // Atalho no Claude: dias trocados de lugar, não serve.
+    { dias: [2, 1].map(n => ({ dia: n, atividades: cheio(n), almoco: hora("12:00–13:00", "x"), jantar: hora("19:00–20:30", "x") })), dicas: Array(8).fill("d") }
+  ];
+  const pedidos = [];
+  const client = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: respostas[pedidos.length - 1] }; } } };
+  await gerarRoteiro(pedido, {}, client);
+  const g = geminiFalso([{ content: { parts: [{ text: JSON.stringify({ dias: [1, 2].map(n => ({ dia: n, atividades: cheio(n), almoco: hora("12:00–13:00", "Peça o prato do dia"), jantar: hora("19:00–20:30", "Reserve") })),
+    dicas: Array.from({ length: 8 }, (_, i) => `dica ${i}`) }) }] }, finishReason: "STOP" }]);
+  // Gemini responde certo de primeira.
+  const r = await gerarRoteiro(pedido, { GEMINI_API_KEY: "k" }, client, null, g.fetchFn, { completo: true });
+  assert.equal(pedidos.length, 1);
+  assert.equal(g.pedidos.length, 1);
+  assert.equal(g.pedidos[0].corpo.tools, undefined);
+  assert.match(g.pedidos[0].corpo.contents[0].parts[0].text, /Mantenha todas as atividades/);
+  assert.match(g.pedidos[0].corpo.contents[0].parts[0].text, /Museu 2/);
+  assert.deepEqual(r.dias[1].atividades.map(a => a.nome), ["Museu 2", "Igreja 2", "Forte 2", "Praça 2", "Mirante 2"]);
+  assert.equal(r.dias[1].atividades[4].periodo, "noite");
+  assert.equal(r.dias[0].jantar.dica, "Reserve");
+  assert.equal(r.dias[0].jantar.nome, "Bar 1");
+  assert.equal(r.totalPasseios, 80);
+  assert.equal(r.dicas.length, 8);
+  assert.equal((await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true })).cache, true);  // Só com o Claude, a resposta com os dias trocados é recusada e o completo é montado do zero.
+  const pedido2 = { ...pedido, pessoas: 7 };
+  pedidos.length = 0;
+  const so = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: pedidos.length === 2 ? respostas[1] : respostas[0] }; } } };
+  await gerarRoteiro(pedido2, {}, so);
+  await gerarRoteiro(pedido2, {}, so, null, globalThis.fetch, { completo: true }).catch(() => {});
+  assert.match(pedidos[1], /Mantenha todas as atividades/);
+  assert.match(pedidos[2], /Este é o roteiro completo, com horários/);
+}));
+
+test("roteiro completo monta do zero quando a resposta do atalho não casa com o simples", () => comCache(async () => {
+  const pedido = { destino: "Salvador", noites: 1, pessoas: 5, estilo: 1, verbaPasseios: 500 };
+  const lugar = (nome, horario) => ({ nome, bairro: "Centro", custo: 0, horario, dica: "x" });
+  const completo = { dias: [1, 2].map(dia => ({ dia, cidade: "Salvador", regiao: "Centro", titulo: "Centro", atividades: [{ periodo: "Manhã", ...lugar(`P${dia}`, "09:00–10:00") }], almoco: lugar(`A${dia}`, "12:00–13:00"), jantar: lugar(`J${dia}`, "19:00–20:00") })),
+    dicas: Array.from({ length: 8 }, (_, i) => `d${i}`) };
+  const respostas = [completo, { dias: [], dicas: [] }, completo];
+  const pedidos = [];
+  const client = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: respostas[pedidos.length - 1] }; } } };
+  await gerarRoteiro(pedido, {}, client);
+  const r = await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true });
+  assert.equal(pedidos.length, 3);
+  assert.match(pedidos[2], /Este é o roteiro completo, com horários/);
+  assert.equal(r.dias[0].almoco.horario, "12:00–13:00");
+}));
