@@ -16,7 +16,7 @@ const valido = v => typeof v === "number" && Number.isFinite(v) && v > -60 && v 
 // Lê a resposta da NASA e devolve [{ min, max }] para os 12 meses, ou null se vier algo inesperado.
 export function lerNormais(json) {
   const p = json?.properties?.parameter;
-  const max = p?.T2M_MAX, min = p?.T2M_MIN;
+  const max = p?.T2M_MAX_AVG, min = p?.T2M_MIN_AVG;
   if (!max || !min) return null;
   const meses = MESES.map(m => ({ min: min[m], max: max[m] }));
   if (!meses.every(m => valido(m.min) && valido(m.max) && m.min <= m.max)) return null;
@@ -26,10 +26,10 @@ export function lerNormais(json) {
 // { min, max } em °C do destino no mês (1 a 12), ou null.
 export async function climaDoMes(dest, mes, fetchFn = globalThis.fetch) {
   if (!dest || !Number.isInteger(mes) || mes < 1 || mes > 12) return null;
-  const chave = `https://cache.cabenobolso/clima?${new URLSearchParams({ d: dest.n, v: "1" })}`;
+  const chave = `https://cache.cabenobolso/clima?${new URLSearchParams({ d: dest.n, v: "2" })}`;
   let normais = await lerCache(chave);
   if (!Array.isArray(normais)) {
-    const url = `${API}?${new URLSearchParams({ parameters: "T2M_MAX,T2M_MIN", community: "RE", latitude: String(dest.lat), longitude: String(dest.lon), format: "JSON" })}`;
+    const url = `${API}?${new URLSearchParams({ parameters: "T2M_MAX_AVG,T2M_MIN_AVG", community: "RE", latitude: String(dest.lat), longitude: String(dest.lon), format: "JSON" })}`;
     try {
       const r = await fetchFn(url, { signal: AbortSignal.timeout(PRAZO_MS) });
       normais = r.ok ? lerNormais(await r.json()) : null;

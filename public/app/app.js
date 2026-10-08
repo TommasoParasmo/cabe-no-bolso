@@ -539,7 +539,9 @@ function render(fresh) {
 
 // Temperatura média do destino no mês da ida (normais da NASA, pelo /api/clima). Sem dado, a linha fica escondida.
 const climas = new Map();
+let climaVez = 0;
 async function mostrarClima(destino, mes) {
+  const vez = ++climaVez;
   if (!(mes >= 1 && mes <= 12)) return;
   const chave = `${destino}|${mes}`;
   if (!climas.has(chave)) {
@@ -549,8 +551,8 @@ async function mostrarClima(destino, mes) {
   const clima = await climas.get(chave);
   if (!clima) { climas.delete(chave); return; }
   const el = $("clima");
-  // A tela pode ter mudado de destino enquanto a resposta vinha.
-  if (!el || state.atual?.destino?.n !== destino) return;
+  // A tela pode ter mudado (outro destino ou outro mês) enquanto a resposta vinha.
+  if (!el || vez !== climaVez) return;
   el.textContent = `Em ${MESES[mes - 1]}, ${destino} costuma ter mínimas de ${clima.min} °C e máximas de ${clima.max} °C.`;
   el.hidden = false;
 }
