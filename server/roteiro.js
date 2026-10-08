@@ -88,7 +88,7 @@ Inclua também ${DICAS_COMPLETO} dicas curtas e específicas da viagem (economia
 
 // Exatamente um destaque por dia: a IA às vezes marca nenhum ou vários.
 // Nota de segurança da região: inteiro de 1 a 5 (sem nota válida, fica sem).
-const notaSeguranca = v => { const n = Math.round(Number(v)); return n >= 1 && n <= 5 ? n : undefined; };
+const notaSeguranca = v => { const n = Number(v); return Number.isInteger(n) && n >= 1 && n <= 5 ? n : undefined; };
 const umDestaque = dias => dias.map(d => {
   d = { ...d, seguranca: notaSeguranca(d.seguranca), segurancaNota: String(d.segurancaNota || "").trim() };
   let i = d.atividades.findIndex(a => a.destaque);
@@ -180,6 +180,9 @@ export function faltaNoRoteiro(p, dias, dicas = null) {
   if (semDia.length) falta.push(`o roteiro tem que passar por todas as cidades; ficaram sem nenhum dia: ${semDia.join(", ")}`);
   // O completo promete 8 dicas da viagem.
   if (p.completo && dicas && dicas.length < DICAS_COMPLETO) falta.push(`inclua ${DICAS_COMPLETO} dicas da viagem; a tentativa anterior trouxe ${dicas.length}`);
+  // E promete a nota de segurança (inteiro de 1 a 5) de cada região.
+  const semNota = p.completo ? dias.filter(d => !notaSeguranca(d.seguranca)).map(d => d.dia) : [];
+  if (semNota.length) falta.push(`"seguranca" tem que ser um número inteiro de 1 a 5 em todos os dias; faltou ou veio fora disso nos dias ${semNota.join(", ")}`);
   return falta;
 }
 
@@ -256,6 +259,7 @@ ${JSON.stringify(base)}`;
   const inteiro = v => Math.max(0, Math.round(v) || 0);
   // Casa com o simples: mesmos dias, todas as atividades de antes mantidas, mais cheio, dentro da verba e com as 8 dicas.
   const casa = x => x?.dias?.length === simples.dias.length && x.dicas?.length >= DICAS_COMPLETO && x.apresentacao?.trim() &&
+    x.dias.every(d => notaSeguranca(d.seguranca)) &&
     x.dias.every((d, i) => d.dia === simples.dias[i].dia && d.atividades.length >= Math.max(4, simples.dias[i].atividades.length) &&
       simples.dias[i].atividades.every(a => d.atividades.some(b => norm(b.nome) === norm(a.nome)))) &&
     x.dias.reduce((t, d) => t + d.atividades.reduce((s2, a) => s2 + inteiro(a.custo), 0), 0) <= p.verba;
