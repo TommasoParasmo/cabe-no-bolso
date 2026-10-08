@@ -430,7 +430,8 @@ test("roteiro com GEMINI_API_KEY consulta o Google Maps e monta o roteiro só co
 });
 
 test("uso de tokens: uma linha por roteiro e soma do dia no KV, sem dados pessoais", async () => {
-  const { registrarUso, novoUso, PRECOS } = await import("../server/uso.js");
+  const { registrarUso, novoUso, precosEm, resumoUso } = await import("../server/uso.js");
+  const PRECOS = precosEm();
   const kv = new Map();
   const LEADS = { get: async k => (kv.has(k) ? JSON.parse(kv.get(k)) : null), put: async (k, v) => { kv.set(k, v); } };
   const respostas = [mapsOk, jsonOk];
@@ -457,7 +458,12 @@ test("uso de tokens: uma linha por roteiro e soma do dia no KV, sem dados pessoa
   const dia = JSON.parse(kv.get(chave));
   assert.deepEqual(dia.roteiros, { gratis: 1, detalhado: 1 });
   assert.equal(dia.modelos["claude-sonnet-5-5"].saida, 4000);
-  assert.ok(Math.abs(dia.usd - (linha.usd + (3000 * 3 + 4000 * 15) / 1e6)) < 1e-9);
+  assert.ok(Math.abs(dia.usd - (linha.usd + (3000 * 2 + 4000 * 10) / 1e6)) < 1e-9);
+  // Preço do Gemini: introdutório até 31/12/2026, cheio a partir de 01/01/2027 (Brasília).
+  const g = novoUso(); g.gemini("gemini-3.8-flash", { promptTokenCount: 1e6, candidatesTokenCount: 1e6 });
+  assert.equal(resumoUso(g, {}, new Date("2026-12-31T23:59:00-03:00")).usd, 0.75 + 3.75);
+  assert.equal(resumoUso(g, {}, new Date("2027-01-01T00:00:00-03:00")).usd, 1.5 + 7.5);
+  assert.equal(resumoUso(g, { PRECOS_IA: '{"gemini-3.8-flash":{"entrada":1,"saida":1}}' }).usd, 2, "PRECOS_IA na Cloudflare vale por cima");
   assert.equal(linha.usd, linha.modelos["gemini-3.8-flash"].usd + linha.modelos["google-maps"].usd);
 });
 
@@ -640,7 +646,7 @@ function mercadoPago(order, status = 200) {
   return { fetchFn, pedidos };
 }
 
-test("pix: cria a order de R$ 9,90 presa ao pedido de roteiro e devolve o copia e cola", async () => {
+test("pix: cria a order de R$ 14,90 presa ao pedido de roteiro e devolve o copia e cola", async () => {
   const { criarPix, PixInvalido } = await import("../server/pix.js");
   const { fetchFn, pedidos } = mercadoPago({ id: "ORD01ABC123", status: "action_required",
     transactions: { payments: [{ payment_method: { qr_code: "00020126580014br.gov.bcb.pix", qr_code_base64: "iVBOR", ticket_url: "https://mp/t" } }] } });
@@ -654,7 +660,7 @@ test("pix: cria a order de R$ 9,90 presa ao pedido de roteiro e devolve o copia 
   const antes = Date.now();
   const r = await criarPix({ pedido: pedidoRio, email: " Voce@Email.com " }, { MP_ACCESS_TOKEN: "tok" }, fetchFn);
   const { expiraEm, ...resto } = r;
-  assert.deepEqual(resto, { id: "ORD01ABC123", copiaECola: "00020126580014br.gov.bcb.pix", qrCode: "iVBOR", link: "https://mp/t", preco: 9.9 });
+  assert.deepEqual(resto, { id: "ORD01ABC123", copiaECola: "00020126580014br.gov.bcb.pix", qrCode: "iVBOR", link: "https://mp/t", preco: 14.9 });
   // Sem data na resposta do Mercado Pago, a validade conta de antes do pedido (1 hora).
   const ms = Date.parse(expiraEm) - antes;
   assert.ok(ms >= 60 * 60000 && ms <= 60 * 60000 + (Date.now() - antes), `validade de ~1 h: ${ms}`);
@@ -662,7 +668,7 @@ test("pix: cria a order de R$ 9,90 presa ao pedido de roteiro e devolve o copia 
   assert.equal(p.url, "https://api.mercadopago.com/v1/orders");
   assert.equal(p.headers.Authorization, "Bearer tok");
   assert.ok(p.headers["X-Idempotency-Key"]);
-  assert.equal(p.corpo.total_amount, "9.90");
+  assert.equal(p.corpo.total_amount, "14.90");
   assert.equal(p.corpo.external_reference, ref);
   assert.deepEqual(p.corpo.transactions.payments[0].payment_method, { id: "pix", type: "bank_transfer" });
   assert.equal(p.corpo.transactions.payments[0].expiration_time, "PT60M");
@@ -676,11 +682,14 @@ test("pix: só libera order paga, do valor certo e do mesmo roteiro", async () =
   const { conferirPagamento, situacaoPix, referencia, PixInvalido, PixNaoPago } = await import("../server/pix.js");
   const env = { MP_ACCESS_TOKEN: "tok" };
   const ref = await referencia(pedidoRio);
-  const paga = { id: "ORD01ABC123", status: "processed", status_detail: "accredited", total_amount: "9.90", external_reference: ref };
+  const paga = { id: "ORD01ABC123", status: "processed", status_detail: "accredited", total_amount: "14.90", external_reference: ref };
   assert.equal(await conferirPagamento("ORD01ABC123", pedidoRio, env, mercadoPago(paga).fetchFn), ref);
   assert.deepEqual(await situacaoPix("ORD01ABC123", env, mercadoPago(paga).fetchFn), { status: "pago" });
   await assert.rejects(conferirPagamento("ORD01ABC123", { ...pedidoRio, noites: 5 }, env, mercadoPago(paga).fetchFn), PixInvalido);
   await assert.rejects(conferirPagamento("ORD01ABC123", pedidoRio, env, mercadoPago({ ...paga, total_amount: "1.00" }).fetchFn), PixNaoPago);
+  // Quem pagou R$ 9,90 antes da troca de preço continua liberado (Pix reaberto, "Já paguei", recuperação).
+  assert.equal(await conferirPagamento("ORD01ABC123", pedidoRio, env, mercadoPago({ ...paga, total_amount: "9.90" }).fetchFn), ref);
+  assert.deepEqual(await situacaoPix("ORD01ABC123", env, mercadoPago({ ...paga, total_amount: "9.90" }).fetchFn), { status: "pago" });
   const esperando = { ...paga, status: "action_required", status_detail: "waiting_transfer" };
   await assert.rejects(conferirPagamento("ORD01ABC123", pedidoRio, env, mercadoPago(esperando).fetchFn), PixNaoPago);
   assert.deepEqual(await situacaoPix("ORD01ABC123", env, mercadoPago(esperando).fetchFn), { status: "esperando" });
@@ -709,6 +718,7 @@ test("recuperar o roteiro pago: pedido guardado 30 dias, liberado só com númer
   const paga = { id: "ORD01ABC123", status: "processed", total_amount: "9.90", external_reference: await referencia(pedidoRio) };
   const r = await recuperarPedido({ id: " ord01abc123 ", email: "ana@email.com " }, env, mercadoPago(paga).fetchFn);
   assert.deepEqual(r.viagem, viagem);
+  assert.equal(r.valor, 9.9, "a confirmação mostra o valor pago no pedido, não o preço de hoje");
   assert.equal(r.pedido.destino, pedidoRio.destino);
   // E-mail diferente e pedido inexistente dão a mesma resposta (não revela se o número existe).
   await assert.rejects(recuperarPedido({ id: "ORD01ABC123", email: "outra@email.com" }, env, mercadoPago(paga).fetchFn), PixInvalido);

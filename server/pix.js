@@ -5,7 +5,11 @@
 import { validarPedido } from "./roteiro.js";
 import { lerCache, gravarCache } from "./cache.js";
 
-export const PRECO = "9.90";
+export const PRECO = "14.90";
+// Menor preço que já vendemos (R$ 9,90 até 08/10/2026). A order paga vale pelo valor com que foi criada:
+// só o nosso servidor cria orders (sempre com o PRECO da época), então quem pagou o preço antigo continua liberado
+// (Pix pendente reaberto, "Já paguei" depois de falha, recuperação). O piso só barra order de valor estranho.
+const PISO = "9.90";
 const API = "https://api.mercadopago.com/v1/orders";
 // Validade do Pix: o Mercado Pago aceita de 30 minutos a 30 dias (padrão 24 h). Uma hora dá folga e o app mostra o horário.
 export const VALIDADE_MIN = 60;
@@ -60,7 +64,7 @@ async function lerOrder(id, env, fetchFn) {
   return r.json();
 }
 
-const pago = o => o.status === "processed" && Number(o.total_amount) >= Number(PRECO);
+const pago = o => o.status === "processed" && Number(o.total_amount) >= Number(PISO);
 
 // Pix sem pagamento passado do prazo. O Mercado Pago só muda a order para expirada dias depois,
 // então o prazo do próprio pagamento é que decide quando o app oferece um Pix novo.
@@ -142,5 +146,6 @@ export async function recuperarPedido(body, env, fetchFn = globalThis.fetch) {
   if (await referencia(guardado.pedido).catch(() => null) !== o.external_reference) {
     throw new PedidoNaoGuardado("Achamos o pagamento, mas não o pedido. Escreva para contato@vaidarviagem.com.br com o número do pedido.");
   }
-  return { pedido: guardado.pedido, viagem: guardado.viagem || null };
+  // valor: o que a pessoa pagou nesse pedido (a tela de confirmação mostra este, não o preço de hoje).
+  return { pedido: guardado.pedido, viagem: guardado.viagem || null, valor: Number(o.total_amount) };
 }

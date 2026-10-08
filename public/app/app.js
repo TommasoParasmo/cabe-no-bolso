@@ -774,7 +774,7 @@ function roteiroTop(ro) {
 
   const fontes = (ro.fontes || []).length ? `<details class="fontes nao-imprimir"><summary class="hint">Fontes: Google Maps (${ro.fontes.length} ${ro.fontes.length > 1 ? "lugares" : "lugar"})</summary><ul class="hint">${ro.fontes.map(x => `<li><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.nome)}</a> · Google Maps</li>`).join("")}</ul></details>` : "";
   // Confirmação do pedido na tela (o e-mail de confirmação vem depois): número, valor e o que foi comprado.
-  const confirmacao = ro.pagamento ? `<div class="confirmado nao-imprimir"><b>Pagamento confirmado</b><span>Pedido ${esc(ro.pagamento)} · ${reais(PRECO_COMPLETO)} · Roteiro Detalhado de ${esc(cidade)}</span><small>Guarde o número do pedido: com ele e o e-mail do Pix você recupera este roteiro em outro aparelho por 30 dias.</small></div>` : "";
+  const confirmacao = ro.pagamento ? `<div class="confirmado nao-imprimir"><b>Pagamento confirmado</b><span>Pedido ${esc(ro.pagamento)}${ro.valor ? ` · ${reais(ro.valor)}` : ""} · Roteiro Detalhado de ${esc(cidade)}</span><small>Guarde o número do pedido: com ele e o e-mail do Pix você recupera este roteiro em outro aparelho por 30 dias.</small></div>` : "";
   return `${confirmacao}<div class="top">${capa}${carta}${resumo}${dias}${dicas}${fim}</div>${fontes}
     <div class="baixar nao-imprimir" id="baixar-box"><button type="button" class="primary" id="baixar">Baixar roteiro em PDF</button></div>`;
 }
@@ -819,8 +819,8 @@ async function gerarRoteiro() {
 }
 
 // ---- Roteiro completo (pago no Pix): horários de cada lugar, ordem das cidades escolhida e mais dicas ----
-const PRECO_COMPLETO = 9.9;
-// brl() arredonda para reais inteiros; o preço precisa dos centavos (R$ 9,90).
+const PRECO_COMPLETO = 14.9;
+// brl() arredonda para reais inteiros; o preço precisa dos centavos (R$ 14,90).
 const reais = v => Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 let timerPix = null;
 const pararPix = () => { clearInterval(timerPix); timerPix = null; };
@@ -876,7 +876,7 @@ function cartaoCompleto() {
   if (v.gerando) return `<div class="completo nao-imprimir" id="completo-box"><h3>Roteiro Detalhado</h3><button type="button" class="primary" id="completo-gerando" disabled></button><p class="hint" style="margin:0">Pagamento recebido. O Roteiro Detalhado pode levar até 3 minutos, porque está sendo feito personalizado com as suas escolhas. Fique nesta tela, ele aparece aqui.</p>${linkAjuda(v)}</div>`;
   return `
     <div class="completo nao-imprimir" id="completo-box">
-      <h3>Quer o Roteiro Detalhado? ${reais(PRECO_COMPLETO)}</h3>
+      <h3>Quer o Roteiro Detalhado? ${reais(v.pix?.preco || PRECO_COMPLETO)}</h3>
       <ul class="hint vantagens">
         <li>Nota de segurança de cada região, de 1 a 5 estrelas, com o cuidado principal de cada lugar</li>
         <li>Horário de cada passeio, almoço e jantar, de acordo com o funcionamento de cada lugar</li>
@@ -954,7 +954,8 @@ function ligarCompleto() {
       if (state.roteiro !== ro) return;
       if (status === "pago") {
         v.pago = true;
-        window.fbq?.("track", "Purchase", { value: PRECO_COMPLETO, currency: "BRL" });
+        // Valor do próprio Pix (quem gerou o Pix no preço antigo paga o antigo).
+        window.fbq?.("track", "Purchase", { value: v.pix.preco || PRECO_COMPLETO, currency: "BRL" });
         return montarCompleto(ro);
       }
       if (status === "expirado") {
@@ -982,7 +983,7 @@ async function montarCompleto(ro) {
     fetch(`${API}/api/lead`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: v.email, novidades: false, destino: state.atual.destino.n }) })
       .then(x => x.ok && x.json()).then(x => { if (x?.guardado) try { localStorage.setItem(LEAD, "1"); } catch {} }).catch(() => {});
     guardarPendente(idViagem());
-    state.roteiro = { ...r, completo: true, nome: v.nome || v.pedido?.nome, ordem: v.ordem?.map(p => p.n), pagamento: v.pix.id };
+    state.roteiro = { ...r, completo: true, nome: v.nome || v.pedido?.nome, ordem: v.ordem?.map(p => p.n), pagamento: v.pix.id, valor: v.pix.preco };
     evento("RoteiroCompleto", { destino: state.atual.destino?.n });
     renderRoteiro();
     if (salvas.some(x => x.id === idViagem())) salvarViagem();
@@ -1090,7 +1091,7 @@ $("rec-form").addEventListener("submit", async ev => {
     const r = await postar("/api/recuperar", { id, email });
     if (!r.viagem?.atual) throw new Error(`Achamos o pagamento, mas não a viagem. Escreva para ${CONTATO} com o número do pedido.`);
     pedido?.abort(); setStatus(""); // um cálculo pendente não pode substituir a viagem recuperada
-    state = { ...r.viagem, opcoes: [], roteiro: { ...r.roteiro, completo: true, nome: r.pedido.nome, ordem: r.pedido.paradas?.map(p => p.destino), pagamento: r.id } };
+    state = { ...r.viagem, opcoes: [], roteiro: { ...r.roteiro, completo: true, nome: r.pedido.nome, ordem: r.pedido.paradas?.map(p => p.destino), pagamento: r.id, valor: r.valor } };
     render(false);
     salvarViagem(); // fica em "Minhas viagens" neste aparelho
     aviso("");
