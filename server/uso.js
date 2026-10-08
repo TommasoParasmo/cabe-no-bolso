@@ -6,7 +6,9 @@
 // Dá para trocar sem mexer no código pela variável PRECOS_IA na Cloudflare, no mesmo formato JSON.
 export const PRECOS = {
   "gemini-3.8-flash": { entrada: 0.5, saida: 3 },
-  "claude-sonnet-5-5": { entrada: 3, saida: 15 }
+  "claude-sonnet-5-5": { entrada: 3, saida: 15 },
+  // Consultas ao Google Maps feitas pelo Gemini (grounding): cobradas por consulta depois da cota grátis.
+  "google-maps": { porMil: 25 }
 };
 const VALIDADE_KV = 400 * 86400;
 
@@ -24,6 +26,10 @@ export function novoUso() {
       if (u) chamadas.push({ modelo, entrada: u.promptTokenCount || 0, saida: (u.candidatesTokenCount || 0) + (u.thoughtsTokenCount || 0) });
     },
     // Claude: usage da resposta (com o cache de prompt, quando houver, contado como entrada).
+    // Google Maps: consultas que o Gemini fez (sem a lista na resposta, conta 1 por pedido com o Maps ligado).
+    maps(consultas) {
+      if (consultas > 0) chamadas.push({ modelo: "google-maps", entrada: 0, saida: 0, consultas });
+    },
     claude(modelo, u) {
       if (u) chamadas.push({ modelo, entrada: (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0), saida: u.output_tokens || 0 });
     }
@@ -36,12 +42,12 @@ export function resumoUso(uso, env) {
   const modelos = {};
   for (const c of uso.chamadas) {
     const m = modelos[c.modelo] ||= { chamadas: 0, entrada: 0, saida: 0, usd: 0 };
-    m.chamadas++; m.entrada += c.entrada; m.saida += c.saida;
+    m.chamadas += c.consultas || 1; m.entrada += c.entrada; m.saida += c.saida;
   }
   let usd = 0;
   for (const [nome, m] of Object.entries(modelos)) {
-    const p = tabela[nome] || { entrada: 0, saida: 0 };
-    m.usd = Number(((m.entrada * p.entrada + m.saida * p.saida) / 1e6).toFixed(6));
+    const p = tabela[nome] || {};
+    m.usd = Number((((m.entrada * (p.entrada || 0) + m.saida * (p.saida || 0)) / 1e6) + m.chamadas * (p.porMil || 0) / 1000).toFixed(6));
     usd += m.usd;
   }
   return { modelos, usd: Number(usd.toFixed(6)) };

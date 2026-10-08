@@ -445,6 +445,9 @@ test("uso de tokens: uma linha por roteiro e soma do dia no KV, sem dados pessoa
   assert.equal(linha.resultado, "ok");
   assert.deepEqual(linha.modelos["gemini-3.8-flash"], { chamadas: 2, entrada: 2000, saida: 500, usd: (2000 * PRECOS["gemini-3.8-flash"].entrada + 500 * PRECOS["gemini-3.8-flash"].saida) / 1e6 });
   assert.ok(!/Salvador|@/.test(logs.find(l => l.startsWith("uso: "))), "sem destino nem e-mail");
+  // A busca no Google Maps também tem custo (1 consulta quando a resposta não lista as consultas).
+  assert.equal(linha.modelos["google-maps"].chamadas, 1);
+  assert.equal(linha.modelos["google-maps"].usd, PRECOS["google-maps"].porMil / 1000);
   const [chave] = [...kv.keys()].filter(k => k.startsWith("uso:"));
   assert.match(chave, /^uso:\d{4}-\d{2}-\d{2}$/);
   // Claude soma no mesmo dia, separado por modelo.
@@ -455,6 +458,7 @@ test("uso de tokens: uma linha por roteiro e soma do dia no KV, sem dados pessoa
   assert.deepEqual(dia.roteiros, { gratis: 1, detalhado: 1 });
   assert.equal(dia.modelos["claude-sonnet-5-5"].saida, 4000);
   assert.ok(Math.abs(dia.usd - (linha.usd + (3000 * 3 + 4000 * 15) / 1e6)) < 1e-9);
+  assert.equal(linha.usd, linha.modelos["gemini-3.8-flash"].usd + linha.modelos["google-maps"].usd);
 });
 
 test("roteiro cai para o Claude quando o Gemini falha", async () => {

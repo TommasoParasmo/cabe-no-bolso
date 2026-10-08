@@ -361,7 +361,14 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null, fet
 const medirGemini = (fetchFn, uso) => async (url, init) => {
   const r = await fetchFn(url, init);
   if (String(url).includes("generativelanguage") && r?.clone) {
-    try { uso.gemini(MODELO_GEMINI, (await r.clone().json())?.usageMetadata); } catch {}
+    try {
+      const d = await r.clone().json();
+      uso.gemini(MODELO_GEMINI, d?.usageMetadata);
+      if (/googleMaps/.test(String(init?.body || ""))) {
+        const g = d?.candidates?.[0]?.groundingMetadata || {};
+        uso.maps(Math.max(1, (g.retrievalQueries || g.webSearchQueries || []).length));
+      }
+    } catch {}
   }
   return r;
 };
