@@ -825,6 +825,29 @@ function guardarPendente(id, dados) {
   try { localStorage.setItem(PIX_PENDENTE, JSON.stringify(todos)); } catch {}
 }
 
+// Contato do atendimento: o e-mail já vem com o pedido do Pix, o destino e a data, para achar o pagamento na hora.
+const CONTATO = "contato@vaidarviagem.com.br";
+function linkAjuda(v) {
+  const f = comDatas(state.entrada, state.atual);
+  const linhas = [
+    v.pix?.id ? `Pedido: ${v.pix.id}` : "",
+    `Destino: ${state.atual.destino?.n || ""}`,
+    f.ida ? `Ida: ${f.ida.split("-").reverse().join("/")}` : "",
+    "", "Conte o que aconteceu:", ""
+  ].filter((l, i) => l || i > 2);
+  const assunto = `Ajuda com o Roteiro Detalhado${v.pix?.id ? ` (${v.pix.id})` : ""}`;
+  const href = `mailto:${CONTATO}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(linhas.join("\n"))}`;
+  return `<p class="hint ajuda"><a href="${esc(href)}">Precisa de ajuda?</a> Escreva para ${CONTATO}.</p>`;
+}
+// "Pague até 14:35" (com a data se virar o dia). Pix antigo, guardado sem a validade, fica sem a linha.
+function prazoPix(pix) {
+  const d = new Date(pix?.expiraEm || NaN);
+  if (isNaN(d)) return "";
+  const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const hoje = d.toDateString() === new Date().toDateString();
+  return `Pague até ${hoje ? hora : `${d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} às ${hora}`}`;
+}
+
 function cartaoCompleto() {
   const ro = state.roteiro;
   if (!ro.venda) {
@@ -835,7 +858,7 @@ function cartaoCompleto() {
   }
   const v = ro.venda;
   const ordem = v.ordem;
-  if (v.gerando) return `<div class="completo nao-imprimir" id="completo-box"><h3>Roteiro Detalhado</h3><button type="button" class="primary" id="completo-gerando" disabled></button><p class="hint" style="margin:0">Pagamento recebido. O Roteiro Detalhado pode levar até 3 minutos, porque está sendo feito personalizado com as suas escolhas. Fique nesta tela, ele aparece aqui.</p></div>`;
+  if (v.gerando) return `<div class="completo nao-imprimir" id="completo-box"><h3>Roteiro Detalhado</h3><button type="button" class="primary" id="completo-gerando" disabled></button><p class="hint" style="margin:0">Pagamento recebido. O Roteiro Detalhado pode levar até 3 minutos, porque está sendo feito personalizado com as suas escolhas. Fique nesta tela, ele aparece aqui.</p>${linkAjuda(v)}</div>`;
   return `
     <div class="completo nao-imprimir" id="completo-box">
       <h3>Quer o Roteiro Detalhado? ${reais(PRECO_COMPLETO)}</h3>
@@ -849,6 +872,7 @@ function cartaoCompleto() {
       ${ordem && !v.pix ? `<div class="ordem"><b>Ordem das cidades</b><ol>${ordem.map((p, i) => `<li><span>${esc(p.n)} <small class="hint">${esc(p.noites)} ${p.noites > 1 ? "noites" : "noite"}</small></span><button type="button" class="mover" data-i="${i}" data-d="-1" ${i ? "" : "disabled"} aria-label="Subir ${esc(p.n)}">↑</button><button type="button" class="mover" data-i="${i}" data-d="1" ${i < ordem.length - 1 ? "" : "disabled"} aria-label="Descer ${esc(p.n)}">↓</button></li>`).join("")}</ol><p class="hint" style="margin:0">Os preços acima são da ordem original; a ordem nova vale para o roteiro.</p></div>` : ""}
       ${v.pix ? `
         ${v.pix.qrCode ? `<img class="qr" src="data:image/png;base64,${esc(v.pix.qrCode)}" alt="QR Code do Pix" width="200" height="200">` : ""}
+        <p class="pix-info"><b>${esc(prazoPix(v.pix))}</b>${prazoPix(v.pix) ? " · " : ""}Pedido ${esc(v.pix.id)}</p>
         <div class="actions"><button type="button" class="primary" id="pix-copiar">Copiar código Pix</button><button type="button" id="pix-conferir">Já paguei</button></div>
         <p class="hint" style="margin:0">Abra o app do seu banco, escolha Pix copia e cola (ou leia o QR Code) e pague. O Roteiro Detalhado aparece aqui sozinho.</p>` : `
         <form class="lead" id="pix-form" novalidate>
@@ -859,6 +883,7 @@ function cartaoCompleto() {
           <button type="submit" class="primary">Pagar ${reais(PRECO_COMPLETO)} no Pix</button>
         </form>`}
       <div class="status${v.erro ? " err" : ""}" id="pix-status" role="status" aria-live="polite">${esc(v.aviso || "")}</div>
+      ${linkAjuda(v)}
     </div>`;
 }
 

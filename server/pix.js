@@ -6,6 +6,8 @@ import { validarPedido } from "./roteiro.js";
 
 export const PRECO = "9.90";
 const API = "https://api.mercadopago.com/v1/orders";
+// Validade do Pix: o Mercado Pago aceita de 30 minutos a 30 dias (padrão 24 h). Uma hora dá folga e o app mostra o horário.
+export const VALIDADE_MIN = 60;
 const EMAIL = /^[^\s@<>"',;]{1,64}@[^\s@<>"',;]+\.[a-z]{2,}$/i;
 
 export class PixInvalido extends Error {}
@@ -28,21 +30,25 @@ export async function criarPix({ pedido, email }, env, fetchFn = globalThis.fetc
   const ref = await referencia(pedido);
   email = String(email ?? "").trim().toLowerCase();
   if (email.length > 254 || !EMAIL.test(email)) throw new PixInvalido("Confira o e-mail.");
+  const inicio = Date.now();
   const r = await fetchFn(API, {
     method: "POST",
     headers: { ...cabecalho(env.MP_ACCESS_TOKEN), "X-Idempotency-Key": crypto.randomUUID() },
     body: JSON.stringify({
       type: "online", processing_mode: "automatic", total_amount: PRECO, external_reference: ref,
       description: "Roteiro Detalhado Vai Dar Viagem",
-      transactions: { payments: [{ amount: PRECO, payment_method: { id: "pix", type: "bank_transfer" } }] },
+      transactions: { payments: [{ amount: PRECO, payment_method: { id: "pix", type: "bank_transfer" }, expiration_time: `PT${VALIDADE_MIN}M` }] },
       payer: { email }
     })
   });
   const order = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(`Mercado Pago ${r.status}: ${JSON.stringify(order).slice(0, 300)}`);
-  const pm = order.transactions?.payments?.[0]?.payment_method || {};
+  const pag = order.transactions?.payments?.[0] || {};
+  const pm = pag.payment_method || {};
   if (!pm.qr_code) throw new Error("Mercado Pago sem QR Code do Pix");
-  return { id: order.id, copiaECola: pm.qr_code, qrCode: pm.qr_code_base64 || null, link: pm.ticket_url || null, preco: Number(PRECO) };
+  // Sem a data na resposta, conta a partir de antes do pedido: o horário mostrado nunca passa do real.
+  const expiraEm = pag.date_of_expiration || new Date(inicio + VALIDADE_MIN * 60000).toISOString();
+  return { id: order.id, copiaECola: pm.qr_code, qrCode: pm.qr_code_base64 || null, link: pm.ticket_url || null, preco: Number(PRECO), expiraEm };
 }
 
 async function lerOrder(id, env, fetchFn) {

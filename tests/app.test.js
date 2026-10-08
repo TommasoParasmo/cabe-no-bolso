@@ -576,8 +576,13 @@ test("pix: cria a order de R$ 9,90 presa ao pedido de roteiro e devolve o copia 
   // A ordem das cidades escolhida faz parte do que foi pago.
   const ida = [{ destino: "Rio de Janeiro", noites: 2 }, { destino: "Salvador", noites: 2 }];
   assert.notEqual(await referencia({ ...pedidoRio, paradas: ida }), await referencia({ ...pedidoRio, paradas: [...ida].reverse() }));
+  const antes = Date.now();
   const r = await criarPix({ pedido: pedidoRio, email: " Voce@Email.com " }, { MP_ACCESS_TOKEN: "tok" }, fetchFn);
-  assert.deepEqual(r, { id: "ORD01ABC123", copiaECola: "00020126580014br.gov.bcb.pix", qrCode: "iVBOR", link: "https://mp/t", preco: 9.9 });
+  const { expiraEm, ...resto } = r;
+  assert.deepEqual(resto, { id: "ORD01ABC123", copiaECola: "00020126580014br.gov.bcb.pix", qrCode: "iVBOR", link: "https://mp/t", preco: 9.9 });
+  // Sem data na resposta do Mercado Pago, a validade conta de antes do pedido (1 hora).
+  const ms = Date.parse(expiraEm) - antes;
+  assert.ok(ms >= 60 * 60000 && ms <= 60 * 60000 + (Date.now() - antes), `validade de ~1 h: ${ms}`);
   const [p] = pedidos;
   assert.equal(p.url, "https://api.mercadopago.com/v1/orders");
   assert.equal(p.headers.Authorization, "Bearer tok");
@@ -585,6 +590,7 @@ test("pix: cria a order de R$ 9,90 presa ao pedido de roteiro e devolve o copia 
   assert.equal(p.corpo.total_amount, "9.90");
   assert.equal(p.corpo.external_reference, ref);
   assert.deepEqual(p.corpo.transactions.payments[0].payment_method, { id: "pix", type: "bank_transfer" });
+  assert.equal(p.corpo.transactions.payments[0].expiration_time, "PT60M");
   assert.equal(p.corpo.payer.email, "voce@email.com");
   await assert.rejects(criarPix({ pedido: pedidoRio, email: "x" }, { MP_ACCESS_TOKEN: "tok" }, fetchFn), PixInvalido);
   await assert.rejects(criarPix({ pedido: { destino: "Narnia", noites: 3 }, email: "a@b.com" }, { MP_ACCESS_TOKEN: "tok" }, fetchFn), EntradaInvalida);
