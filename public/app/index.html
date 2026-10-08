@@ -65,6 +65,7 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; le
 .money-input { display: flex; align-items: baseline; gap: 10px; border-bottom: 2px solid var(--gold); padding-bottom: 8px; }
 .money-input span { font-family: var(--font-display); font-size: 30px; font-weight: 700; opacity: .5; }
 .money-input input { all: unset; font-family: var(--font-display); font-size: clamp(48px, 7vw, 76px); line-height: 1; font-weight: 800; letter-spacing: -0.03em; color: var(--gold); width: 100%; min-width: 0; font-variant-numeric: tabular-nums; }
+.money-input:focus-within { border-bottom-color: #fff; box-shadow: 0 2px 0 #fff; }
 .money .hint { color: #fff; opacity: .6; }
 .faixas { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0; }
 .faixas button { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.3); border-radius: 999px; padding: 7px 14px; font-weight: 600; font-size: 14px; min-height: 36px; }
@@ -418,6 +419,7 @@ button.voando .frase { display: inline-block; animation: frase 2.4s ease both; }
   body.so-roteiro .wrap { padding: 0; }
   body.so-roteiro #roteiro-card { border: 0; padding: 0; }
   body.so-roteiro #result { display: block; }
+  body.so-roteiro .brand nav { display: none !important; }
   body.so-roteiro .day { background: #fff; border: 1px solid #D7E2E0; margin-bottom: 10px; }
   body.so-roteiro .day { break-inside: avoid; }
   /* Roteiro Detalhado: cada bloco é uma página A4, com cabeçalho e rodapé de nome. */
