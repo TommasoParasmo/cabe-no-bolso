@@ -540,6 +540,7 @@ function renderRoteiro() {
   if (ro?.dias) {
     card.innerHTML = `
       <h3>Roteiro dia a dia em ${esc(state.atual.destino.n)}</h3>
+      ${ro.resumido ? `<p class="hint">Sua viagem tem ${esc(ro.resumido.viagem)} dias; o roteiro vai até ${esc(ro.resumido.dias)} dias${new Set(ro.dias.map(d => d.cidade)).size > 1 ? ", divididos entre as cidades" : ", os primeiros da viagem"}.</p>` : ""}
       <div class="days">${ro.dias.map(d => `
         <div class="day"><span class="n">DIA ${esc(d.dia)}</span><div><h4>${esc(d.titulo)}</h4>${regiaoDoDia(d) ? `<small class="hint">${esc(regiaoDoDia(d))}</small>` : ""}<ul>${itensDoDia(d).map(a => `<li${a.refeicao ? ' class="ref"' : ""}><span class="p">${esc(String(a.periodo).toLowerCase())}</span><a class="lugar" href="${a.maps ? esc(a.maps) : mapa(a.nome, d.cidade, a.bairro)}" target="_blank" rel="noopener">${esc(a.nome)} ↗</a><span class="c">${Number(a.custo) ? brl(a.custo) : "grátis"}</span></li>`).join("")}</ul></div></div>`).join("")}
       </div>

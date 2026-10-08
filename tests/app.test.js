@@ -133,8 +133,12 @@ test("noitesQueCabem considera ficar só 1 noite", () => {
   assert.equal(noitesQueCabem(rio, { ...f, orcamento: um.total }), 1);
 });
 
-const resposta = custos => ({ messages: { parse: async () => ({ parsed_output: {
-  dias: [{ dia: 1, titulo: "Centro", atividades: custos.map(c => ({ periodo: "Manhã", nome: "X", custo: c })) }], dicas: []
+// Repete um dia de exemplo para o roteiro ter todos os dias pedidos (noites + 1).
+const diasDe = (d, n) => Array.from({ length: n }, (_, i) => ({ ...d, dia: i + 1 }));
+// Os dias depois do primeiro vêm sem atividades, para os custos somarem só os do dia 1.
+const resposta = (custos, n = 1) => ({ messages: { parse: async () => ({ parsed_output: {
+  dias: [{ dia: 1, titulo: "Centro", atividades: custos.map(c => ({ periodo: "Manhã", nome: "X", custo: c })) },
+    ...diasDe({ titulo: "Livre", atividades: [] }, n - 1).map(d => ({ ...d, dia: d.dia + 1 }))], dicas: []
 } }) } });
 
 test("roteiro acima da verba pede de novo e, se continuar, avisa", async () => {
@@ -151,10 +155,10 @@ test("roteiro acima da verba pede de novo e, se continuar, avisa", async () => {
 
 test("roteiro novo tem limite por IP por dia", () => comCache(async () => {
   for (let i = 0; i < LIMITE_DIA; i++) {
-    await gerarRoteiro({ destino: "Salvador", noites: 3, verbaPasseios: 1000 + i * 100 }, {}, resposta([0]), "1.2.3.4");
+    await gerarRoteiro({ destino: "Salvador", noites: 3, verbaPasseios: 1000 + i * 100 }, {}, resposta([0], 4), "1.2.3.4");
   }
   await assert.rejects(gerarRoteiro({ destino: "Salvador", noites: 3, verbaPasseios: 9000 }, {}, resposta([0]), "1.2.3.4"), LimiteAtingido);
-  const repetido = await gerarRoteiro({ destino: "Salvador", noites: 3, verbaPasseios: 1000 }, {}, resposta([0]), "1.2.3.4");
+  const repetido = await gerarRoteiro({ destino: "Salvador", noites: 3, verbaPasseios: 1000 }, {}, resposta([0], 4), "1.2.3.4");
   assert.equal(repetido.cache, true);
 }));
 
@@ -319,20 +323,20 @@ test("roteiro que mistura regiões num dia pede de novo apontando os lugares for
   assert.deepEqual(foraDaRegiao([{ ...dia("Praia", "Barra da Tijuca"), regiao: "Pelourinho, Comércio e Barra" }]).map(f => f.nome), ["Praia"]);
   const pedidos = [];
   const respostas = [dia("Farol da Barra", "Barra"), { ...dia("Igreja de São Francisco", "Pelourinho"), regiao: "Pelourinho e Comércio" }];
-  const client = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: { dias: [respostas[pedidos.length - 1]], dicas: [] } }; } } };
+  const client = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: { dias: diasDe(respostas[pedidos.length - 1], 3), dicas: [] } }; } } };
   const r = await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 2, verbaPasseios: 300 }, {}, client);
   assert.equal(pedidos.length, 2);
   assert.match(pedidos[1], /fora da região do dia.*Farol da Barra, em Barra/);
   assert.equal(r.dias[0].atividades[1].nome, "Igreja de São Francisco");
   // Se já vem certo, não chama de novo.
   let n = 0;
-  const certo = { messages: { parse: async () => { n++; return { parsed_output: { dias: [{ ...dia("Farol", "Barra"), regiao: "Pelourinho, Comércio e Barra" }], dicas: [] } }; } } };
+  const certo = { messages: { parse: async () => { n++; return { parsed_output: { dias: diasDe({ ...dia("Farol", "Barra"), regiao: "Pelourinho, Comércio e Barra" }, 3), dicas: [] } }; } } };
   await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 3, verbaPasseios: 300 }, {}, certo);
   assert.equal(n, 1);
   // Se a segunda tentativa for pior, fica a primeira.
   const tentativas = [{ ...dia("Farol da Barra", "Barra"), regiao: "Pelourinho e Comércio" }, dia("Farol da Barra", "Barra")];
   let m = 0;
-  const pior = { messages: { parse: async () => ({ parsed_output: { dias: [tentativas[m++]], dicas: [] } }) } };
+  const pior = { messages: { parse: async () => ({ parsed_output: { dias: diasDe(tentativas[m++], 3), dicas: [] } }) } };
   const r3 = await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 4, verbaPasseios: 300 }, {}, pior);
   assert.equal(m, 2);
   assert.equal(r3.dias[0].regiao, "Pelourinho e Comércio");
@@ -367,13 +371,13 @@ function geminiFalso(respostas) {
   };
   return { pedidos, fetchFn };
 }
-const mapsOk = { content: { parts: [{ text: "Day 1 - Salvador - Area: Pelourinho\n- Morning: Igreja de São Francisco | Pelourinho | 10" }] }, finishReason: "STOP",
+const mapsOk = { content: { parts: [{ text: [1, 2, 3].map(n => `Day ${n} - Salvador - Area: Pelourinho\n- Morning: Igreja de São Francisco | Pelourinho | 10`).join("\n") }] }, finishReason: "STOP",
   groundingMetadata: { groundingChunks: [
     { maps: { title: "Igreja e Convento de São Francisco", uri: "https://maps.google.com/?cid=1" } },
     { maps: { title: "Restaurante Axego - Google Maps", uri: "https://maps.google.com/?cid=2" } },
     { maps: { title: "Lugar Inventado", uri: "javascript:alert(1)" } }
   ] } };
-const jsonOk = { content: { parts: [{ text: JSON.stringify({ dias: [diaGemini], dicas: ["a"] }) }] }, finishReason: "STOP" };
+const jsonOk = { content: { parts: [{ text: JSON.stringify({ dias: diasDe(diaGemini, 3), dicas: ["a"] }) }] }, finishReason: "STOP" };
 
 test("roteiro com GEMINI_API_KEY consulta o Google Maps e monta o roteiro só com esses lugares", async () => {
   const { pedidos, fetchFn } = geminiFalso([mapsOk, jsonOk]);
@@ -399,7 +403,7 @@ test("roteiro com GEMINI_API_KEY consulta o Google Maps e monta o roteiro só co
 test("roteiro cai para o Claude quando o Gemini falha", async () => {
   const { pedidos, fetchFn } = geminiFalso([{ status: 429 }]);
   let claude = 0;
-  const client = { messages: { parse: async () => { claude++; return { parsed_output: { dias: [diaGemini], dicas: [] } }; } } };
+  const client = { messages: { parse: async () => { claude++; return { parsed_output: { dias: diasDe(diaGemini, 3), dicas: [] } }; } } };
   const r = await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 3, verbaPasseios: 300 }, { GEMINI_API_KEY: "k", ANTHROPIC_API_KEY: "a" }, client, null, fetchFn);
   assert.equal(pedidos.length, 1);
   assert.equal(claude, 1);
@@ -413,7 +417,51 @@ test("roteiro do Gemini cortado ou fora do formato tenta de novo uma vez", async
   const { pedidos, fetchFn } = geminiFalso([mapsOk, cortado, jsonOk]);
   const r = await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 5, verbaPasseios: 300 }, { GEMINI_API_KEY: "k" }, null, null, fetchFn);
   assert.equal(pedidos.length, 3);
-  assert.equal(r.dias.length, 1);
+  assert.equal(r.dias.length, 3);
+});
+
+test("roteiro com dias faltando pede de novo e, se continuar curto, não vai para o cache", () => comCache(async () => {
+  const pedidos = [];
+  const curto = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return resposta([0], 2).messages.parse(req); } } };
+  const pedido = { destino: "Salvador", noites: 5, pessoas: 2, verbaPasseios: 300 };
+  const r = await gerarRoteiro(pedido, {}, curto);
+  assert.equal(pedidos.length, 2);
+  assert.match(pedidos[0], /exatamente 6 dias, do dia 1 ao dia 6/);
+  assert.match(pedidos[1], /a tentativa anterior parou no dia 2/);
+  assert.equal(r.dias.length, 2);
+  const completo = await gerarRoteiro(pedido, {}, resposta([0], 6));
+  assert.equal(completo.cache, false);
+  assert.equal(completo.dias.length, 6);
+  assert.equal((await gerarRoteiro(pedido, {}, resposta([0], 6))).cache, true);
+}));
+
+test("Gemini com lista do Maps ou roteiro curto cai para o Claude", async () => {
+  const claude = () => { const c = { n: 0, messages: { parse: async () => { c.n++; return { parsed_output: { dias: diasDe(diaGemini, 3), dicas: [] } }; } } }; return c; };
+  const env = { GEMINI_API_KEY: "k", ANTHROPIC_API_KEY: "a" };
+  // Lista do Maps só com o dia 1 para uma viagem de 3 dias.
+  const listaCurta = { ...mapsOk, content: { parts: [{ text: "Day 1 - Salvador - Area: Pelourinho\n- Morning: Igreja de São Francisco | Pelourinho | 10" }] } };
+  let c = claude(), g = geminiFalso([listaCurta]);
+  let r = await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 2, verbaPasseios: 200 }, env, c, null, g.fetchFn);
+  assert.equal(g.pedidos.length, 1);
+  assert.equal(r.fonte, "claude");
+  // Roteiro em JSON com 1 de 3 dias, duas vezes.
+  const jsonCurto = { content: { parts: [{ text: JSON.stringify({ dias: [diaGemini], dicas: [] }) }] }, finishReason: "STOP" };
+  c = claude(); g = geminiFalso([mapsOk, jsonCurto, jsonCurto]);
+  r = await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 3, verbaPasseios: 200 }, env, c, null, g.fetchFn);
+  assert.equal(g.pedidos.length, 3);
+  assert.match(g.pedidos[2].corpo.contents[0].parts[0].text, /parou no dia 1/);
+  assert.equal(c.n, 1);
+  assert.equal(r.fonte, "claude");
+  assert.equal(r.dias.length, 3);
+});
+
+test("viagem de mais de 15 dias em várias cidades resume em 15 dias passando por todas", async () => {
+  let pedido;
+  const client = { messages: { parse: async req => { pedido = req; return resposta([0], 15).messages.parse(req); } } };
+  const r = await gerarRoteiro({ paradas: [{ destino: "Lisboa", noites: 11 }, { destino: "Paris", noites: 10 }], verbaPasseios: 2000 }, {}, client);
+  assert.match(pedido.messages[0].content, /15 dias de roteiro no total \(a viagem tem 22 dias, mas o roteiro resume em 15\)\. Distribua os 15 dias entre as cidades nessa proporção, passando por todas/);
+  assert.equal(r.dias.length, 15);
+  assert.deepEqual(r.resumido, { dias: 15, viagem: 22 });
 });
 
 test("roteiro do Gemini devolve as fontes do Google Maps e não aceita lista do Maps cortada", async () => {
@@ -425,7 +473,7 @@ test("roteiro do Gemini devolve as fontes do Google Maps e não aceita lista do 
   ]);
   const cortado = { ...mapsOk, finishReason: "MAX_TOKENS" };
   let claude = 0;
-  const client = { messages: { parse: async () => { claude++; return { parsed_output: { dias: [diaGemini], dicas: [] } }; } } };
+  const client = { messages: { parse: async () => { claude++; return { parsed_output: { dias: diasDe(diaGemini, 3), dicas: [] } }; } } };
   const g = geminiFalso([cortado]);
   await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 7, verbaPasseios: 300 }, { GEMINI_API_KEY: "k", ANTHROPIC_API_KEY: "a" }, client, null, g.fetchFn);
   assert.equal(g.pedidos.length, 1);
@@ -442,7 +490,7 @@ test("link do Maps de rede com várias unidades vai para unidades diferentes", a
 });
 
 test("restaurante do Gemini que não veio do Google Maps faz o roteiro ser refeito", async () => {
-  const inventado = { content: { parts: [{ text: JSON.stringify({ dias: [{ ...diaGemini, almoco: { nome: "Cantina Que Não Existe", bairro: "Pelourinho", custo: 50 } }], dicas: [] }) }] }, finishReason: "STOP" };
+  const inventado = { content: { parts: [{ text: JSON.stringify({ dias: diasDe({ ...diaGemini, almoco: { nome: "Cantina Que Não Existe", bairro: "Pelourinho", custo: 50 } }, 3), dicas: [] }) }] }, finishReason: "STOP" };
   const { pedidos, fetchFn } = geminiFalso([mapsOk, inventado, jsonOk]);
   const r = await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 8, verbaPasseios: 300 }, { GEMINI_API_KEY: "k" }, null, null, fetchFn);
   assert.match(pedidos[0].corpo.contents[0].parts[0].text, /Look up every lunch and dinner restaurant on Google Maps/);
@@ -453,7 +501,7 @@ test("restaurante do Gemini que não veio do Google Maps faz o roteiro ser refei
 
 test("roteiro do Gemini com restaurante fora do Maps mesmo refeito aparece mas não vai para o cache", async () => {
   await comCache(async () => {
-    const inventado = { content: { parts: [{ text: JSON.stringify({ dias: [{ ...diaGemini, almoco: { nome: "Cantina Que Não Existe", bairro: "Pelourinho", custo: 50 } }], dicas: [] }) }] }, finishReason: "STOP" };
+    const inventado = { content: { parts: [{ text: JSON.stringify({ dias: diasDe({ ...diaGemini, almoco: { nome: "Cantina Que Não Existe", bairro: "Pelourinho", custo: 50 } }, 3), dicas: [] }) }] }, finishReason: "STOP" };
     const pedido = { destino: "Salvador", noites: 2, pessoas: 9, verbaPasseios: 300 };
     const r = await gerarRoteiro(pedido, { GEMINI_API_KEY: "k" }, null, null, geminiFalso([mapsOk, inventado, inventado]).fetchFn);
     assert.equal(r.dias[0].almoco.nome, "Cantina Que Não Existe");
