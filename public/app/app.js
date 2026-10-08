@@ -487,6 +487,7 @@ function render(fresh) {
       <span class="pill">${quase(c) ? "Com mais um pouquinho" : ESTADO[c.estado]}</span>
       <div class="eyebrow">${viagem ? `Viagem por ${c.paradas.length} cidades · ${c.paradas.map(p => `${esc(p.n)} (${p.noites})`).join(" → ")}` : `${quase(c) ? "Mais perto do seu orçamento · " : state.modo === "sugestao" ? "Nossa sugestão · " : comparar ? "Melhor entre os escolhidos · " : ""}${esc(c.destino.n)}, ${esc(c.destino.p)}`} · ${noitesTxt(f.noites)} · ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} · ${ESTILOS[f.estilo]}</div>
       <h2>${manchete}</h2>
+      ${viagem ? "" : `<p class="clima" id="clima" hidden></p>`}
       ${e.flexivel ? `<p class="datas-achadas">${viagem ? `Datas de exemplo: ${dataCurta(f.ida)} a ${dataCurta(f.volta)}. Na viagem por várias cidades ainda não buscamos os dias mais baratos.` : c.ida ? `Dias mais baratos que achamos: ${dataCurta(c.ida)} a ${dataCurta(c.volta)}` : c.meio === "onibus" ? `De ônibus o preço quase não muda com a data. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.` : `Ainda não há preço de voo com ${noitesTxt(f.noites)} nesse mês. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.`}</p>` : ""}
       ${ajuste ? `<p>${ajuste}</p>` : c.estado === "apertado" ? "<p>Sobra pouco para imprevistos. Vale comprar a passagem logo, antes de o preço subir.</p>" : ""}
       ${state.modo === "destino" && c.estado === "nao_cabe" && !c.perto && state.mudancas?.length ? `<ul class="mudancas">${state.mudancas.map(m => `<li>${esc(m.texto)}: ${brl(m.total)} · ${m.estado !== "nao_cabe" ? "<b>cabe</b>" : `ainda faltam ${brl(-m.diff)}`}</li>`).join("")}</ul>` : ""}
@@ -532,7 +533,26 @@ function render(fresh) {
   r.querySelectorAll(".opt").forEach(b => b.onclick = () => escolher(Number(b.dataset.i)));
   $("salvar").onclick = salvarViagem;
   $("compartilhar").onclick = compartilhar;
+  if (!viagem) mostrarClima(c.destino.n, Number(String(f.ida).slice(5, 7)));
   renderRoteiro();
+}
+
+// Temperatura média do destino no mês da ida (normais da NASA, pelo /api/clima). Sem dado, a linha fica escondida.
+const climas = new Map();
+async function mostrarClima(destino, mes) {
+  if (!(mes >= 1 && mes <= 12)) return;
+  const chave = `${destino}|${mes}`;
+  if (!climas.has(chave)) {
+    climas.set(chave, fetch(`${API}/api/clima?${new URLSearchParams({ destino, mes })}`)
+      .then(r => r.ok ? r.json() : null).then(j => j?.clima || null).catch(() => null));
+  }
+  const clima = await climas.get(chave);
+  if (!clima) { climas.delete(chave); return; }
+  const el = $("clima");
+  // A tela pode ter mudado de destino enquanto a resposta vinha.
+  if (!el || state.atual?.destino?.n !== destino) return;
+  el.textContent = `Em ${MESES[mes - 1]}, ${destino} costuma ter mínimas de ${clima.min} °C e máximas de ${clima.max} °C.`;
+  el.hidden = false;
 }
 
 // ---- Botão "voando": avião cruzando o botão e frases que se alternam enquanto espera ----
