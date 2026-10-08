@@ -127,8 +127,20 @@ export async function montarVeredito(body, env = {}, fetchImpl = fetch) {
   const voo = await buscar(dest);
   const atual = custoDe(dest, voo);
   if (atual.estado !== "nao_cabe") return { entrada: f, modo: "destino", atual, opcoes: [], noitesMax: 0 };
-  const opcoes = (await melhores(dest.n)).filter(c => c.estado !== "nao_cabe").slice(0, 3);
-  return { entrada: f, modo: "destino", atual, opcoes, noitesMax: noitesQueCabem(dest, fDe(voo), voo || undefined) };
+  const perto = await melhores(dest.n);
+  const cabem = perto.filter(c => c.estado !== "nao_cabe");
+  // Nenhum outro destino cabe: mostra os mais perto do orçamento ("com mais um pouquinho"), nunca uma lista vazia.
+  const opcoes = (cabem.length ? cabem : perto.map(c => ({ ...c, perto: true }))).slice(0, 3);
+  // O que mudar para esse mesmo destino caber: estilo Econômico, 1 pessoa, ou os dois (com o voo já buscado).
+  const mudar = [
+    f.estilo > 0 && { texto: "No estilo Econômico", f: { estilo: 0 } },
+    f.pessoas > 1 && { texto: "Indo 1 pessoa", f: { pessoas: 1 } },
+    f.estilo > 0 && f.pessoas > 1 && { texto: "1 pessoa no Econômico", f: { estilo: 0, pessoas: 1 } }
+  ].filter(Boolean).map(m => {
+    const c = custo(dest, { ...fDe(voo), ...m.f }, voo || undefined);
+    return { texto: m.texto, total: c.total, diff: c.diff, estado: c.estado };
+  });
+  return { entrada: f, modo: "destino", atual, opcoes, noitesMax: noitesQueCabem(dest, fDe(voo), voo || undefined), mudancas: mudar };
 }
 
 // Uma viagem só passando por várias cidades, na ordem escolhida, com as noites divididas entre elas.
