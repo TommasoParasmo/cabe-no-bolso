@@ -241,7 +241,7 @@ button.voando .frase { display: inline-block; animation: frase 2.4s ease both; }
 .lead .fine a { color: var(--accent); }
 /* "Baixar roteiro em PDF": imprime só o roteiro, sempre em cores claras (a impressão não leva o fundo escuro). */
 
-/* ---- Roteiro Top: verde-profundo e dourado, nas fontes da marca. Mesmas cores no tema claro e no escuro. ---- */
+/* ---- Roteiro Detalhado: verde-profundo e dourado, nas fontes da marca. Mesmas cores no tema claro e no escuro. ---- */
 .top { --tv: #0D3532; --to: #E2B23F; --tp: #F7F8F6; --tt: #16302D; --ts: #5E7370; --tl: #DCE3E1;
   display: grid; gap: 16px; margin: 0 -4px; font-family: var(--font-body); color: var(--tt); }
 .top .pg { position: relative; background: var(--tp); border-radius: 18px; padding: 28px 24px; overflow: hidden; }
@@ -355,7 +355,7 @@ button.voando .frase { display: inline-block; animation: frase 2.4s ease both; }
   body.so-roteiro .wrap { padding: 0; }
   body.so-roteiro #roteiro-card { border: 0; padding: 0; }
   body.so-roteiro .day { break-inside: avoid; }
-  /* Roteiro Top: cada bloco é uma página A4, com cabeçalho e rodapé de nome. */
+  /* Roteiro Detalhado: cada bloco é uma página A4, com cabeçalho e rodapé de nome. */
   body.so-roteiro:has(.top) { background: #F7F8F6 !important; }
   body.so-roteiro:has(.top) .wrap, body.so-roteiro:has(.top) #result, body.so-roteiro:has(.top) #roteiro-card { background: transparent !important; box-shadow: none !important; margin: 0 !important; padding: 0 !important; max-width: none !important; width: auto !important; }
   body.so-roteiro .brand:has(~ #result .top) { display: none !important; }
