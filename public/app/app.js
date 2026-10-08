@@ -538,6 +538,11 @@ function renderRoteiro() {
   if (!card) return;
   const ro = state.roteiro;
   pararPix();
+  if (ro?.dias && ro.completo) {
+    card.innerHTML = roteiroTop(ro);
+    $("baixar").onclick = () => leadOk() ? baixarRoteiro() : pedirEmail();
+    return;
+  }
   if (ro?.dias) {
     card.innerHTML = `
       <h3>${ro.completo ? "Roteiro completo" : "Roteiro dia a dia"} em ${esc(ro.ordem?.join(" + ") || state.atual.destino.n)}</h3>
@@ -589,11 +594,144 @@ const regiaoDoDia = d => [d.regiao, state.atual.paradas && d.cidade].filter(Bool
 const gastoDoDia = d => [...(d.atividades || []), d.almoco, d.jantar].reduce((t, a) => t + (Number(a?.custo) || 0), 0);
 
 // Foto da atração em destaque do dia (roteiro completo), com autor e licença do Wikimedia Commons.
+const destaqueComFoto = d => (d.atividades || []).find(x => x.foto?.url?.startsWith("https://upload.wikimedia.org/"));
 function fotoDoDia(d) {
-  const a = (d.atividades || []).find(x => x.foto?.url?.startsWith("https://upload.wikimedia.org/"));
+  const a = destaqueComFoto(d);
   if (!a) return "";
   const f = a.foto;
   return `<figure class="foto"><img src="${esc(f.url)}" alt="${esc(a.nome)}" loading="lazy"><figcaption>${esc(a.nome)} · Foto: <a href="${esc(f.pagina)}" target="_blank" rel="noopener">${esc(f.autor)}, ${esc(f.licenca)}</a>, Wikimedia Commons</figcaption></figure>`;
+}
+
+// ---- Roteiro Top (completo, pago): capa, carta com o nome, resumo dos dias, um bloco por dia, dicas e contracapa ----
+// Na tela é uma página só; no PDF cada bloco vira uma página A4 (ver @media print em index.html).
+const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+const diaMes = iso => ({ d: Number(iso.slice(8, 10)), m: Number(iso.slice(5, 7)) - 1, a: iso.slice(0, 4) });
+const dataBilhete = iso => iso ? `${diaMes(iso).d} ${MESES[diaMes(iso).m].slice(0, 3)}` : "";
+function periodoLongo(ida, volta) {
+  if (!ida) return "";
+  const a = diaMes(ida), b = volta ? diaMes(volta) : null;
+  if (!b) return `${a.d} de ${MESES[a.m]} de ${a.a}`;
+  if (a.m === b.m && a.a === b.a) return `${a.d} a ${b.d} de ${MESES[b.m]} de ${b.a}`;
+  return `${a.d} de ${MESES[a.m]} a ${b.d} de ${MESES[b.m]} de ${b.a}`;
+}
+const ESTRELA = '<span class="top-estrela" aria-hidden="true">✦</span>';
+const ICONE_PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12Z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+const ICONE_ROTA = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="19" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="5" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+const ICONE_AVIAO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15.5v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0v5l-8 5v2l8-2.5V18l-2 1.5V21l3.5-1 3.5 1v-1.5L13 18v-5Z" fill="currentColor"/></svg>';
+
+function roteiroTop(ro) {
+  const { entrada: f, atual: c } = state;
+  const nome = ro.nome || "";
+  const de = nome ? `de ${nome}` : ""; // "de Ana": sem artigo, que depende do gênero
+  const cidade = ro.ordem?.join(" + ") || c.destino.n;
+  const n = ro.dias.length;
+  const pessoas = f.pessoas;
+  const gastoTotal = ro.dias.reduce((t, d) => t + gastoDoDia(d), 0);
+  const lugares = ro.dias.reduce((t, d) => t + itensDoDia(d).length, 0);
+  const capaFoto = ro.dias.map(destaqueComFoto).find(Boolean);
+  // Bilhete: primeira cidade na ordem escolhida no Pix (a pessoa pode ter trocado a ordem do cálculo).
+  const chegada = (ro.ordem && c.paradas?.find(p => p.n === ro.ordem[0])) || c.paradas?.[0] || c.destino;
+  const imgFoto = (a, cls) => `<img class="${cls}" src="${esc(a.foto.url)}" alt="${esc(a.nome)}">`;
+  const credito = a => `<a href="${esc(a.foto.pagina)}" target="_blank" rel="noopener">Foto: ${esc(a.foto.autor)}, ${esc(a.foto.licenca)}, via Wikimedia Commons</a>`;
+  const cab = () => `<div class="pg-cab"><span>Roteiro ${esc(de || "Top")}, ${esc(cidade)}</span><span>Vai Dar Viagem</span></div>`;
+  const rod = `<div class="pg-rod"><span>${ESTRELA} Roteiro Top${nome ? `, feito para ${esc(nome)}` : ""}</span><span>vaidarviagem.com.br</span></div>`;
+  const titulo = nome ? `${esc(nome)}, sua ${esc(cidade)} em ${n} dias` : `Sua ${esc(cidade)} em ${n} dias`;
+  const hoje = new Date().toISOString().slice(0, 10);
+
+  const capa = `
+    <section class="pg top-capa">
+      ${capaFoto ? imgFoto(capaFoto, "top-capa-img") : ""}
+      <div class="top-capa-txt">
+        <p class="top-kicker">${ESTRELA} Roteiro Top, Vai Dar Viagem</p>
+        <h2>${titulo}</h2>
+        <p class="top-sub">${esc(periodoLongo(f.ida, f.volta))}${f.ida ? ", " : ""}para ${pessoas} ${pessoas > 1 ? "pessoas" : "pessoa"}</p>
+        <div class="top-bilhete">
+          <div class="top-trecho"><div><small>${esc(c.origem?.n || "")}</small><b>${esc(c.origem?.ap || c.origem?.iata || "")}</b></div><span class="top-voo">${ICONE_AVIAO}</span><div class="dir"><small>${esc(chegada.n)}</small><b>${esc(chegada.ap || chegada.iata || "")}</b></div></div>
+          <div class="top-bilhete-info"><div><small>Ida</small><b>${esc(dataBilhete(f.ida))}</b></div><div><small>Volta</small><b>${esc(dataBilhete(f.volta))}</b></div><div><small>Pessoas</small><b>${pessoas}</b></div><div><small>Previsto</small><b>${brl(c.total)}</b></div></div>
+        </div>
+        <div class="top-capa-rod"><span>Feito ${nome ? `para ${esc(nome)} ` : ""}em ${esc(periodoLongo(hoje))}</span><span>vaidarviagem.com.br</span></div>
+      </div>
+    </section>`;
+
+  const carta = `
+    <section class="pg top-carta">
+      ${cab()}
+      <p class="top-kicker">${ESTRELA} Roteiro Top</p>
+      <h2 class="top-oi">${nome ? `Oi, ${esc(nome)}` : "Oi!"}</h2>
+      ${ro.apresentacao ? `<p class="top-texto">${esc(ro.apresentacao)}</p>` : ""}
+      ${ro.resumido ? `<p class="top-texto suave">Sua viagem tem ${esc(ro.resumido.viagem)} dias; este roteiro detalha ${esc(ro.resumido.dias)} deles${new Set(ro.dias.map(d => d.cidade)).size > 1 ? ", divididos entre as cidades" : ", os primeiros da viagem"}.</p>` : ""}
+      <p class="top-texto suave">Cada dia tem horário, como chegar de um lugar ao outro e uma dica de quem conhece. Os nomes dos lugares abrem no Google Maps.</p>
+      <p class="top-assina">Boa viagem,<br>equipe Vai Dar Viagem</p>
+      <div class="top-numeros">
+        <div><b>${n}</b><small>dias em ${esc(cidade)}</small></div>
+        <div><b>${pessoas}</b><small>${pessoas > 1 ? "pessoas" : "pessoa"}</small></div>
+        <div><b>${lugares}</b><small>lugares com horário</small></div>
+        <div><b>${brl(gastoTotal)}</b><small>previstos para passeios e comida</small></div>
+      </div>
+      ${rod}
+    </section>`;
+
+  const resumo = `
+    <section class="pg top-resumo">
+      ${cab()}
+      <p class="top-kicker">${ESTRELA} Roteiro Top</p>
+      <h2>Seus ${n} dias</h2>
+      <ol class="top-lista">${ro.dias.map(d => { const a = destaqueComFoto(d); return `
+        <li><span class="top-num">${esc(d.dia)}</span><div><b>${esc(d.titulo)}</b><small>${esc(regiaoDoDia(d))}</small></div><div class="top-valor"><b>${brl(gastoDoDia(d))}</b><small>previsto</small></div>${a ? imgFoto(a, "top-mini") : `<span class="top-mini vazio">${ICONE_PIN}</span>`}</li>`; }).join("")}
+      </ol>
+      <div class="top-total"><span>Passeios e comida, para ${pessoas} ${pessoas > 1 ? "pessoas" : "pessoa"}</span><b>${brl(gastoTotal)}</b></div>
+      ${ro.acimaDaVerba ? `<div class="warn-box">Este roteiro passou da verba de passeios. Troque alguma atividade paga por uma grátis.</div>` : ""}
+      ${rod}
+    </section>`;
+
+  const dias = ro.dias.map(d => {
+    const a = destaqueComFoto(d);
+    const topo = `<p class="top-kicker">Dia ${esc(d.dia)} de ${n}</p><h3>${esc(d.titulo)}</h3>`;
+    return `
+    <section class="pg top-dia">
+      ${a ? `<header class="top-dia-foto">${imgFoto(a, "top-dia-img")}${cab()}<div>${topo}<small class="top-credito">${credito(a)}</small></div></header>` : `${cab()}<header class="top-dia-sem">${topo}</header>`}
+      <div class="top-dia-info">
+        ${d.sobreRegiao ? `<div class="top-bairro"><p class="top-rotulo">${ICONE_PIN} O bairro${d.regiao ? `: ${esc(d.regiao)}` : ""}</p><p>${esc(d.sobreRegiao)}</p></div>` : ""}
+        <div class="top-gasto"><small>Gasto previsto</small><b>${brl(gastoDoDia(d))}</b><small>para ${pessoas} ${pessoas > 1 ? "pessoas" : "pessoa"}</small></div>
+      </div>
+      <ol class="top-linha">${itensDoDia(d).map(x => `
+        <li class="${x.destaque ? "principal" : ""}${x.refeicao ? " ref" : ""}">
+          <div class="top-hora"><b>${esc(String(x.horario || "").split(/[–-]/)[0].trim() || x.periodo)}</b><small>${esc(String(x.periodo || "").toLowerCase())}</small></div>
+          <div class="top-item">
+            <div class="top-item-cab"><a href="${x.maps ? esc(x.maps) : mapa(x.nome, d.cidade, x.bairro)}" target="_blank" rel="noopener">${esc(x.nome)}</a>${x.destaque ? ` ${ESTRELA}` : ""}<span>${Number(x.custo) ? brl(x.custo) : "grátis"}</span></div>
+            ${x.descricao ? `<p>${esc(x.descricao)}</p>` : ""}
+            ${x.dica ? `<p class="top-dica">${ICONE_PIN}<span>${esc(x.dica)}</span></p>` : ""}
+            ${x.comoChegar ? `<p class="top-chegar">${ICONE_ROTA}<span>${esc(x.comoChegar)}</span></p>` : ""}
+          </div>
+        </li>`).join("")}
+      </ol>
+      ${rod}
+    </section>`;
+  }).join("");
+
+  const dicas = (ro.dicas || []).length ? `
+    <section class="pg top-dicas">
+      ${cab()}
+      <p class="top-kicker">${ESTRELA} Roteiro Top</p>
+      <h2>${ro.dicas.length} dicas para a sua viagem${nome ? `, ${esc(nome)}` : ""}</h2>
+      <ol>${ro.dicas.map((t, i) => `<li><b>${String(i + 1).padStart(2, "0")}</b><p>${esc(t)}</p></li>`).join("")}</ol>
+      ${rod}
+    </section>` : "";
+
+  const fim = `
+    <section class="pg top-fim">
+      ${capaFoto ? imgFoto(capaFoto, "top-capa-img") : ""}
+      <div>
+        <span class="top-voo">${ICONE_AVIAO}</span>
+        <h2>Boa viagem${nome ? `, ${esc(nome)}` : ""}.</h2>
+        <p class="top-marca">Vai Dar Viagem</p>
+        <small>Feito em ${esc(periodoLongo(hoje))}. Preços e horários conferidos nessa data, vale confirmar antes de ir.<br>vaidarviagem.com.br</small>
+      </div>
+    </section>`;
+
+  const fontes = (ro.fontes || []).length ? `<details class="fontes nao-imprimir"><summary class="hint">Fontes: Google Maps (${ro.fontes.length} ${ro.fontes.length > 1 ? "lugares" : "lugar"})</summary><ul class="hint">${ro.fontes.map(x => `<li><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.nome)}</a> · Google Maps</li>`).join("")}</ul></details>` : "";
+  return `<div class="top">${capa}${carta}${resumo}${dias}${dicas}${fim}</div>${fontes}
+    <div class="baixar nao-imprimir" id="baixar-box"><button type="button" class="primary" id="baixar">Baixar roteiro em PDF</button></div>`;
 }
 
 // Busca o lugar no Google Maps, onde a pessoa vê nota, fotos e avaliações. O bairro ajuda a achar o lugar certo.
@@ -771,7 +909,7 @@ async function montarCompleto(ro) {
     fetch(`${API}/api/lead`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: v.email, novidades: false, destino: state.atual.destino.n }) })
       .then(x => x.ok && x.json()).then(x => { if (x?.guardado) try { localStorage.setItem(LEAD, "1"); } catch {} }).catch(() => {});
     guardarPendente(idViagem());
-    state.roteiro = { ...r, completo: true, ordem: v.ordem?.map(p => p.n) };
+    state.roteiro = { ...r, completo: true, nome: v.nome || v.pedido?.nome, ordem: v.ordem?.map(p => p.n) };
     evento("RoteiroCompleto", { destino: state.atual.destino?.n });
     renderRoteiro();
     if (salvas.some(x => x.id === idViagem())) salvarViagem();
