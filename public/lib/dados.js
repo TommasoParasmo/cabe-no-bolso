@@ -21,6 +21,7 @@ export const ORIGENS = [
 // com nota 7,5 ou mais (hotel, pousada, B&B), taxas incluídas; equilibrado = mediana e conforto = 80% dos 25 mais
 // populares. Cidades sem coleta usam o fator da região.
 // idx = nível de custo do dia a dia; pf = peso dos passeios pagos; extra = traslado terrestre por pessoa.
+// alta = meses de alta temporada do destino, quando fogem do padrão (dez, jan, jul).
 // lat/lon = a cidade em si (a distância de ônibus sai daí). terrestre = sem aeroporto: só se chega de ônibus.
 export const DESTINOS = [
   { n: "Rio de Janeiro", p: "Brasil", lat: -22.81, lon: -43.25, ap: "GIG", iata: "RIO", int: false, hotel: [190, 620, 870], idx: 1.1, tags: ["praia", "cultura", "noite", "gastronomia", "natureza"] },
@@ -30,7 +31,7 @@ export const DESTINOS = [
   { n: "Natal", p: "Brasil", lat: -5.77, lon: -35.37, ap: "NAT", iata: "NAT", int: false, hotel: [100, 270, 410], idx: 0.85, tags: ["praia", "natureza", "criancas"] },
   { n: "Maceió", p: "Brasil", lat: -9.51, lon: -35.79, ap: "MCZ", iata: "MCZ", int: false, hotel: [130, 370, 520], idx: 0.95, tags: ["praia", "criancas"] },
   { n: "Florianópolis", p: "Brasil", lat: -27.67, lon: -48.55, ap: "FLN", iata: "FLN", int: false, hotel: [140, 430, 770], idx: 1.05, tags: ["praia", "natureza", "noite", "gastronomia"] },
-  { n: "Gramado", p: "Brasil", lat: -29.38, lon: -50.87, ap: "POA", iata: "POA", int: false, hotel: [150, 390, 550], idx: 1.25, extra: 120, tags: ["gastronomia", "criancas", "compras"] },
+  { n: "Gramado", p: "Brasil", lat: -29.38, lon: -50.87, ap: "POA", iata: "POA", int: false, hotel: [250, 450, 700], alta: [6, 7, 8, 11, 12, 1], idx: 1.25, extra: 120, tags: ["gastronomia", "criancas", "compras"] },
   { n: "Foz do Iguaçu", p: "Brasil", lat: -25.60, lon: -54.49, ap: "IGU", iata: "IGU", int: false, hotel: [130, 310, 630], idx: 0.95, pf: 1.4, tags: ["natureza", "criancas", "compras"] },
   { n: "Bonito", p: "Brasil", lat: -20.47, lon: -54.67, ap: "CGR", iata: "CGR", int: false, hotel: [140, 390, 590], idx: 1.1, pf: 1.9, extra: 300, tags: ["natureza", "criancas"] },
   { n: "Jericoacoara", p: "Brasil", lat: -2.90, lon: -40.36, ap: "JJD", iata: "JJD", int: false, hotel: [140, 540, 760], idx: 1.15, extra: 150, tags: ["praia", "natureza"] },
@@ -38,7 +39,7 @@ export const DESTINOS = [
   // Perto das capitais, só de ônibus.
   { n: "Paraty", p: "Brasil", lat: -23.22, lon: -44.71, terrestre: true, int: false, hotel: [150, 420, 630], idx: 1.05, tags: ["praia", "cultura", "natureza", "gastronomia"] },
   { n: "Ubatuba", p: "Brasil", lat: -23.43, lon: -45.07, terrestre: true, int: false, hotel: [120, 350, 550], idx: 1.0, tags: ["praia", "natureza", "criancas"] },
-  { n: "Campos do Jordão", p: "Brasil", lat: -22.74, lon: -45.59, terrestre: true, int: false, hotel: [170, 500, 760], idx: 1.25, tags: ["gastronomia", "compras", "natureza"] },
+  { n: "Campos do Jordão", p: "Brasil", lat: -22.74, lon: -45.59, terrestre: true, int: false, hotel: [170, 500, 760], alta: [6, 7, 8], idx: 1.25, tags: ["gastronomia", "compras", "natureza"] },
   { n: "Búzios", p: "Brasil", lat: -22.75, lon: -41.88, terrestre: true, int: false, hotel: [150, 430, 640], idx: 1.2, tags: ["praia", "noite", "gastronomia"] },
   { n: "Arraial do Cabo", p: "Brasil", lat: -22.97, lon: -42.03, terrestre: true, int: false, hotel: [120, 350, 550], idx: 1.0, tags: ["praia", "natureza"] },
   { n: "Ouro Preto", p: "Brasil", lat: -20.39, lon: -43.50, terrestre: true, int: false, hotel: [110, 330, 510], idx: 0.9, tags: ["cultura", "gastronomia"] },
