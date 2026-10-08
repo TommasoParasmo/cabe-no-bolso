@@ -77,6 +77,9 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; le
 .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .field { display: grid; gap: 4px; min-width: 0; align-content: start; }
 .field.full { grid-column: 1 / -1; }
+.flexivel { grid-column: 1 / -1; display: flex; gap: 8px; align-items: flex-start; font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer; }
+.flexivel input { width: 18px; height: 18px; margin: 1px 0 0; flex: none; accent-color: var(--accent); }
+.datas-achadas { margin: 6px 0 0; font-size: 14px; color: var(--accent); font-weight: 600; }
 .field input:not([type="checkbox"]):not([type="radio"]), .field select { height: 46px; box-sizing: border-box; }
 .combo { position: relative; }
 .sugestoes { position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; right: 0; margin: 0; padding: 6px; list-style: none; max-height: 320px; overflow-y: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px rgba(16, 38, 36, .16); }
@@ -449,13 +452,22 @@ if (window.fbq) { fbq('init', '1648295673479841'); fbq('track', 'PageView'); }
           <label><input type="radio" name="tipo" value="viagem"><span>Visitar todos na viagem</span></label>
         </div>
       </div>
-      <div class="field">
+      <label class="full flexivel"><input type="checkbox" id="flexivel"><span>Não sei a data: buscar os dias mais baratos do mês</span></label>
+      <div class="field datas-fixas">
         <label for="ida">Ida</label>
         <input id="ida" type="date">
       </div>
-      <div class="field">
+      <div class="field datas-fixas">
         <label for="volta">Volta</label>
         <input id="volta" type="date">
+      </div>
+      <div class="field datas-flex" hidden>
+        <label for="mes">Mês</label>
+        <select id="mes"></select>
+      </div>
+      <div class="field datas-flex" hidden>
+        <label for="noites">Noites</label>
+        <input id="noites" type="number" min="1" max="30" value="5" inputmode="numeric">
       </div>
       <div class="field">
         <label for="pessoas">Pessoas</label>

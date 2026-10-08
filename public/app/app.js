@@ -12,7 +12,22 @@ const iso = d => d.toISOString().slice(0, 10);
   const a = new Date(); a.setDate(a.getDate() + 45);
   const b = new Date(a); b.setDate(b.getDate() + 5);
   $("ida").value = iso(a); $("volta").value = iso(b);
+  // Datas flexíveis: os próximos 12 meses, começando pelo mês da ida padrão.
+  const meses = Array.from({ length: 12 }, (_, i) => new Date(new Date().getFullYear(), new Date().getMonth() + i, 1));
+  $("mes").innerHTML = meses.map(m => {
+    const v = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}`;
+    const nome = m.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+    return `<option value="${v}">${esc(nome[0].toUpperCase() + nome.slice(1))}</option>`;
+  }).join("");
+  $("mes").value = iso(a).slice(0, 7);
 })();
+$("flexivel").onchange = () => {
+  const flex = $("flexivel").checked;
+  document.querySelectorAll(".datas-fixas").forEach(e => e.hidden = flex);
+  document.querySelectorAll(".datas-flex").forEach(e => e.hidden = !flex);
+};
+// Com datas flexíveis, cada destino traz as datas mais baratas que achamos para ele.
+const comDatas = (f, c) => c?.ida ? { ...f, ida: c.ida, volta: c.volta } : f;
 // Botões de faixa: só preenchem o valor; o resultado aparece ao clicar em "Ver se vai dar".
 const marcarFaixa = () => document.querySelectorAll(".faixas button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === $("orcamento").value.replace(/\D/g, ""))));
 document.querySelectorAll(".faixas button").forEach(b => b.onclick = () => {
@@ -283,6 +298,7 @@ function lerForm() {
     orcamento: Number($("orcamento").value.replace(/\D/g, "")) || 0,
     origem: $("origem").value, destinos: [...escolhidos, $("destino").value.trim()].filter(Boolean), tipo,
     ida: $("ida").value, volta: $("volta").value,
+    ...($("flexivel").checked ? { flexivel: { mes: $("mes").value, noites: Number($("noites").value) } } : {}),
     pessoas: Number($("pessoas").value),
     estilo: Number(document.querySelector('input[name="estilo"]:checked')?.value ?? 1),
     interesses: [...document.querySelectorAll("#interesses input:checked")].map(i => i.value),
@@ -431,12 +447,12 @@ function opcoesHtml(opcoes, atual, filtro = () => true) {
   return `<div class="options">${opcoes.map((o, i) => filtro(o) ? `
     <button type="button" class="opt" data-i="${i}" aria-current="${o === atual}">
       <span class="t">${esc(o.destino.n)}</span><span class="v">${brl(o.total)}</span>
-      <small>${quase(o) ? `com mais ${brl(-o.diff)}` : `${ESTADO[o.estado]} · ${o.diff >= 0 ? "sobra " + brl(o.diff) : "falta " + brl(-o.diff)}`}${o.meio === "onibus" ? " · de ônibus" : ""}${o.noitesCabem ? ` · cabe com ${o.noitesCabem} ${o.noitesCabem > 1 ? "noites" : "noite"}` : ""}${o.match ? " · combina com o que vocês curtem" : ""}</small>
+      <small>${quase(o) ? `com mais ${brl(-o.diff)}` : `${ESTADO[o.estado]} · ${o.diff >= 0 ? "sobra " + brl(o.diff) : "falta " + brl(-o.diff)}`}${o.meio === "onibus" ? " · de ônibus" : ""}${o.ida ? ` · ${dataCurta(o.ida)} a ${dataCurta(o.volta)}` : ""}${o.noitesCabem ? ` · cabe com ${o.noitesCabem} ${o.noitesCabem > 1 ? "noites" : "noite"}` : ""}${o.match ? " · combina com o que vocês curtem" : ""}</small>
     </button>` : "").join("")}</div>`;
 }
 
 function render(fresh) {
-  const { entrada: f, atual: c } = state;
+  const { entrada: e, atual: c } = state; const f = comDatas(e, c);
   const manchete = quase(c) ? `Com mais ${brl(-c.diff)} você vai para ${esc(c.destino.n)}`
     : c.estado === "cabe" ? `Dá para ir e ainda sobra ${brl(c.diff)}`
     : c.estado === "apertado" ? "Cabe, mas no limite" : `Faltam ${brl(-c.diff)} para essa viagem`;
@@ -458,6 +474,7 @@ function render(fresh) {
       <span class="pill">${quase(c) ? "Com mais um pouquinho" : ESTADO[c.estado]}</span>
       <div class="eyebrow">${viagem ? `Viagem por ${c.paradas.length} cidades · ${c.paradas.map(p => `${esc(p.n)} (${p.noites})`).join(" → ")}` : `${quase(c) ? "Mais perto do seu orçamento · " : state.modo === "sugestao" ? "Nossa sugestão · " : comparar ? "Melhor entre os escolhidos · " : ""}${esc(c.destino.n)}, ${esc(c.destino.p)}`} · ${f.noites} noites · ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} · ${ESTILOS[f.estilo]}</div>
       <h2>${manchete}</h2>
+      ${e.flexivel ? `<p class="datas-achadas">${viagem ? `Datas de exemplo: ${dataCurta(f.ida)} a ${dataCurta(f.volta)}. Na viagem por várias cidades ainda não buscamos os dias mais baratos.` : c.ida ? `Dias mais baratos que achamos: ${dataCurta(c.ida)} a ${dataCurta(c.volta)}` : c.meio === "onibus" ? `De ônibus o preço quase não muda com a data. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.` : `Ainda não há preço de voo com ${f.noites} noites nesse mês. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.`}</p>` : ""}
       ${ajuste ? `<p>${ajuste}</p>` : c.estado === "apertado" ? "<p>Sobra pouco para imprevistos. Vale comprar a passagem logo, antes de o preço subir.</p>" : ""}
       <div class="nums">
         <div><span class="eyebrow">Seu orçamento</span><b>${brl(f.orcamento)}</b></div>
@@ -624,7 +641,7 @@ const ICONE_ESCUDO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3
 const ICONE_AVIAO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15.5v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0v5l-8 5v2l8-2.5V18l-2 1.5V21l3.5-1 3.5 1v-1.5L13 18v-5Z" fill="currentColor"/></svg>';
 
 function roteiroTop(ro) {
-  const { entrada: f, atual: c } = state;
+  const { entrada: e, atual: c } = state; const f = comDatas(e, c);
   const nome = ro.nome || "";
   const de = nome ? `de ${nome}` : ""; // "de Ana": sem artigo, que depende do gênero
   const cidade = ro.ordem?.join(" + ") || c.destino.n;
@@ -755,7 +772,7 @@ function mapa(nome, cidade, bairro) {
 
 // Pedido de roteiro. `paradas`: a ordem das cidades (no roteiro completo, a que a pessoa escolheu).
 function pedidoRoteiro(paradas = state.atual.paradas) {
-  const { entrada: f, atual: c } = state;
+  const { entrada: e, atual: c } = state; const f = comDatas(e, c);
   return {
     destino: paradas ? paradas[0].n : c.destino.n, noites: f.noites,
     paradas: paradas?.map(p => ({ destino: p.n, noites: p.noites })), pessoas: f.pessoas, estilo: f.estilo, interesses: f.interesses, foco: state.foco,
@@ -971,7 +988,7 @@ async function gravarSalvas() {
 // Tudo que muda o cálculo entra no id, para uma simulação diferente não apagar a outra.
 const idViagem = () => {
   if (!state) return null;
-  const f = state.entrada;
+  const f = comDatas(state.entrada, state.atual);
   return [state.atual.destino.n, f.origem, f.ida, f.volta, f.pessoas, f.orcamento, f.estilo, f.tipo, (f.interesses || []).join(","), state.foco || ""].join("|");
 };
 function salvarViagem() {
@@ -986,7 +1003,7 @@ function renderSalvas() {
   if (!el) return;
   el.hidden = !salvas.length;
   el.innerHTML = salvas.length ? `<h3>Minhas viagens</h3><ul class="salvas">${salvas.map((v, i) => {
-    const { entrada: f, atual: c } = v.estado;
+    const { entrada: e, atual: c } = v.estado; const f = comDatas(e, c);
     return `<li><button type="button" class="abrir" data-i="${i}"><b>${esc(c.destino.n)}</b><small>${dataCurta(f.ida)} a ${dataCurta(f.volta)} · ${brl(c.total)} · ${rotulo(c, v.estado.modo)}${v.estado.roteiro ? " · com roteiro" : ""}</small></button><button type="button" class="tirar" data-i="${i}" aria-label="Apagar ${esc(c.destino.n)}">✕</button></li>`;
   }).join("")}</ul>` : "";
   el.querySelectorAll(".abrir").forEach(b => b.onclick = () => {
@@ -998,7 +1015,7 @@ function renderSalvas() {
   el.querySelectorAll(".tirar").forEach(b => b.onclick = () => { salvas.splice(Number(b.dataset.i), 1); gravarSalvas(); if (state) render(false); });
 }
 async function compartilhar() {
-  const { entrada: f, atual: c } = state;
+  const { entrada: e, atual: c } = state; const f = comDatas(e, c);
   const texto = `${c.destino.n}: ${quase(c) ? `com mais ${brl(-c.diff)} vai dar viagem` : ESTADO[c.estado]}. ${f.noites} noites para ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} por cerca de ${brl(c.total)}. Simule a sua viagem:`;
   const url = "https://vaidarviagem.com.br/app/";
   try {

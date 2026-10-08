@@ -1,7 +1,7 @@
 // Monta o veredito: custo da viagem, se cabe e quais destinos cabem. Sem IA.
 import { DESTINOS, INTERESSES } from "../public/lib/dados.js";
 import { custo, custoMulti, dividirNoites, trechosDaViagem, ranking, pontuar, noitesQueCabem, acharOrigem, acharDestino, alcancavel, norm } from "../public/lib/custo.js";
-import { precoVoo } from "./precos.js";
+import { precoVoo, datasMaisBaratas } from "./precos.js";
 
 export class EntradaInvalida extends Error {}
 
@@ -24,8 +24,10 @@ export function resolverFiltro(nomes) {
 export function validar(b) {
   const orcamento = Math.round(Number(b?.orcamento));
   if (!(orcamento >= 100)) throw new EntradaInvalida("Informe um orçamento em reais, por exemplo 7.000.");
-  if (!DATA.test(b?.ida || "") || !DATA.test(b?.volta || "")) throw new EntradaInvalida("Informe as datas de ida e volta.");
-  const noites = Math.round((new Date(b.volta) - new Date(b.ida)) / 864e5);
+  const flex = b?.flexivel ? datasFlexiveis(b.flexivel) : null;
+  const { ida, volta } = flex || b || {};
+  if (!DATA.test(ida || "") || !DATA.test(volta || "")) throw new EntradaInvalida("Informe as datas de ida e volta.");
+  const noites = Math.round((new Date(volta) - new Date(ida)) / 864e5);
   if (!(noites >= 1)) throw new EntradaInvalida("A volta precisa ser depois da ida.");
   if (noites > 30) throw new EntradaInvalida("Por enquanto o planejamento vai até 30 noites.");
   return {
@@ -33,7 +35,8 @@ export function validar(b) {
     origem: acharOrigem(b.origem).n,
     destinos: [...(Array.isArray(b.destinos) ? b.destinos : []), b.destino]
       .map(s => String(s || "").trim().slice(0, 80)).filter(Boolean).slice(0, MAX_FILTRO),
-    ida: b.ida, volta: b.volta, noites,
+    ida, volta, noites,
+    ...(flex ? { flexivel: true, mes: flex.mes } : {}),
     pessoas: Math.min(9, Math.max(1, Math.round(Number(b.pessoas)) || 2)),
     estilo: [0, 1, 2].includes(Number(b.estilo)) ? Number(b.estilo) : 1,
     interesses: (Array.isArray(b.interesses) ? b.interesses : []).filter(i => i in INTERESSES),
@@ -42,14 +45,36 @@ export function validar(b) {
   };
 }
 
+// "Não sei a data": mês e noites. Até achar as datas mais baratas, a ida fica no meio do mês (ou amanhã).
+function datasFlexiveis(x) {
+  const mes = String(x?.mes || "");
+  const noites = Math.round(Number(x?.noites));
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes)) throw new EntradaInvalida("Escolha o mês da viagem.");
+  if (!(noites >= 1)) throw new EntradaInvalida("Informe quantas noites, por exemplo 5.");
+  if (noites > 30) throw new EntradaInvalida("Por enquanto o planejamento vai até 30 noites.");
+  const amanha = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+  if (mes < amanha.slice(0, 7)) throw new EntradaInvalida("Escolha um mês daqui para a frente.");
+  const ida = [`${mes}-15`, amanha].sort()[1];
+  return { mes, ida, volta: new Date(Date.parse(ida + "T00:00:00Z") + noites * 864e5).toISOString().slice(0, 10) };
+}
+
 export async function montarVeredito(body, env = {}, fetchImpl = fetch) {
   const f = validar(body);
   const origem = acharOrigem(f.origem);
   // Destino só de estrada não tem aeroporto: nem busca passagem aérea.
-  const buscar = dest => dest.terrestre ? Promise.resolve(null) : precoVoo({
-    origem, destino: dest, ida: f.ida, volta: f.volta,
-    token: env.TRAVELPAYOUTS_TOKEN, marker: env.TRAVELPAYOUTS_MARKER, fetchImpl
-  });
+  const api = { token: env.TRAVELPAYOUTS_TOKEN, marker: env.TRAVELPAYOUTS_MARKER, fetchImpl };
+  // Datas flexíveis: cada destino ganha as datas mais baratas dele; sem preço com essas noites, fica o padrão.
+  const buscar = async dest => dest.terrestre ? null
+    : (f.flexivel && await datasMaisBaratas({ origem, destino: dest, mes: f.mes, noites: f.noites, ...api }))
+      || precoVoo({ origem, destino: dest, ida: f.ida, volta: f.volta, soExato: f.flexivel, ...api });
+  // Com datas achadas, o custo (alta temporada, ônibus) e os links usam essas datas.
+  const fDe = voo => voo?.ida ? { ...f, ida: voo.ida, volta: voo.volta } : f;
+  const custoDe = (d, voo) => {
+    const c = custo(d, fDe(voo), voo || undefined);
+    if (!voo?.ida) return c;
+    // De ônibus as datas do voo não valem: fica a data de exemplo.
+    return c.meio === "aviao" ? { ...c, ida: voo.ida, volta: voo.volta } : custo(d, f, voo);
+  };
 
   // Ranqueia pela estimativa e busca preço real só dos melhores candidatos (poucas chamadas de API).
   // internacional: true/false limita ao grupo; null = todos.
@@ -60,9 +85,9 @@ export async function montarVeredito(body, env = {}, fetchImpl = fetch) {
     const dests = cand.map(c => DESTINOS.find(d => d.n === c.destino.n));
     const voos = await Promise.all(dests.map(buscar));
     const recalculados = dests.map((d, i) => {
-      const c = custo(d, f, voos[i] || undefined);
+      const c = custoDe(d, voos[i]);
       // Quando não cabe, diz com quantas noites caberia (0 = nem com 1 noite).
-      if (c.estado === "nao_cabe") c.noitesCabem = noitesQueCabem(d, f, voos[i] || undefined);
+      if (c.estado === "nao_cabe") c.noitesCabem = noitesQueCabem(d, fDe(voos[i]), voos[i] || undefined);
       return c;
     }).sort((a, b) => pontuar(b, f) - pontuar(a, f));
     const cabem = recalculados.filter(c => c.estado !== "nao_cabe");
@@ -94,16 +119,16 @@ export async function montarVeredito(body, env = {}, fetchImpl = fetch) {
     const nomes = new Set(filtro.map(d => d.n));
     const top = ranking(f).filter(c => nomes.has(c.destino.n)).slice(0, 6).map(c => DESTINOS.find(d => d.n === c.destino.n));
     const voos = await Promise.all(top.map(buscar));
-    const opcoes = top.map((d, i) => custo(d, f, voos[i] || undefined)).sort((a, b) => pontuar(b, f) - pontuar(a, f));
+    const opcoes = top.map((d, i) => custoDe(d, voos[i])).sort((a, b) => pontuar(b, f) - pontuar(a, f));
     return { entrada: f, modo: "comparar", atual: opcoes[0], opcoes, noitesMax: 0 };
   }
 
   const dest = filtro[0];
   const voo = await buscar(dest);
-  const atual = custo(dest, f, voo || undefined);
+  const atual = custoDe(dest, voo);
   if (atual.estado !== "nao_cabe") return { entrada: f, modo: "destino", atual, opcoes: [], noitesMax: 0 };
   const opcoes = (await melhores(dest.n)).filter(c => c.estado !== "nao_cabe").slice(0, 3);
-  return { entrada: f, modo: "destino", atual, opcoes, noitesMax: noitesQueCabem(dest, f, voo || undefined) };
+  return { entrada: f, modo: "destino", atual, opcoes, noitesMax: noitesQueCabem(dest, fDe(voo), voo || undefined) };
 }
 
 // Uma viagem só passando por várias cidades, na ordem escolhida, com as noites divididas entre elas.
