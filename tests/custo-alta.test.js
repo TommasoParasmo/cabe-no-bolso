@@ -23,3 +23,14 @@ test("voo para Gramado em junho sai com o acréscimo da alta", () => {
   const junho = estimarVoo(sp, d("Gramado"), "2027-06-10", hoje), marco = estimarVoo(sp, d("Gramado"), "2027-03-10", hoje);
   assert.equal(Math.round(junho / marco * 100), 125);
 });
+
+test("no roteiro com várias cidades, cada uma usa a temporada do dia em que se chega nela", async () => {
+  const { custoMulti } = await import("../public/lib/custo.js");
+  const f = { origem: "São Paulo", ida: "2027-05-29", noites: 6, pessoas: 2, estilo: 0, orcamento: 99999, interesses: [] };
+  const r = custoMulti([{ dest: d("Rio de Janeiro"), noites: 3 }, { dest: d("Gramado"), noites: 3 }], f);
+  const gramado = r.paradas.find(p => p.n === "Gramado");
+  assert.equal(gramado.checkin, "2027-06-01");
+  assert.equal(gramado.diaria, 250);
+  assert.equal(r.paradas.find(p => p.n === "Rio de Janeiro").diaria, 190);
+  assert.equal(r.alta, true);
+});

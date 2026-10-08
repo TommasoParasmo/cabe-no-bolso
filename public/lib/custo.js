@@ -148,7 +148,6 @@ export function estimarTrecho(de, para, data, hoje = new Date()) {
  */
 export function custoMulti(paradas, f, voos = []) {
   const origem = acharOrigem(f.origem);
-  const alta = paradas.some(p => altaTemporada(f.ida, p.dest));
   const quartos = Math.ceil(f.pessoas / 2);
   const trechos = trechosDaViagem(origem, paradas, f.ida).map((t, i) => {
     const real = voos[i];
@@ -164,16 +163,20 @@ export function custoMulti(paradas, f, voos = []) {
     };
   });
   const vooPessoa = trechos.reduce((s, t) => s + t.porPessoa, 0);
-  let hosp = 0, comida = 0, passeios = 0, transp = 0;
+  let hosp = 0, comida = 0, passeios = 0, transp = 0, alta = false;
   const ps = paradas.map((p, i) => {
     const d = p.dest, dias = p.noites + (i === 0 ? 1 : 0);
-    const diaria = r10(d.hotel[f.estilo] * (altaTemporada(f.ida, d) ? 1.25 : 1));
+    // Cada cidade usa a temporada do dia em que se chega nela, não a da partida.
+    const checkin = somarDias(f.ida, paradas.slice(0, i).reduce((s, x) => s + x.noites, 0));
+    const altaAqui = altaTemporada(checkin, d);
+    alta ||= altaAqui;
+    const diaria = r10(d.hotel[f.estilo] * (altaAqui ? 1.25 : 1));
     hosp += diaria * quartos * p.noites;
     comida += [70, 130, 250][f.estilo] * d.idx * f.pessoas * dias;
     passeios += [30, 80, 180][f.estilo] * d.idx * (d.pf || 1) * f.pessoas * p.noites;
     // Traslado do aeroporto só quando se chega de avião.
     transp += ([20, 45, 100][f.estilo] * d.idx * dias + (trechos[i].meio === "aviao" ? d.extra || 0 : 0)) * f.pessoas;
-    return { n: d.n, p: d.p, ap: d.ap, noites: p.noites, diaria, checkin: somarDias(f.ida, paradas.slice(0, i).reduce((s, x) => s + x.noites, 0)) };
+    return { n: d.n, p: d.p, ap: d.ap, noites: p.noites, diaria, checkin };
   });
   const dias = f.noites + 1;
   const reais = trechos.filter(t => t.fonte === "aviasales").length;
