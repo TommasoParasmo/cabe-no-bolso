@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { gerarRoteiro, LimiteAtingido } from "../../server/roteiro.js";
+import { gerarRoteiro, LimiteAtingido, Demorou } from "../../server/roteiro.js";
 import { EntradaInvalida } from "../../server/veredito.js";
 import { pixLigado, conferirPagamento, PixInvalido, PixNaoPago } from "../../server/pix.js";
 
@@ -26,6 +26,7 @@ export async function onRequestPost({ request, env }) {
     if (e instanceof EntradaInvalida || e instanceof PixInvalido) return json({ erro: e.message }, 400);
     if (e instanceof PixNaoPago) return json({ erro: e.message }, 402);
     if (e instanceof LimiteAtingido) return json({ erro: e.message }, 429);
+    if (e instanceof Demorou) return json({ erro: e.message }, 504);
     if (e instanceof Anthropic.RateLimitError) return json({ erro: "Muitos pedidos agora. Espere um pouco e tente de novo." }, 429);
     if (e instanceof Anthropic.AuthenticationError) {
       console.error("roteiro: chave da Anthropic inválida");

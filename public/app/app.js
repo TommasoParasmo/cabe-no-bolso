@@ -312,7 +312,8 @@ const API = window.Capacitor?.isNativePlatform?.() ? "https://vaidarviagem.com.b
 async function postar(caminho, dados, signal) {
   const r = await fetch(API + caminho, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(dados), signal });
   const corpo = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(corpo.erro || "Algo falhou. Tente de novo.");
+  // 524/504 sem JSON: a Cloudflare cortou uma resposta que demorou demais.
+  if (!r.ok) throw new Error(corpo.erro || ([504, 524].includes(r.status) ? "Demorou mais que o normal. Tente de novo." : "Algo falhou. Tente de novo."));
   return corpo;
 }
 
