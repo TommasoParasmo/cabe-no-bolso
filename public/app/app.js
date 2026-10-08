@@ -629,10 +629,31 @@ const PRECO_COMPLETO = 9.9;
 const reais = v => Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 let timerPix = null;
 const pararPix = () => { clearInterval(timerPix); timerPix = null; };
+// Pix gerado fica guardado no aparelho por viagem: quem fecha ou recarrega a página antes de liberar
+// (pagou ou não) volta, monta o roteiro simples de novo e o mesmo Pix reaparece, já sendo conferido.
+const PIX_PENDENTE = "pix-pendente";
+const SETE_DIAS_MS = 7 * 86400e3;
+function lerPendentes() {
+  try {
+    const todos = JSON.parse(localStorage.getItem(PIX_PENDENTE) || "{}");
+    return Object.fromEntries(Object.entries(todos).filter(([, p]) => Date.now() - p.criado < SETE_DIAS_MS));
+  } catch { return {}; }
+}
+function guardarPendente(id, dados) {
+  const todos = lerPendentes();
+  if (dados) todos[id] = dados; else delete todos[id];
+  try { localStorage.setItem(PIX_PENDENTE, JSON.stringify(todos)); } catch {}
+}
 
 function cartaoCompleto() {
   const ro = state.roteiro;
-  const v = ro.venda ||= { ordem: state.atual.paradas ? [...state.atual.paradas] : null };
+  if (!ro.venda) {
+    const p = lerPendentes()[idViagem()];
+    ro.venda = { ordem: state.atual.paradas ? [...state.atual.paradas] : null };
+    if (p) Object.assign(ro.venda, { pix: p.pix, pedido: p.pedido, email: p.email,
+      ordem: ro.venda.ordem && p.ordem.map(n => ro.venda.ordem.find(x => x.n === n)).filter(Boolean) });
+  }
+  const v = ro.venda;
   const ordem = v.ordem;
   if (v.gerando) return `<div class="completo nao-imprimir" id="completo-box"><h3>Roteiro completo</h3><button type="button" class="primary" id="completo-gerando" disabled></button><p class="hint" style="margin:0">Pagamento recebido. Pode levar cerca de 1 minuto, fique nesta tela.</p></div>`;
   return `
@@ -679,6 +700,7 @@ function ligarCompleto() {
       const pix = await postar("/api/pix", { pedido: v.pedido, email });
       if (state.roteiro !== ro) return;
       v.pix = pix; v.email = email; v.aviso = "";
+      guardarPendente(idViagem(), { pix, pedido: v.pedido, email, ordem: v.ordem?.map(p => p.n) || [], criado: Date.now() });
       evento("GerouPix", { destino: state.atual.destino?.n });
       renderRoteiro();
     } catch (e) { aviso(e.message, true); }
@@ -702,7 +724,7 @@ function ligarCompleto() {
         window.fbq?.("track", "Purchase", { value: PRECO_COMPLETO, currency: "BRL" });
         return montarCompleto(ro);
       }
-      if (status === "expirado") { pararPix(); v.pix = null; renderRoteiro(); return aviso("O Pix expirou. Gere outro para pagar.", true); }
+      if (status === "expirado") { pararPix(); v.pix = null; guardarPendente(idViagem()); renderRoteiro(); return aviso("O Pix expirou. Gere outro para pagar.", true); }
       if (manual) aviso("Ainda não recebemos o pagamento. Assim que cair, o roteiro completo aparece aqui.");
     } catch (e) { if (manual) aviso(e.message, true); }
     finally { conferindo = false; }
@@ -722,6 +744,7 @@ async function montarCompleto(ro) {
     // O e-mail do Pix também libera o PDF, sem pedir de novo.
     fetch(`${API}/api/lead`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: v.email, novidades: false, destino: state.atual.destino.n }) })
       .then(x => x.ok && x.json()).then(x => { if (x?.guardado) try { localStorage.setItem(LEAD, "1"); } catch {} }).catch(() => {});
+    guardarPendente(idViagem());
     state.roteiro = { ...r, completo: true, ordem: v.ordem?.map(p => p.n) };
     evento("RoteiroCompleto", { destino: state.atual.destino?.n });
     renderRoteiro();
