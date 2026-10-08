@@ -34,3 +34,28 @@ test("no roteiro com várias cidades, cada uma usa a temporada do dia em que se 
   assert.equal(r.paradas.find(p => p.n === "Rio de Janeiro").diaria, 190);
   assert.equal(r.alta, true);
 });
+
+test("Natal Luz de Gramado: alta de 22/10 a 17/01, virando o ano", () => {
+  const gramado = d("Gramado");
+  assert.equal(altaTemporada("2027-10-21", gramado), false);
+  assert.equal(altaTemporada("2027-10-22", gramado), true);
+  assert.equal(altaTemporada("2028-01-17", gramado), true);
+  assert.equal(altaTemporada("2028-01-18", gramado), false);
+  assert.equal(altaTemporada("2027-07-15", gramado), true);
+});
+
+test("Tel Aviv é destino próprio", () => {
+  assert.equal(d("Tel Aviv")?.ap, "TLV");
+});
+
+test("Jerusalém e Tel Aviv dividem o TLV: o trecho entre elas é por terra, não voo de R$ 0", async () => {
+  const { custoMulti } = await import("../public/lib/custo.js");
+  const f = { orcamento: 40000, origem: ORIGENS[0].n, ida: "2027-04-10", noites: 6, pessoas: 2, estilo: 1, interesses: [] };
+  const r = custoMulti([{ dest: d("Jerusalém"), noites: 3 }, { dest: d("Tel Aviv"), noites: 3 }], f);
+  const meio = r.trechos?.[1] ?? null;
+  assert.ok(meio, "trecho Jerusalém → Tel Aviv existe");
+  assert.equal(meio.meio, "onibus");
+  assert.ok(meio.porPessoa > 0);
+  assert.equal(meio.link, null);
+  assert.equal(r.trechos[0].meio, "aviao");
+});

@@ -19,11 +19,15 @@ export const acharDestino = nome => {
 
 const r10 = v => Math.round(v / 10) * 10;
 
-// Alta temporada: dezembro, janeiro e julho, salvo o destino que tem a sua (dest.alta, meses de 1 a 12).
+// Alta temporada: dezembro, janeiro e julho, salvo o destino que tem a sua (dest.alta).
+// Cada item é um mês (1 a 12) ou um período ["MM-DD", "MM-DD"], que pode virar o ano (ex.: Natal Luz).
 const ALTA_PADRAO = [12, 1, 7];
 export function altaTemporada(ida, dest) {
-  const mes = ida ? new Date(ida + "T12:00:00").getMonth() + 1 : 0;
-  return (dest?.alta || ALTA_PADRAO).includes(mes);
+  if (!ida) return false;
+  const mes = Number(ida.slice(5, 7)), dia = ida.slice(5, 10);
+  return (dest?.alta || ALTA_PADRAO).some(a => Array.isArray(a)
+    ? (a[0] <= a[1] ? dia >= a[0] && dia <= a[1] : dia >= a[0] || dia <= a[1])
+    : a === mes);
 }
 
 // Passagem ida e volta por pessoa quando não há preço real: fórmula por distância.
@@ -37,10 +41,11 @@ export function estimarVoo(origem, dest, ida, hoje = new Date()) {
 
 // Ônibus só ida por pessoa: distância por estrada ≈ 1,3 × linha reta, a ~70 km/h.
 // Preço por km: convencional, executivo, leito. null = internacional ou longe demais (mais de ~16 h).
+// Exceção: duas cidades vizinhas do mesmo país lá fora (Jerusalém e Tel Aviv dividem o aeroporto TLV) vão por terra.
 const ONIBUS_KM = [0.25, 0.32, 0.48];
 const MAX_HORAS = [12, 8, 5]; // até quantas horas de ônibus cada estilo topa, quando há avião
 export function estimarOnibus(de, para, data, estilo = 1) {
-  if (de.int || para.int) return null;
+  if ((de.int || para.int) && !(de.p === para.p && km(de, para) < 150)) return null;
   const estrada = km(de, para) * 1.3;
   if (estrada > 1100) return null;
   const porPessoa = Math.max(40, estrada * ONIBUS_KM[estilo]) * (altaTemporada(data, para) ? 1.15 : 1);
