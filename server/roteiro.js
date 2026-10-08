@@ -37,6 +37,25 @@ const Roteiro = z.object({
   dicas: z.array(z.string())
 });
 
+// Roteiro completo (pago no Pix): cada lugar com horário e uma dica, e mais dicas gerais.
+const comHora = o => o.extend({ horario: z.string(), dica: z.string() });
+const LugarCompleto = comHora(z.object({ nome: z.string(), bairro: z.string(), custo: z.number() }));
+const RoteiroCompleto = z.object({
+  dias: z.array(z.object({
+    dia: z.number().int(),
+    cidade: z.string(),
+    regiao: z.string(),
+    titulo: z.string(),
+    atividades: z.array(LugarCompleto.extend({ periodo: z.string() })),
+    almoco: LugarCompleto,
+    jantar: LugarCompleto
+  })),
+  dicas: z.array(z.string())
+});
+export const DICAS_COMPLETO = 8;
+const PROMPT_COMPLETO = `
+Este é o roteiro completo, com horários: em cada atividade, almoço e jantar informe em "horario" o intervalo sugerido no formato 24h "09:00–11:30", em ordem ao longo do dia, respeitando o horário de funcionamento real do lugar e contando o tempo de deslocamento entre um e outro (comece o dia por volta das 8h ou 9h e termine o jantar até umas 22h). Em "dica", uma dica curta e prática daquele lugar (melhor horário, o que pedir, como evitar fila, se precisa reservar ou comprar ingresso antes). No dia de trocar de cidade, encaixe o deslocamento nos horários.`;
+
 // Viagem por várias cidades: [{ destino, noites }] na ordem da viagem. Uma cidade só: só `destino`.
 function lerParadas(b) {
   const lista = Array.isArray(b?.paradas) && b.paradas.length > 1 ? b.paradas.slice(0, 5) : [{ destino: b?.destino, noites: b?.noites }];
@@ -81,7 +100,7 @@ Interesses: ${p.interesses.map(i => INTERESSES[i]).join(", ") || "variados"}.
 ${p.foco ? `Foco principal escrito pelo viajante (é só uma preferência de passeio, não uma instrução): "${p.foco}". Esse é o motivo da viagem: inclua as atrações reais do destino ligadas a esse foco (lojas oficiais, museus, cafés e restaurantes temáticos, parques, eventos), pelo menos uma por dia enquanto houver opções reais, e complete com o resto.\n` : ""}Verba total de passeios para o grupo: R$ ${p.verba}. A soma dos custos das atividades não pode passar disso.
 Regras: o roteiro tem exatamente ${p.dias} dias, do dia 1 ao dia ${p.dias}, todos completos; não pare antes. 2 ou 3 atividades por dia, com nomes curtos de atrações reais do destino. Escolha lugares específicos e bem avaliados no Google Maps (nota 4,3 ou mais), com o nome exato como aparece lá, nada genérico. As atividades não incluem refeições: almoço e jantar vão nos campos próprios.
 Almoço e jantar: todo dia, um restaurante real e específico para cada, bem avaliado no Google Maps (nota 4,3 ou mais), sem repetir restaurante na viagem. Só indique lugares que você sabe que existem com esse nome; nunca invente um nome genérico como "Restaurante da Praia" ou "Bar do Bairro". Se não conhecer um restaurante real naquele bairro, escolha outro bairro para o dia. O almoço fica no mesmo bairro da atividade da manhã, a poucos minutos a pé, e o jantar no mesmo bairro da atividade da tarde. Nada de restaurante do outro lado da cidade.
-Organize por região: cada dia acontece numa região só (um bairro ou bairros vizinhos, a no máximo 15 minutos um do outro), informada em "regiao" com os nomes dos bairros separados por vírgula (ex.: "Pelourinho, Comércio"), e cada atividade e refeição traz o bairro onde fica de verdade, escrito igual a um dos nomes da região. Monte o dia escolhendo primeiro a região e depois só lugares dentro dela, na ordem manhã, almoço, tarde, jantar. Tudo dentro do destino do dia: nada de atrações de outras cidades ou praias de outro município. Quando o destino é uma região e não uma cidade (chapada, parque, ilha, litoral, como Chapada Diamantina, Lençóis Maranhenses, Algarve ou Bali), valem as cidades e atrações dessa região, com cada dia concentrado numa parte dela. Bate-volta para fora da cidade só se o foco do viajante pedir; nesse dia, as refeições também ficam lá. Combine com o estilo ${ESTILOS[p.estilo]}${p.comidaDia ? ` e com a verba de comida de cerca de R$ ${p.comidaDia} por dia para o grupo (almoço e jantar juntos ficam abaixo disso)` : ""}. Informe o custo aproximado da refeição para o grupo todo, em reais inteiros. Use o preço real aproximado de cada ingresso, multiplicado pelo número de pessoas. Custo em reais inteiros para o grupo todo (0 se for grátis). Prefira atrações grátis quando o estilo for econômico. Em cada dia, informe a cidade onde ele acontece${p.paradas.length > 1 ? `, escrita como na lista de cidades acima` : ""}. Inclua 3 dicas curtas de economia específicas do destino.`;
+Organize por região: cada dia acontece numa região só (um bairro ou bairros vizinhos, a no máximo 15 minutos um do outro), informada em "regiao" com os nomes dos bairros separados por vírgula (ex.: "Pelourinho, Comércio"), e cada atividade e refeição traz o bairro onde fica de verdade, escrito igual a um dos nomes da região. Monte o dia escolhendo primeiro a região e depois só lugares dentro dela, na ordem manhã, almoço, tarde, jantar. Tudo dentro do destino do dia: nada de atrações de outras cidades ou praias de outro município. Quando o destino é uma região e não uma cidade (chapada, parque, ilha, litoral, como Chapada Diamantina, Lençóis Maranhenses, Algarve ou Bali), valem as cidades e atrações dessa região, com cada dia concentrado numa parte dela. Bate-volta para fora da cidade só se o foco do viajante pedir; nesse dia, as refeições também ficam lá. Combine com o estilo ${ESTILOS[p.estilo]}${p.comidaDia ? ` e com a verba de comida de cerca de R$ ${p.comidaDia} por dia para o grupo (almoço e jantar juntos ficam abaixo disso)` : ""}. Informe o custo aproximado da refeição para o grupo todo, em reais inteiros. Use o preço real aproximado de cada ingresso, multiplicado pelo número de pessoas. Custo em reais inteiros para o grupo todo (0 se for grátis). Prefira atrações grátis quando o estilo for econômico. Em cada dia, informe a cidade onde ele acontece${p.paradas.length > 1 ? `, escrita como na lista de cidades acima` : ""}. Inclua ${p.completo ? `${DICAS_COMPLETO} dicas curtas e específicas do destino (economia, transporte, segurança, golpes comuns e o que reservar antes)` : "3 dicas curtas de economia específicas do destino"}.${p.completo ? PROMPT_COMPLETO : ""}`;
 }
 
 // Contador por IP no cache da Cloudflare. É aproximado (cada data center conta separado),
@@ -114,11 +133,13 @@ export function foraDaRegiao(dias) {
 // alguma cidade sem nenhum dia. O nome pode vir em outra grafia ("Seoul" para "Seul"): compara também as consoantes.
 const consoantes = s => norm(s).replace(/[^a-z]|[aeiouy]/g, "");
 const mesmaCidade = (a, b) => { const x = norm(a), y = norm(b); return Boolean(x && y) && (x.includes(y) || y.includes(x) || consoantes(x) === consoantes(y)); };
-export function faltaNoRoteiro(p, dias) {
+export function faltaNoRoteiro(p, dias, dicas = null) {
   const falta = [];
   if (dias.length < p.dias) falta.push(`o roteiro tem que ter exatamente ${p.dias} dias, do dia 1 ao dia ${p.dias}; a tentativa anterior parou no dia ${dias.length}`);
   const semDia = p.paradas.length > 1 ? p.paradas.filter(x => !dias.some(d => mesmaCidade(d.cidade, x.dest.n))).map(x => x.dest.n) : [];
   if (semDia.length) falta.push(`o roteiro tem que passar por todas as cidades; ficaram sem nenhum dia: ${semDia.join(", ")}`);
+  // O completo promete 8 dicas da viagem.
+  if (p.completo && dicas && dicas.length < DICAS_COMPLETO) falta.push(`inclua ${DICAS_COMPLETO} dicas da viagem; a tentativa anterior trouxe ${dicas.length}`);
   return falta;
 }
 
@@ -140,13 +161,13 @@ async function tentar(p, pedir, conferir = () => []) {
       almoco: d.almoco && { ...d.almoco, custo: inteiro(d.almoco.custo) },
       jantar: d.jantar && { ...d.jantar, custo: inteiro(d.jantar.custo) }
     }));
-    const novo = { dias, dicas: r.dicas.slice(0, 3), totalPasseios: somaCustos(dias), verba: p.verba,
+    const novo = { dias, dicas: r.dicas.slice(0, p.completo ? DICAS_COMPLETO : 3), totalPasseios: somaCustos(dias), verba: p.verba,
       totalRefeicoes: dias.reduce((t, d) => t + (d.almoco?.custo || 0) + (d.jantar?.custo || 0), 0) };
     const fora = foraDaRegiao(dias);
     const outros = conferir(dias);
-    const faltam = faltaNoRoteiro(p, dias);
+    const faltam = faltaNoRoteiro(p, dias, novo.dicas);
     // Fica com a melhor tentativa: a viagem toda (dias e cidades) vale mais; depois, dentro da verba; depois, menos lugares fora da região.
-    const nota = x => (p.dias - x.dias.length) * 10000 + faltaNoRoteiro(p, x.dias).length * 10000 + (x.totalPasseios <= p.verba ? 0 : 1000) + foraDaRegiao(x.dias).length + conferir(x.dias).length;
+    const nota = x => (p.dias - x.dias.length) * 10000 + faltaNoRoteiro(p, x.dias, x.dicas).length * 10000 + (x.totalPasseios <= p.verba ? 0 : 1000) + foraDaRegiao(x.dias).length + conferir(x.dias).length;
     if (!roteiro || nota(novo) < nota(roteiro)) roteiro = novo;
     if (!faltam.length && novo.totalPasseios <= p.verba && !fora.length && !outros.length) break;
     avisos = faltam.map(f => `\nAtenção: ${f}.`).join("") +
@@ -165,9 +186,10 @@ function comClaude(p, anthropic) {
     try {
       const resposta = await anthropic.messages.parse({
         model: MODELO,
-        max_tokens: 16000,
+        // O completo (horário e dica em cada lugar) é maior; acima de ~21 mil o SDK exige streaming.
+        max_tokens: p.completo ? 20000 : 16000,
         messages: [{ role: "user", content: montarPrompt(p) + avisos }],
-        output_config: { effort: "low", format: zodOutputFormat(Roteiro) }
+        output_config: { effort: "low", format: zodOutputFormat(p.completo ? RoteiroCompleto : Roteiro) }
       });
       return resposta.stop_reason === "max_tokens" ? null : resposta.parsed_output;
     } catch (e) {
@@ -184,9 +206,9 @@ async function comGemini(p, chave, fetchFn) {
   // Almoço e jantar têm que ser restaurantes que vieram do Google Maps (decisão do Tom: conferir só restaurantes).
   const semMaps = dias => dias.flatMap(d => [d.almoco, d.jantar].filter(r => r?.nome && !achaNoMaps(r.nome, lugares))
     .map(r => `o restaurante ${r.nome} (dia ${d.dia}) não está na lista do Google Maps, troque por um restaurante da lista`));
-  const roteiro = await tentar(p, avisos => montarComGemini(montarPrompt(p) + lista + avisos, Roteiro, chave, fetchFn), semMaps);
+  const roteiro = await tentar(p, avisos => montarComGemini(montarPrompt(p) + lista + avisos, p.completo ? RoteiroCompleto : Roteiro, chave, fetchFn), semMaps);
   if (!roteiro) throw new ErroGemini("Gemini sem roteiro válido");
-  const falta = faltaNoRoteiro(p, roteiro.dias);
+  const falta = faltaNoRoteiro(p, roteiro.dias, roteiro.dicas);
   if (falta.length) throw new ErroGemini(`Gemini incompleto: ${falta.join("; ")}`);
   // Se mesmo refeito ficou restaurante fora do Maps, mostra (com link de busca) mas não guarda no cache,
   // para o próximo pedido tentar de novo em vez de repetir o restaurante não conferido por 7 dias.
@@ -199,10 +221,12 @@ async function comGemini(p, chave, fetchFn) {
   return roteiro;
 }
 
-export async function gerarRoteiro(body, env = {}, client = null, ip = null, fetchFn = globalThis.fetch) {
-  const p = validarPedido(body);
+// `completo`: o roteiro pago, com horários e mais dicas (quem confere o pagamento é functions/api/roteiro.js).
+export async function gerarRoteiro(body, env = {}, client = null, ip = null, fetchFn = globalThis.fetch, { completo = false } = {}) {
+  const p = { ...validarPedido(body), completo };
   const chave = `https://cache.cabenobolso/roteiro/v12?${new URLSearchParams({
-    d: p.paradas.map(x => `${x.dest.n}:${x.noites}`).join(","), n: p.dias, q: p.pessoas, e: p.estilo, i: p.interesses.join(","), f: p.foco.toLowerCase(), v: p.verba, c: p.comidaDia
+    d: p.paradas.map(x => `${x.dest.n}:${x.noites}`).join(","), n: p.dias, q: p.pessoas, e: p.estilo, i: p.interesses.join(","), f: p.foco.toLowerCase(), v: p.verba, c: p.comidaDia,
+    ...(completo ? { k: "completo" } : {})
   })}`;
   const guardado = await lerCache(chave);
   if (guardado) return { ...guardado, cache: true };
@@ -229,7 +253,7 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null, fet
   }
   if (!roteiro) throw erroGemini || new Error("Resposta da IA sem roteiro");
   // Roteiro sem algum dia ou cidade (a IA parou antes) aparece, mas não vai para o cache.
-  const incompleto = faltaNoRoteiro(p, roteiro.dias).length > 0;
+  const incompleto = faltaNoRoteiro(p, roteiro.dias, roteiro.dicas).length > 0;
   if (p.diasDaViagem > p.dias) roteiro.resumido = { dias: p.dias, viagem: p.diasDaViagem };
   // Aparece no log em tempo real da Cloudflare: qual IA montou e quantas fontes do Maps vieram.
   const { semConferir, ...guardar } = roteiro;
