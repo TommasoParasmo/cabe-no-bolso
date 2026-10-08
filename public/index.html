@@ -20,91 +20,116 @@
 <link rel="icon" href="/marca/icone-32.png" type="image/png">
 <link rel="apple-touch-icon" href="/marca/icone-180.png">
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#0E6E6A">
+<meta name="theme-color" content="#0D3532">
 <meta name="apple-mobile-web-app-title" content="Vai Dar Viagem">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: uma coluna central; hero com o "canhoto" do veredito, três passos, destinos e chamada final. */
-:root {
-  --bg: #F3F6F5; --surface: #FFFFFF; --ink: #102624; --muted: #557370; --line: #D7E2E0;
-  --accent: #0E6E6A; --accent-ink: #FFFFFF; --sun: #F2B705; --ok: #1E8A4C; --ok-bg: #E3F4EA; --chip: #E8F0EF;
-  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
-  --font-body: "Figtree", "Segoe UI", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
-  color-scheme: light;
+/* Layout: foto de destino com degradê verde profundo no topo, papel claro no miolo, dourado só no que se toca. Claro de propósito: é o visual da marca. */
+:root{
+  --paper:#F7F8F6; --surf:#FFFFFF; --ink:#102624; --mut:#557370; --line:#D7E2E0; --chip:#E8F0EF;
+  --deep:#0D3532; --acc:#0E6E6A; --gold:#E2B23F; --goldbg:#FBF1D8; --goldink:#7A5A0E; --ok:#1E8A4C; --on:#FFFFFF;
+  --display:"Bricolage Grotesque","Arial Narrow",system-ui,sans-serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
 }
-@media (prefers-color-scheme: dark) {
-  :root { --bg: #0C1716; --surface: #13211F; --ink: #E4EFED; --muted: #8FAAA6; --line: #24403C;
-    --accent: #3FB8AE; --accent-ink: #062120; --sun: #F5C842; --ok: #5BCB8A; --ok-bg: #12301F; --chip: #1B2F2C; color-scheme: dark; }
-}
-* { box-sizing: border-box; }
-html, body { margin: 0; }
-body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.55; }
-.wrap { max-width: 1040px; margin: 0 auto; padding-inline: 20px; }
-h1, h2, h3 { font-family: var(--font-display); margin: 0; letter-spacing: -0.015em; text-wrap: balance; }
-p { margin: 0; }
-.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 20px; }
-.logo-escuro { display: none; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .logo-claro { display: none; } :root:not([data-theme="light"]) .logo-escuro { display: block; } }
-:root[data-theme="dark"] .logo-claro { display: none; } :root[data-theme="dark"] .logo-escuro { display: block; }
-.logo { display: block; line-height: 0; }
-.logo img { height: 50px; width: auto; }
-.tag { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; background: var(--sun); color: #2A2000; padding: 4px 10px; border-radius: 6px; }
-
-.hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 40px; align-items: center; padding-block: 32px 56px; }
-.hero h1 { font-size: clamp(38px, 6.4vw, 68px); font-weight: 800; line-height: 1.02; }
-.hero h1 em { font-style: normal; color: var(--accent); }
-.hero p.lead { margin-top: 18px; font-size: 19px; color: var(--muted); max-width: 46ch; }
-.hero .cta { margin-top: 28px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-.btn { display: inline-block; font-weight: 600; text-decoration: none; padding: 14px 22px; border-radius: 12px; background: var(--accent); color: var(--accent-ink); }
-.btn:focus-visible, a:focus-visible { outline: 2px solid var(--sun); outline-offset: 3px; }
-.cta small { color: var(--muted); font-size: 14px; }
-
-/* O canhoto: um exemplo de veredito */
-.stub { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 22px; display: grid; gap: 12px; position: relative; overflow: hidden; }
-.stub::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background: var(--ok); }
-.stub .ask { font-family: var(--font-display); font-weight: 800; font-size: 34px; font-variant-numeric: tabular-nums; }
-.stub .ask small { font-size: 15px; font-weight: 600; color: var(--muted); }
-.pill { justify-self: start; background: var(--ok-bg); color: var(--ok); font-weight: 700; padding: 4px 12px; border-radius: 999px; font-size: 14px; }
-.stub h3 { font-size: 22px; }
-.rows { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; border-top: 1px dashed var(--line); padding-top: 12px; }
-.rows li { display: flex; justify-content: space-between; gap: 12px; font-size: 15px; }
-.rows li span:last-child { font-variant-numeric: tabular-nums; font-weight: 600; }
-.rows li.total { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 4px; font-weight: 700; }
-.stub .fine { font-size: 12px; color: var(--muted); }
-
-section.block { padding-block: 56px; border-top: 1px solid var(--line); }
-section.block > h2 { font-size: clamp(26px, 4vw, 38px); font-weight: 800; max-width: 22ch; }
-.steps { margin-top: 28px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; counter-reset: s; list-style: none; padding: 0; }
-.steps li { display: grid; gap: 8px; align-content: start; }
-.steps li::before { counter-increment: s; content: counter(s); font-family: var(--font-display); font-weight: 800; font-size: 20px; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: var(--chip); color: var(--accent); }
-.steps h3 { font-size: 19px; font-weight: 600; }
-.steps p { color: var(--muted); }
-
-.why { margin-top: 28px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.why div { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: grid; gap: 6px; }
-.why h3 { font-size: 18px; font-weight: 600; }
-.why p { color: var(--muted); font-size: 15px; }
-
-.places { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 8px; }
-.places span { background: var(--chip); padding: 8px 14px; border-radius: 999px; font-size: 14px; font-weight: 500; }
-
-.final { text-align: left; display: grid; gap: 14px; }
-.final p { color: var(--muted); max-width: 54ch; }
-footer { padding-block: 32px 48px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
-
-@media (max-width: 760px) {
-  .hero { grid-template-columns: minmax(0, 1fr); gap: 28px; padding-block: 16px 40px; }
-  .steps, .why { grid-template-columns: minmax(0, 1fr); }
-  section.block { padding-block: 40px; }
-}
-@media (prefers-reduced-motion: no-preference) {
-  .stub { animation: rise .5s ease both .1s; }
-  @keyframes rise { from { transform: translateY(10px); opacity: .3; } to { transform: none; opacity: 1; } }
-}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font:16px/1.55 var(--body);-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--display);font-weight:800;letter-spacing:-.02em;line-height:1.02;margin:0;text-wrap:balance}
+p{margin:0}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--gold);outline-offset:3px;border-radius:6px}
+.wrap{max-width:1200px;margin-inline:auto;padding-inline:clamp(16px,4vw,40px)}
+.num{font-variant-numeric:tabular-nums}
+.nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:22px}
+.nav img{height:52px;width:auto;display:block}
+.nav .links{display:flex;gap:28px;align-items:center;font-weight:500}
+.nav .links a:not(.btn){text-decoration:none;opacity:.85}
+.dark{color:var(--on)}
+@media (max-width:860px){.nav .links a:not(.btn){display:none}.nav img{height:42px}}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:0 24px;border-radius:14px;border:0;background:var(--gold);color:var(--deep);font-weight:700;font-size:16px;text-decoration:none;transition:transform .15s,filter .15s}
+.btn:hover{filter:brightness(1.05);transform:translateY(-1px)}
+.btn.sm{min-height:44px;font-size:15px;padding:0 18px}
+.btn.ghost{background:transparent;color:var(--on);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.45)}
+.btn.deep{background:var(--deep);color:var(--on)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;font-weight:700;font-size:14px}
+.pill.ok{background:var(--ok);color:var(--on)}
+.pill.gold{background:var(--gold);color:var(--deep)}
+.pill.white{background:var(--surf);color:var(--deep)}
+.kick{font:700 13px/1 var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--acc)}
+.dark .kick{color:var(--gold)}
+.gold{color:var(--gold)}
+.photo{position:relative;background:var(--deep) center/cover no-repeat;isolation:isolate}
+.photo::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,rgba(13,53,50,.97) 0%,rgba(13,53,50,.82) 45%,rgba(13,53,50,.15) 100%),linear-gradient(180deg,rgba(13,53,50,0) 55%,rgba(13,53,50,.7) 100%)}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.9fr);gap:56px;align-items:center;padding-block:40px 96px}
+.hero h1{font-size:clamp(44px,6vw,76px);margin-top:22px}
+.hero .lead{font-size:20px;opacity:.85;max-width:34ch;margin-top:22px}
+.hero .ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}
+.hero small{display:block;margin-top:14px;opacity:.6}
+.example{background:var(--surf);color:var(--ink);border-radius:28px;padding:30px;box-shadow:0 30px 70px rgba(0,0,0,.28);display:grid;gap:14px}
+.example .big{display:flex;align-items:baseline;gap:8px}
+.example .big span{font:700 22px var(--display);color:var(--mut)}
+.example .big small{font:500 14px var(--body);color:var(--mut)}
+.example .big strong{font:800 52px/1 var(--display);letter-spacing:-.03em}
+.example h3{font-size:27px}
+.bar{display:flex;height:12px;border-radius:6px;overflow:hidden}
+.rows{display:grid;gap:8px}
+.row{display:grid;grid-template-columns:10px 1fr auto;gap:12px;align-items:center;font-size:15px}
+.row i{width:10px;height:10px;border-radius:50%}
+.total{display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid var(--line);padding-top:12px;font-weight:600}
+.total strong{font:800 22px var(--display);color:var(--acc)}
+.fine{font-size:12px;color:var(--mut)}
+@media (max-width:900px){.hero-grid{grid-template-columns:1fr;gap:40px;padding-block:24px 64px}}
+section.block{padding-block:96px}
+.head{display:grid;gap:12px;margin-bottom:40px;max-width:760px}
+.head h2{font-size:clamp(34px,4vw,48px)}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px}
+.step{background:var(--surf);border-radius:24px;overflow:hidden}
+.step img{width:100%;aspect-ratio:5/3;object-fit:cover;display:block}
+.step div{padding:24px 26px 28px;display:grid;gap:8px}
+.step .n{font:800 15px var(--display);color:var(--goldink);background:var(--goldbg);border-radius:999px;padding:4px 10px;justify-self:start}
+.step h3{font-size:24px}
+.step p{color:var(--mut)}
+.deepbg{background:var(--deep);color:var(--on)}
+.bens{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:32px}
+.ben{display:grid;gap:12px;align-content:start}
+.ben .ic{width:52px;height:52px;border-radius:50%;background:var(--gold);color:var(--deep);display:grid;place-items:center}
+.ben h3{font-size:22px}
+.ben p{opacity:.75}
+@media (max-width:900px){.steps,.bens{grid-template-columns:1fr 1fr}section.block{padding-block:64px}}
+@media (max-width:560px){.steps,.bens{grid-template-columns:1fr}}
+.dest{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:210px 210px;gap:18px}
+.card{position:relative;border-radius:20px;overflow:hidden;background:var(--deep) center/cover;color:var(--on);display:flex;align-items:flex-end;padding:20px;min-height:150px;isolation:isolate;text-decoration:none}
+.card::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(13,53,50,0) 35%,rgba(13,53,50,.92) 100%)}
+.card h3{font:700 22px/1.1 var(--display)}
+.card span{display:block;color:var(--gold);font-weight:600;font-size:15px;margin-top:4px}
+.dest .card:first-child{grid-row:span 2}
+.dest .card:first-child h3{font-size:32px}
+.chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.chip{background:var(--chip);border-radius:999px;padding:9px 16px;font-weight:600;font-size:15px}
+@media (max-width:760px){.dest{grid-template-columns:1fr 1fr;grid-template-rows:auto}.dest .card{min-height:180px}.dest .card:first-child{grid-column:span 2;grid-row:auto;min-height:260px}}
+.top-offer{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);border-radius:32px;overflow:hidden;background:var(--deep);color:var(--on)}
+.top-offer .txt{padding:56px;display:grid;gap:18px;align-content:center}
+.top-offer h2{font-size:clamp(32px,3.6vw,44px)}
+.top-offer .pic{background:var(--deep) center/cover;min-height:320px;position:relative}
+.top-offer .pic::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,var(--deep) 0%,rgba(13,53,50,0) 45%)}
+.checks{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.checks li{display:flex;gap:10px;align-items:center;font-weight:500}
+.checks svg{flex:none}
+.price{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.price strong{font:800 40px var(--display);color:var(--gold)}
+.price span{opacity:.7}
+@media (max-width:860px){.top-offer{grid-template-columns:1fr}.top-offer .txt{padding:32px}.top-offer .pic{order:-1;min-height:220px}.top-offer .pic::before{background:linear-gradient(0deg,var(--deep) 0%,rgba(13,53,50,0) 60%)}}
+.final{background:var(--goldbg);border-radius:32px;padding:64px 32px;text-align:center;display:grid;gap:18px;justify-items:center}
+.final h2{font-size:clamp(30px,3.6vw,46px);max-width:18ch}
+.final p{color:var(--mut);font-size:19px}
+footer{background:var(--deep);color:var(--on);padding-block:40px;margin-top:96px}
+footer .wrap{display:flex;justify-content:space-between;gap:24px;align-items:center;flex-wrap:wrap}
+footer img{height:46px;width:auto}
+footer p{font-size:13px;opacity:.65;max-width:62ch}
+@media (prefers-reduced-motion:reduce){.btn{transition:none}}
 </style>
 <!-- Meta Pixel Code -->
 <script>
@@ -125,85 +150,100 @@ src="https://www.facebook.com/tr?id=1648295673479841&ev=PageView&noscript=1"
 <!-- End Meta Pixel Code -->
 </head>
 <body>
-<div class="wrap">
-  <nav>
-    <a class="logo" href="#"><img class="logo-claro" src="/marca/logo.png" alt="Vai Dar Viagem" width="144" height="50"><img class="logo-escuro" src="/marca/logo-escuro.png" alt="Vai Dar Viagem" width="144" height="50"></a>
-    <span class="tag">Em breve</span>
-  </nav>
-
-  <header class="hero">
-    <div>
-      <span class="eyebrow">Planejador de viagens pelo orçamento</span>
-      <h1 style="margin-top:12px">Diga quanto quer gastar. A gente diz <em>se dá</em>.</h1>
-      <p class="lead">Você informa o valor e a gente monta a viagem completa: passagem, hotel, comida e passeios. E diz se vai dar, antes de você gastar um centavo.</p>
-      <div class="cta">
-        <a class="btn" href="/app/">Planejar minha viagem</a>
-        <small>Lançamento em breve para todo o Brasil.</small>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="okc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 12.5l3 3 5-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="flag" viewBox="0 0 24 24"><path d="M5 21V4h11l-2 4 2 4H5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+</svg>
+<header class="photo hero dark" style="background-image:url(/img/capa.jpg)">
+  <div class="wrap">
+    <nav class="nav"><a href="/"><img src="/marca/logo-escuro.png" alt="Vai Dar Viagem" width="149" height="52"></a><div class="links"><a href="#como-funciona">Como funciona</a><a href="#destinos">Destinos</a><a class="btn sm" href="/app/">Planejar minha viagem</a></div></nav>
+    <div class="hero-grid">
+      <div>
+        <span class="pill white">Planejador de viagens pelo orçamento</span>
+        <h1>Diga quanto quer gastar. A gente diz <span class="gold">se dá.</span></h1>
+        <p class="lead">Você informa o valor e a gente monta a viagem completa: passagem, hotel, comida e passeios. E diz se vai dar, antes de você gastar um centavo.</p>
+        <div class="ctas"><a class="btn" href="/app/">Planejar minha viagem</a><a class="btn ghost" href="#exemplo">Ver um exemplo</a></div>
+        <small>Grátis para simular. Sem cadastro.</small>
       </div>
+      <aside class="example" id="exemplo" aria-label="Exemplo de veredito">
+        <p class="fine" style="font-size:14px">Exemplo: São Paulo para Salvador, 5 noites, 2 pessoas</p>
+        <div class="big num"><span>R$</span><strong>7.000</strong><small>de orçamento</small></div>
+        <span class="pill ok" style="justify-self:start">Vai dar viagem</span>
+        <h3>Dá para ir e ainda sobra R$ 980</h3>
+        <div class="bar"><i style="flex:1910;background:var(--deep)"></i><i style="flex:1500;background:var(--gold)"></i><i style="flex:1400;background:var(--acc)"></i><i style="flex:720;background:#9DB5B1"></i><i style="flex:490;background:#C9D6D3"></i></div>
+        <div class="rows num">
+          <div class="row"><i style="background:var(--deep)"></i>Passagem aérea<b>R$ 1.910</b></div>
+          <div class="row"><i style="background:var(--gold)"></i>Hospedagem<b>R$ 1.500</b></div>
+          <div class="row"><i style="background:var(--acc)"></i>Alimentação<b>R$ 1.400</b></div>
+          <div class="row"><i style="background:#9DB5B1"></i>Passeios<b>R$ 720</b></div>
+          <div class="row"><i style="background:#C9D6D3"></i>Transporte local<b>R$ 490</b></div>
+        </div>
+        <div class="total num">Custo estimado<strong>R$ 6.020</strong></div>
+        <p class="fine">Valores ilustrativos. No app, passagem e hotel vêm de preços reais dos parceiros.</p>
+      </aside>
     </div>
+  </div>
+</header>
 
-    <aside class="stub" aria-label="Exemplo de resultado">
-      <span class="eyebrow">Exemplo · São Paulo → Salvador · 5 noites · 2 pessoas</span>
-      <div class="ask">R$ 7.000 <small>de orçamento</small></div>
-      <span class="pill">Vai dar viagem</span>
-      <h3>Dá para ir e ainda sobra R$ 980</h3>
-      <ul class="rows">
-        <li><span>Passagem aérea</span><span>R$ 1.910</span></li>
-        <li><span>Hospedagem</span><span>R$ 1.500</span></li>
-        <li><span>Alimentação</span><span>R$ 1.400</span></li>
-        <li><span>Passeios</span><span>R$ 720</span></li>
-        <li><span>Transporte local</span><span>R$ 490</span></li>
-        <li class="total"><span>Custo estimado</span><span>R$ 6.020</span></li>
+<main>
+<section class="block wrap" id="como-funciona">
+  <div class="head"><span class="kick">Como funciona</span><h2>Três passos, do orçamento à reserva</h2></div>
+  <div class="steps">
+    <article class="step"><img src="/img/janela.jpg" alt="" loading="lazy"><div><span class="n">Passo 1</span><h3>Coloque o valor</h3><p>Quanto quer gastar no total, de onde sai, as datas, quantas pessoas e o que vocês curtem. O destino é opcional.</p></div></article>
+    <article class="step"><img src="/img/pisc.jpg" alt="" loading="lazy"><div><span class="n">Passo 2</span><h3>Receba o veredito</h3><p>Vai dar, vai dar no aperto ou não vai dar, com quanto sobra ou falta e para onde vai cada real.</p></div></article>
+    <article class="step"><img src="/img/hotel.jpg" alt="" loading="lazy"><div><span class="n">Passo 3</span><h3>Reserve com os parceiros</h3><p>Passagens e hotéis com preço real nos sites parceiros. O roteiro dia a dia fica pronto para a viagem.</p></div></article>
+  </div>
+</section>
+
+<section class="block deepbg dark">
+  <div class="wrap">
+    <div class="head"><span class="kick">Por que é diferente</span><h2>Começa pelo seu dinheiro, não pelo destino</h2></div>
+    <div class="bens">
+      <div class="ben"><span class="ic"><svg width="24" height="24"><use href="#okc"/></svg></span><h3>Veredito claro</h3><p>Nada de descobrir no meio da reserva que estourou. Você sabe antes se a viagem cabe.</p></div>
+      <div class="ben"><span class="ic"><svg width="24" height="24"><use href="#flag"/></svg></span><h3>Feito para quem viaja do Brasil</h3><p>Tudo em reais, com voos saindo das principais capitais brasileiras.</p></div>
+      <div class="ben"><span class="ic"><svg width="24" height="24"><use href="#search"/></svg></span><h3>Sem destino definido?</h3><p>A gente sugere os lugares que cabem no seu orçamento e combinam com o seu estilo.</p></div>
+      <div class="ben"><span class="ic"><svg width="24" height="24"><use href="#cal"/></svg></span><h3>Roteiro dia a dia</h3><p>Passeios escolhidos para caber na verba, com dicas para economizar em cada destino.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block wrap" id="destinos">
+  <div class="head"><span class="kick">Destinos</span><h2>Praias, serras e capitais da América do Sul e além</h2></div>
+  <div class="dest">
+    <a class="card" href="/app/" style="background-image:url(/img/capa.jpg)"><div><h3>Maceió</h3><span>Alagoas</span></div></a>
+    <a class="card" href="/app/" style="background-image:url(/img/feira.jpg)"><div><h3>Salvador</h3><span>Bahia</span></div></a>
+    <a class="card" href="/app/" style="background-image:url(/img/praia2.jpg)"><div><h3>Porto de Galinhas</h3><span>Pernambuco</span></div></a>
+    <a class="card" href="/app/" style="background-image:url(/img/frances.jpg)"><div><h3>Natal</h3><span>Rio Grande do Norte</span></div></a>
+    <a class="card" href="/app/" style="background-image:url(/img/noite.jpg)"><div><h3>Rio de Janeiro</h3><span>Rio de Janeiro</span></div></a>
+  </div>
+  <div class="chips"><span class="chip">Fortaleza</span><span class="chip">Florianópolis</span><span class="chip">Gramado</span><span class="chip">Foz do Iguaçu</span><span class="chip">Bonito</span><span class="chip">Jericoacoara</span><span class="chip">Porto Seguro</span><span class="chip">Paraty</span><span class="chip">Búzios</span><span class="chip">Ouro Preto</span><span class="chip">Buenos Aires</span><span class="chip">Santiago</span><span class="chip">Montevidéu</span><span class="chip">Lisboa</span><span class="chip">Paris</span><span class="chip">Orlando</span><span class="chip">Tóquio</span><span class="chip">e mais de 100</span></div>
+</section>
+
+<section class="wrap">
+  <div class="top-offer">
+    <div class="txt">
+      <span class="pill gold" style="justify-self:start">Roteiro Detalhado</span>
+      <h2>Um roteiro dia a dia com o seu nome</h2>
+      <ul class="checks">
+        <li><svg width="22" height="22" class="gold"><use href="#check"/></svg>Horário de cada lugar e como chegar</li>
+        <li><svg width="22" height="22" class="gold"><use href="#check"/></svg>Fotos dos lugares principais</li>
+        <li><svg width="22" height="22" class="gold"><use href="#check"/></svg>Gasto previsto e segurança da área de cada dia</li>
+        <li><svg width="22" height="22" class="gold"><use href="#check"/></svg>PDF com a nossa marca para levar na viagem</li>
       </ul>
-      <p class="fine">Valores ilustrativos. No app, passagem e hotel vêm de preços reais dos parceiros.</p>
-    </aside>
-  </header>
-
-  <section class="block" id="como-funciona">
-    <span class="eyebrow">Como funciona</span>
-    <h2 style="margin-top:10px">Três passos, do orçamento à reserva</h2>
-    <ol class="steps">
-      <li><h3>Coloque o valor</h3><p>Quanto quer gastar no total, de onde sai, as datas, quantas pessoas e o que vocês curtem. O destino é opcional.</p></li>
-      <li><h3>Receba o veredito</h3><p>Vai dar, vai dar no aperto ou não vai dar, com quanto sobra ou falta e para onde vai cada real. Se não couber, mostramos o que cabe.</p></li>
-      <li><h3>Reserve com os parceiros</h3><p>Passagens e hotéis com preço real nos sites parceiros. O roteiro dia a dia fica pronto para a viagem.</p></li>
-    </ol>
-  </section>
-
-  <section class="block">
-    <span class="eyebrow">Por que é diferente</span>
-    <h2 style="margin-top:10px">Começa pelo seu dinheiro, não pelo destino</h2>
-    <div class="why">
-      <div><h3>Veredito claro</h3><p>Nada de descobrir no meio da reserva que estourou. Você sabe antes se a viagem cabe.</p></div>
-      <div><h3>Feito para quem viaja do Brasil</h3><p>Tudo em reais, com voos saindo das principais capitais brasileiras.</p></div>
-      <div><h3>Sem destino definido? Sem problema</h3><p>A gente sugere os lugares que cabem no seu orçamento e combinam com o seu estilo.</p></div>
-      <div><h3>Roteiro dia a dia</h3><p>Passeios escolhidos para caber na verba, com dicas para economizar em cada destino.</p></div>
+      <div class="price"><strong>R$ 9,90</strong><span>pagamento único no Pix</span></div>
     </div>
-  </section>
+    <div class="pic" style="background-image:url(/img/comida.jpg)"></div>
+  </div>
+</section>
 
-  <section class="block">
-    <span class="eyebrow">Destinos no lançamento</span>
-    <h2 style="margin-top:10px">Praias, serras e capitais da América do Sul e além</h2>
-    <div class="places">
-      <span>Rio de Janeiro</span><span>Salvador</span><span>Porto de Galinhas</span><span>Fortaleza</span><span>Natal</span>
-      <span>Maceió</span><span>Florianópolis</span><span>Gramado</span><span>Foz do Iguaçu</span><span>Bonito</span>
-      <span>Jericoacoara</span><span>Porto Seguro</span><span>Paraty</span><span>Ubatuba</span><span>Campos do Jordão</span>
-      <span>Búzios</span><span>Arraial do Cabo</span><span>Ouro Preto</span><span>Pirenópolis</span><span>Chapada dos Veadeiros</span>
-      <span>Balneário Camboriú</span><span>Praia do Forte</span><span>Canoa Quebrada</span><span>Salinópolis</span><span>Presidente Figueiredo</span><span>Buenos Aires</span><span>Santiago</span><span>Montevidéu</span>
-      <span>Lima</span><span>Cancún</span><span>Lisboa</span><span>Orlando</span><span>Paris</span><span>Tóquio</span>
-    </div>
-  </section>
-
-  <section class="block final">
-    <span class="eyebrow">Em breve</span>
-    <h2>Sua próxima viagem, do tamanho do seu bolso</h2>
-    <p>O Vai Dar Viagem está em fase de testes e chega em breve. Planeje sem susto: primeiro o orçamento, depois a mala.</p>
-  </section>
-
-  <footer>
-    <span>© 2026 Vai Dar Viagem</span>
-    <span>Preços de passagens e hotéis fornecidos por parceiros. Alguns links podem gerar comissão, sem custo extra para você.</span>
-  </footer>
-</div>
+<section class="block wrap" style="padding-bottom:0">
+  <div class="final"><h2>Sua próxima viagem, do tamanho do seu bolso</h2><p>Planeje sem susto: primeiro o orçamento, depois a mala.</p><a class="btn deep" href="/app/">Planejar minha viagem</a></div>
+</section>
+</main>
+<footer><div class="wrap"><img src="/marca/logo-escuro.png" alt="Vai Dar Viagem" width="132" height="46"><p>Preços de passagens e hotéis fornecidos por parceiros. Alguns links podem gerar comissão, sem custo extra para você. © 2026 Vai Dar Viagem. <a href="/privacidade.html">Política de privacidade</a>.</p></div></footer>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});</script>
 </body>
 </html>

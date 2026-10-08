@@ -498,14 +498,15 @@ function render(fresh) {
         }).join("")
         : opcoesHtml(state.opcoes, c)}
     </section>` : ""}
-    <section class="card">
+    <section class="card dinheiro">
       <h3>Para onde vai o dinheiro</h3>
       <div class="bar" role="img" aria-label="Divisão do custo por categoria">${c.itens.map((it, i) => `<i style="width:${it.valor / sum * 100}%;background:${COLORS[i]}"></i>`).join("")}</div>
       <ul class="legend">${c.itens.map((it, i) => `<li><span class="sw" style="background:${COLORS[i]}"></span><span>${esc(it.categoria)}<small>${esc(it.detalhe)}</small></span><span class="v">${brl(it.valor)}</span></li>`).join("")}</ul>
     </section>
     ${viagem ? cartoesViagem(c, f) : `<div class="two">
-      <section class="card">${cartaoPassagem(c, f, L)}</section>
-      <section class="card">
+      <section class="card${c.meio ? " bilhete" : ""}">${cartaoPassagem(c, f, L)}</section>
+      <section class="card hotel">
+        <img class="card-foto" src="/img/hotel.jpg" alt="" loading="lazy">
         <span class="eyebrow">Hospedagem · estimativa</span>
         <div class="kv"><span class="price">${brl(c.diaria)}<small style="font-size:13px;font-weight:500"> /noite por quarto</small></span><p>Média para o estilo ${ESTILOS[f.estilo]}</p></div>
         <a class="link" href="${esc(L.hotels)}" target="_blank" rel="noopener sponsored">Ver hotéis na Booking ↗</a>
