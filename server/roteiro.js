@@ -7,7 +7,8 @@ import { acharDestino, norm } from "../public/lib/custo.js";
 import { lerCache, gravarCache } from "./cache.js";
 import { comFotos } from "./fotos.js";
 import { EntradaInvalida } from "./veredito.js";
-import { buscarLugares, montarComGemini, linkDoMaps, achaNoMaps, fontesDoMaps, ErroGemini } from "./gemini.js";
+import { buscarLugares, montarComGemini, linkDoMaps, achaNoMaps, fontesDoMaps, ErroGemini, MODELO_GEMINI } from "./gemini.js";
+import { novoUso, registrarUso } from "./uso.js";
 
 // Claude: reserva quando o Gemini (server/gemini.js) falha ou não tem chave.
 // Sonnet conhece muito mais restaurantes e atrações reais por bairro que o Haiku (que inventava nomes).
@@ -344,6 +345,40 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null, fet
   const chave = chaveDe(completo ? { k: "top2", nm: norm(p.nome) } : {});
   const guardado = await lerCache(chave);
   if (guardado) return { ...guardado, cache: true };
+  // Tokens de cada chamada à IA, somados e registrados no fim (deu certo ou não: o gasto aconteceu).
+  const uso = novoUso();
+  let resultado = "erro";
+  try {
+    const r = await gerarNovo(p, chave, chaveDe, env, medirClaude(client, env, uso), ip, medirGemini(fetchFn, uso), { fotosFetch, prazoMs });
+    resultado = "ok";
+    return r;
+  } finally {
+    await registrarUso(uso, { tipo: completo ? "detalhado" : "gratis", resultado }, env).catch(() => {});
+  }
+}
+
+// Gemini: lê o usageMetadata de cada resposta (numa cópia, sem mexer na leitura normal).
+const medirGemini = (fetchFn, uso) => async (url, init) => {
+  const r = await fetchFn(url, init);
+  if (String(url).includes("generativelanguage") && r?.clone) {
+    try { uso.gemini(MODELO_GEMINI, (await r.clone().json())?.usageMetadata); } catch {}
+  }
+  return r;
+};
+// Claude: o mesmo cliente, anotando o usage de cada resposta. Sem cliente nem chave, null.
+function medirClaude(client, env, uso) {
+  const base = client || (env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }) : null);
+  if (!base) return null;
+  return { messages: { parse: async (pedido, opcoes) => {
+    const r = await base.messages.parse(pedido, opcoes);
+    uso.claude(pedido.model, r?.usage);
+    return r;
+  } } };
+}
+
+// Roteiro novo (fora do cache): Gemini primeiro, Claude de reserva, dentro do prazo.
+async function gerarNovo(p, chave, chaveDe, env, client, ip, fetchFn, { fotosFetch, prazoMs }) {
+  const completo = p.completo;
   const ate = Date.now() + prazoMs;
   if (completo) {
     const simples = await lerCache(chaveDe({}));
@@ -382,7 +417,7 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null, fet
     if (resta(ate) < MIN_TENTATIVA_MS) throw demorou();
     const t0 = Date.now();
     try {
-      roteiro = await comClaude(p, client || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }), ate);
+      roteiro = await comClaude(p, client, ate);
     } catch (e) {
       console.error(`roteiro: Claude falhou em ${Math.round((Date.now() - t0) / 1000)} s:`, e?.message);
       if (e instanceof Anthropic.APIConnectionTimeoutError) throw demorou();
