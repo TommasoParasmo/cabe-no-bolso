@@ -96,12 +96,20 @@ const chavePedido = id => `pedido:${String(id).toUpperCase()}`;
 
 export class PedidoNaoGuardado extends Error {}
 
-export async function guardarPedido(id, { pedido, viagem }, env) {
+// A consulta da order no Mercado Pago não devolve o e-mail de quem pagou. Guardamos só um código
+// (SHA-256 do número do pedido com o e-mail), que confere o e-mail digitado sem permitir descobrir qual é.
+async function codigoEmail(id, email) {
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${String(id).toUpperCase()}:${String(email).trim().toLowerCase()}`));
+  return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+export async function guardarPedido(id, { pedido, viagem, email }, env) {
   if (!env?.LEADS) return false;
   const tela = viagem && typeof viagem === "object" ? viagem : null;
-  let valor = JSON.stringify({ pedido, viagem: tela, criado: new Date().toISOString() });
+  const base = { pedido, conferir: await codigoEmail(id, email), criado: new Date().toISOString() };
+  let valor = JSON.stringify({ ...base, viagem: tela });
   // Tela grande demais (não deveria acontecer) não entra; o pedido sozinho ainda refaz o roteiro.
-  if (valor.length > MAX_GUARDADO) valor = JSON.stringify({ pedido, viagem: null, criado: new Date().toISOString() });
+  if (valor.length > MAX_GUARDADO) valor = JSON.stringify({ ...base, viagem: null });
   await env.LEADS.put(chavePedido(id), valor, { expirationTtl: GUARDA_DIAS * 86400 });
   return true;
 }
@@ -121,15 +129,18 @@ export async function recuperarPedido(body, env, fetchFn = globalThis.fetch) {
   const id = String(body?.id ?? "").trim().toUpperCase();
   const email = String(body?.email ?? "").trim().toLowerCase();
   // Mesma resposta para pedido inexistente e e-mail diferente: não revela se um número existe.
-  const naoAchou = () => new PixInvalido("Não achamos um pedido com esse número e esse e-mail. Confira os dois.");
+  const naoAchou = () => new PixInvalido("Não achamos um pedido com esse número e esse e-mail. Confira os dois ou escreva para contato@vaidarviagem.com.br.");
   if (email.length > 254 || !EMAIL.test(email)) throw naoAchou();
   let o;
   try { o = await lerOrder(id, env, fetchFn); } catch (e) { throw e instanceof PixInvalido ? naoAchou() : e; }
-  if (String(o.payer?.email ?? "").trim().toLowerCase() !== email) throw naoAchou();
-  if (!pago(o)) throw new PixNaoPago("Esse pedido ainda não foi pago. Se você acabou de pagar, espere um minuto e tente de novo.");
+  // Sem o pedido guardado não dá para conferir o e-mail: mesma resposta, para não revelar se o número existe.
   const guardado = await env.LEADS?.get(chavePedido(id), "json").catch(() => null);
-  const semGuarda = new PedidoNaoGuardado("Achamos o pagamento, mas o pedido não está mais guardado. Escreva para contato@vaidarviagem.com.br com o número do pedido.");
-  if (!guardado?.pedido) throw semGuarda;
-  if (await referencia(guardado.pedido).catch(() => null) !== o.external_reference) throw semGuarda;
+  if (!guardado?.pedido || guardado.conferir !== await codigoEmail(id, email)) throw naoAchou();
+  // Se o Mercado Pago devolver o e-mail, ele também tem que bater.
+  if (o.payer?.email && String(o.payer.email).trim().toLowerCase() !== email) throw naoAchou();
+  if (!pago(o)) throw new PixNaoPago("Esse pedido ainda não foi pago. Se você acabou de pagar, espere um minuto e tente de novo.");
+  if (await referencia(guardado.pedido).catch(() => null) !== o.external_reference) {
+    throw new PedidoNaoGuardado("Achamos o pagamento, mas não o pedido. Escreva para contato@vaidarviagem.com.br com o número do pedido.");
+  }
   return { pedido: guardado.pedido, viagem: guardado.viagem || null };
 }

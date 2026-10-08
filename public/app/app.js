@@ -8,11 +8,17 @@ const COLORS = ["var(--accent)", "var(--sun)", "#7A8FD6", "#D96C8A", "#6FB58C", 
 const ESTADO = { cabe: "Vai dar viagem", apertado: "Vai dar, no aperto", nao_cabe: "Não vai dar" };
 
 const iso = d => d.toISOString().slice(0, 10);
+const noitesTxt = n => `${n} ${n > 1 ? "noites" : "noite"}`;
 (function init() {
   $("origem").innerHTML = ORIGENS.map(o => `<option>${esc(o.n)}</option>`).join("");
   const a = new Date(); a.setDate(a.getDate() + 45);
   const b = new Date(a); b.setDate(b.getDate() + 5);
   $("ida").value = iso(a); $("volta").value = iso(b);
+  // Ida a partir de amanhã (a API também recusa data passada).
+  const amanha = new Date(); amanha.setDate(amanha.getDate() + 1);
+  // Data local (iso() é em UTC e, à noite no Brasil, pularia um dia).
+  const local = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  $("ida").min = local(amanha); $("volta").min = local(amanha);
   // Datas flexíveis: os próximos 12 meses, começando pelo mês da ida padrão.
   const meses = Array.from({ length: 12 }, (_, i) => new Date(new Date().getFullYear(), new Date().getMonth() + i, 1));
   $("mes").innerHTML = meses.map(m => {
@@ -245,7 +251,9 @@ let visiveis = [], ativa = -1;
 function abrirLista() {
   const q = norm($("destino").value);
   visiveis = OPCOES.filter(o => !escolhidos.includes(o.v) && (!q || norm(o.v).includes(q) || norm(o.nota).includes(q)));
-  ativa = q && visiveis.length ? 0 : -1;
+  // Nome exato ("Porto") é o escolhido no Enter, não o primeiro que contém o texto ("Porto de Galinhas").
+  const exato = visiveis.findIndex(o => norm(o.v) === q);
+  ativa = q && visiveis.length ? Math.max(0, exato) : -1;
   let grupo = "";
   $("sugestoes").innerHTML = visiveis.length ? visiveis.map((o, i) => {
     const titulo = o.grupo !== grupo ? `<li class="grupo" role="presentation">${grupo = o.grupo}</li>` : "";
@@ -275,7 +283,8 @@ $("sugestoes").addEventListener("mousedown", e => {
   if (!li) return;
   e.preventDefault();
   addDestino(visiveis[Number(li.dataset.i)].v);
-  abrirLista();
+  // Fecha a lista: aberta, ela cobria "Comparar / Visitar todos" e "me sugira destinos".
+  fecharLista();
 });
 $("destino").addEventListener("keydown", e => {
   const aberta = !$("sugestoes").hidden;
@@ -290,7 +299,7 @@ $("destino").addEventListener("keydown", e => {
     if (!v) return;
     e.preventDefault();
     addDestino(v);
-    abrirLista();
+    fecharLista();
   } else if (e.key === "Escape") fecharLista();
 });
 
@@ -475,9 +484,9 @@ function render(fresh) {
   r.innerHTML = `
     <article class="verdict" data-state="${quase(c) ? "quase" : c.estado}">
       <span class="pill">${quase(c) ? "Com mais um pouquinho" : ESTADO[c.estado]}</span>
-      <div class="eyebrow">${viagem ? `Viagem por ${c.paradas.length} cidades · ${c.paradas.map(p => `${esc(p.n)} (${p.noites})`).join(" → ")}` : `${quase(c) ? "Mais perto do seu orçamento · " : state.modo === "sugestao" ? "Nossa sugestão · " : comparar ? "Melhor entre os escolhidos · " : ""}${esc(c.destino.n)}, ${esc(c.destino.p)}`} · ${f.noites} noites · ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} · ${ESTILOS[f.estilo]}</div>
+      <div class="eyebrow">${viagem ? `Viagem por ${c.paradas.length} cidades · ${c.paradas.map(p => `${esc(p.n)} (${p.noites})`).join(" → ")}` : `${quase(c) ? "Mais perto do seu orçamento · " : state.modo === "sugestao" ? "Nossa sugestão · " : comparar ? "Melhor entre os escolhidos · " : ""}${esc(c.destino.n)}, ${esc(c.destino.p)}`} · ${noitesTxt(f.noites)} · ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} · ${ESTILOS[f.estilo]}</div>
       <h2>${manchete}</h2>
-      ${e.flexivel ? `<p class="datas-achadas">${viagem ? `Datas de exemplo: ${dataCurta(f.ida)} a ${dataCurta(f.volta)}. Na viagem por várias cidades ainda não buscamos os dias mais baratos.` : c.ida ? `Dias mais baratos que achamos: ${dataCurta(c.ida)} a ${dataCurta(c.volta)}` : c.meio === "onibus" ? `De ônibus o preço quase não muda com a data. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.` : `Ainda não há preço de voo com ${f.noites} noites nesse mês. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.`}</p>` : ""}
+      ${e.flexivel ? `<p class="datas-achadas">${viagem ? `Datas de exemplo: ${dataCurta(f.ida)} a ${dataCurta(f.volta)}. Na viagem por várias cidades ainda não buscamos os dias mais baratos.` : c.ida ? `Dias mais baratos que achamos: ${dataCurta(c.ida)} a ${dataCurta(c.volta)}` : c.meio === "onibus" ? `De ônibus o preço quase não muda com a data. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.` : `Ainda não há preço de voo com ${noitesTxt(f.noites)} nesse mês. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.`}</p>` : ""}
       ${ajuste ? `<p>${ajuste}</p>` : c.estado === "apertado" ? "<p>Sobra pouco para imprevistos. Vale comprar a passagem logo, antes de o preço subir.</p>" : ""}
       ${state.modo === "destino" && c.estado === "nao_cabe" && !c.perto && state.mudancas?.length ? `<ul class="mudancas">${state.mudancas.map(m => `<li>${esc(m.texto)}: ${brl(m.total)} · ${m.estado !== "nao_cabe" ? "<b>cabe</b>" : `ainda faltam ${brl(-m.diff)}`}</li>`).join("")}</ul>` : ""}
       <div class="nums">
@@ -990,6 +999,7 @@ $("form").addEventListener("submit", e => {
   e.preventDefault();
   // Sem destino, as sugestões só vêm pelo botão "me sugira destinos".
   if (!lerForm().destinos.length) {
+    evento("TentouSemDestino", { orcamento: lerForm().orcamento });
     return setStatus("Escolha um destino ou toque em “me sugira destinos”.", true);
   }
   calcularEMostrar();
@@ -1050,7 +1060,7 @@ function renderSalvas() {
 }
 async function compartilhar() {
   const { entrada: e, atual: c } = state; const f = comDatas(e, c);
-  const texto = `${c.destino.n}: ${quase(c) ? `com mais ${brl(-c.diff)} vai dar viagem` : ESTADO[c.estado]}. ${f.noites} noites para ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} por cerca de ${brl(c.total)}. Simule a sua viagem:`;
+  const texto = `${c.destino.n}: ${quase(c) ? `com mais ${brl(-c.diff)} vai dar viagem` : ESTADO[c.estado]}. ${noitesTxt(f.noites)} para ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} por cerca de ${brl(c.total)}. Simule a sua viagem:`;
   const url = "https://vaidarviagem.com.br/app/";
   try {
     const Share = plugin("Share");
@@ -1088,6 +1098,26 @@ $("rec-form").addEventListener("submit", async ev => {
   } catch (e) { aviso(e.message, true); }
   finally { parar(); botao.disabled = false; }
 });
+
+// ---- Formulário preenchido pelo link (anúncios): ?destino=Maceió&orcamento=2000&pessoas=1&estilo=economico ----
+// destino aceita vários separados por vírgula; estilo aceita 0/1/2 ou economico/equilibrado/conforto; origem é a cidade de saída.
+// Com destino e orçamento no link, o resultado já aparece, sem a pessoa precisar rolar até o botão.
+(function preencherPeloLink() {
+  const q = new URLSearchParams(location.search);
+  const orc = Number(String(q.get("orcamento") || "").replace(/\D/g, ""));
+  if (orc >= 100) { $("orcamento").value = orc.toLocaleString("pt-BR"); marcarFaixa(); }
+  const pessoas = Number(q.get("pessoas"));
+  if (Number.isInteger(pessoas) && pessoas >= 1 && pessoas <= 9) $("pessoas").value = String(pessoas);
+  const ESTILO_LINK = { "0": 0, "1": 1, "2": 2, economico: 0, equilibrado: 1, conforto: 2 };
+  const chaveEstilo = norm(q.get("estilo") || "");
+  const estilo = Object.hasOwn(ESTILO_LINK, chaveEstilo) ? ESTILO_LINK[chaveEstilo] : undefined;
+  if (estilo !== undefined) document.querySelector(`input[name="estilo"][value="${estilo}"]`).checked = true;
+  const origem = ORIGENS.find(o => norm(o.n) === norm(q.get("origem") || ""));
+  if (origem) $("origem").value = origem.n;
+  const destinos = (q.get("destino") || "").split(",").map(d => d.trim()).filter(Boolean).slice(0, 8);
+  destinos.forEach(addDestino);
+  if (destinos.length && orc >= 100) calcularEMostrar();
+})();
 
 // ---- Baixar o roteiro: na primeira vez pede o e-mail (lead), depois baixa direto ----
 const LEAD = "lead-ok";
