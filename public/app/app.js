@@ -329,7 +329,7 @@ async function postar(caminho, dados, signal) {
 
 // Turnstile (o "não sou robô" invisível da Cloudflare) no roteiro grátis e no Pix. Desligado enquanto a chave
 // do site estiver vazia; ligar junto com o TURNSTILE_SECRET na Cloudflare (sem a chave aqui, o servidor recusaria).
-const TURNSTILE_SITE_KEY = "";
+const TURNSTILE_SITE_KEY = "0x4AAAAAAFReB_e_h1sYplN2";
 let turnstilePronto = null;
 function tokenTurnstile() {
   if (!TURNSTILE_SITE_KEY) return Promise.resolve(undefined);
