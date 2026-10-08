@@ -53,6 +53,12 @@ const RoteiroCompleto = z.object({
   dicas: z.array(z.string())
 });
 export const DICAS_COMPLETO = 8;
+// Só o que o completo acrescenta a um roteiro simples já pronto: horário e dica de cada lugar, e as dicas da viagem.
+const ExtraHora = z.object({ horario: z.string(), dica: z.string() });
+const ExtraCompleto = z.object({
+  dias: z.array(z.object({ dia: z.number().int(), atividades: z.array(ExtraHora), almoco: ExtraHora, jantar: ExtraHora })),
+  dicas: z.array(z.string())
+});
 const PROMPT_COMPLETO = `
 Este é o roteiro completo, com horários: em cada atividade, almoço e jantar informe em "horario" o intervalo sugerido no formato 24h "09:00–11:30", em ordem ao longo do dia, respeitando o horário de funcionamento real do lugar e contando o tempo de deslocamento entre um e outro (comece o dia por volta das 8h ou 9h e termine o jantar até umas 22h). Em "dica", uma dica curta e prática daquele lugar (melhor horário, o que pedir, como evitar fila, se precisa reservar ou comprar ingresso antes). No dia de trocar de cidade, encaixe o deslocamento nos horários.`;
 
@@ -199,6 +205,41 @@ function comClaude(p, anthropic) {
   });
 }
 
+// Atalho do completo: quando o roteiro simples do mesmo pedido já está pronto no cache (a pessoa acabou de vê-lo),
+// mantém os mesmos lugares e só pede horários e dicas, sem nova busca no Google Maps. Fica bem mais rápido.
+// Devolve null se a resposta não casar com o roteiro (aí monta o completo do zero).
+async function completarSimples(p, simples, env, client, fetchFn) {
+  const base = simples.dias.map(d => ({ dia: d.dia, cidade: d.cidade, regiao: d.regiao,
+    atividades: d.atividades.map(a => ({ periodo: a.periodo, nome: a.nome, bairro: a.bairro })),
+    almoco: d.almoco && { nome: d.almoco.nome, bairro: d.almoco.bairro }, jantar: d.jantar && { nome: d.jantar.nome, bairro: d.jantar.bairro } }));
+  const texto = `Este é um roteiro de viagem pronto${p.paradas.length > 1 ? ` por ${p.paradas.map(x => x.dest.n).join(", ")}` : ` em ${p.dest.n}, ${p.dest.p}`}, para ${p.pessoas} pessoa(s), estilo ${ESTILOS[p.estilo]}. Não troque, tire nem acrescente lugares: para cada dia, na mesma ordem, devolva só o horário e a dica de cada atividade (na mesma ordem em que aparecem), do almoço e do jantar.
+Em "horario", o intervalo sugerido no formato 24h "09:00–11:30", em ordem ao longo do dia, respeitando o horário de funcionamento real do lugar e o tempo de deslocamento entre um e outro (comece por volta das 8h ou 9h e termine o jantar até umas 22h). Em "dica", uma dica curta e prática do lugar, em português (melhor horário, o que pedir, como evitar fila, se precisa reservar ou comprar ingresso antes). No dia de trocar de cidade, encaixe o deslocamento nos horários.
+Inclua também ${DICAS_COMPLETO} dicas curtas e específicas da viagem (economia, transporte, segurança, golpes comuns e o que reservar antes).
+Roteiro:
+${JSON.stringify(base)}`;
+  const casa = x => x?.dias?.length === simples.dias.length && x.dicas?.length >= DICAS_COMPLETO &&
+    x.dias.every((d, i) => d.atividades.length === simples.dias[i].atividades.length);
+  const pedidos = [];
+  if (env.GEMINI_API_KEY) pedidos.push(() => montarComGemini(texto, ExtraCompleto, env.GEMINI_API_KEY, fetchFn));
+  if (client || env.ANTHROPIC_API_KEY) pedidos.push(async () => {
+    const r = await (client || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })).messages.parse({
+      model: MODELO, max_tokens: 12000, messages: [{ role: "user", content: texto }],
+      output_config: { effort: "low", format: zodOutputFormat(ExtraCompleto) }
+    });
+    return r.stop_reason === "max_tokens" ? null : r.parsed_output;
+  });
+  for (const pedir of pedidos) {
+    let extra = null;
+    try { extra = await pedir(); } catch (e) { console.error("roteiro completo: atalho falhou:", e.message); }
+    if (!casa(extra)) continue;
+    const junta = (l, x) => l && { ...l, horario: x.horario, dica: x.dica };
+    return { ...simples, dicas: extra.dicas.slice(0, DICAS_COMPLETO),
+      dias: simples.dias.map((d, i) => { const x = extra.dias[i]; return { ...d,
+        atividades: d.atividades.map((a, j) => junta(a, x.atividades[j])), almoco: junta(d.almoco, x.almoco), jantar: junta(d.jantar, x.jantar) }; }) };
+  }
+  return null;
+}
+
 // Gemini: levanta lugares reais no Google Maps e monta o roteiro só com eles, cada um com o link do Maps.
 async function comGemini(p, chave, fetchFn) {
   const { plano, lugares } = await buscarLugares(p, chave, fetchFn);
@@ -224,12 +265,22 @@ async function comGemini(p, chave, fetchFn) {
 // `completo`: o roteiro pago, com horários e mais dicas (quem confere o pagamento é functions/api/roteiro.js).
 export async function gerarRoteiro(body, env = {}, client = null, ip = null, fetchFn = globalThis.fetch, { completo = false } = {}) {
   const p = { ...validarPedido(body), completo };
-  const chave = `https://cache.cabenobolso/roteiro/v12?${new URLSearchParams({
+  const chaveDe = extra => `https://cache.cabenobolso/roteiro/v12?${new URLSearchParams({
     d: p.paradas.map(x => `${x.dest.n}:${x.noites}`).join(","), n: p.dias, q: p.pessoas, e: p.estilo, i: p.interesses.join(","), f: p.foco.toLowerCase(), v: p.verba, c: p.comidaDia,
-    ...(completo ? { k: "completo" } : {})
+    ...extra
   })}`;
+  const chave = chaveDe(completo ? { k: "completo" } : {});
   const guardado = await lerCache(chave);
   if (guardado) return { ...guardado, cache: true };
+  if (completo) {
+    const simples = await lerCache(chaveDe({}));
+    const feito = simples?.dias?.length && await completarSimples(p, simples, env, client, fetchFn);
+    if (feito) {
+      console.log("roteiro: completo feito a partir do simples do cache");
+      await gravarCache(chave, feito, SETE_DIAS);
+      return { ...feito, cache: false };
+    }
+  }
 
   // Com a chave do Gemini, ele vem primeiro; o Claude fica de reserva se o Gemini falhar.
   const usarGemini = Boolean(env.GEMINI_API_KEY);

@@ -647,3 +647,42 @@ test("roteiro completo pede ao Google Maps o horário de funcionamento e segue a
   assert.match(promptMaps(p), /Seul, Coreia do Sul \(3 nights\); then Bangkok/);
   assert.doesNotMatch(promptMaps({ ...p, completo: false }), /opening hours/);
 });
+
+test("roteiro completo aproveita o simples do cache e só acrescenta horários e dicas", () => comCache(async () => {
+  const pedido = { destino: "Salvador", noites: 1, pessoas: 4, estilo: 1, verbaPasseios: 500 };
+  const dia = n => ({ dia: n, cidade: "Salvador", regiao: "Centro", titulo: "Centro", atividades: [{ periodo: "Manhã", nome: `Museu ${n}`, bairro: "Centro", custo: 0 }],
+    almoco: { nome: `Restô ${n}`, bairro: "Centro", custo: 50 }, jantar: { nome: `Bar ${n}`, bairro: "Centro", custo: 60 } });
+  const hora = (horario, dica) => ({ horario, dica });
+  const respostas = [
+    { dias: [dia(1), dia(2)], dicas: ["a", "b", "c"] },
+    { dias: [1, 2].map(n => ({ dia: n, atividades: [hora("09:00–11:00", `Chegue cedo ${n}`)], almoco: hora("12:00–13:00", "Peça o prato do dia"), jantar: hora("19:00–20:30", "Reserve") })),
+      dicas: Array.from({ length: 8 }, (_, i) => `dica ${i}`) }
+  ];
+  const pedidos = [];
+  const client = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: respostas[pedidos.length - 1] }; } } };
+  await gerarRoteiro(pedido, {}, client);
+  const r = await gerarRoteiro({ ...pedido, completo: true }, {}, client, null, globalThis.fetch, { completo: true });
+  assert.equal(pedidos.length, 2);
+  assert.match(pedidos[1], /Não troque, tire nem acrescente lugares/);
+  assert.match(pedidos[1], /Museu 2/);
+  assert.equal(r.dias[1].atividades[0].nome, "Museu 2");
+  assert.equal(r.dias[1].atividades[0].horario, "09:00–11:00");
+  assert.equal(r.dias[0].jantar.dica, "Reserve");
+  assert.equal(r.dicas.length, 8);
+  assert.equal((await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true })).cache, true);
+}));
+
+test("roteiro completo monta do zero quando a resposta do atalho não casa com o simples", () => comCache(async () => {
+  const pedido = { destino: "Salvador", noites: 1, pessoas: 5, estilo: 1, verbaPasseios: 500 };
+  const lugar = (nome, horario) => ({ nome, bairro: "Centro", custo: 0, horario, dica: "x" });
+  const completo = { dias: [1, 2].map(dia => ({ dia, cidade: "Salvador", regiao: "Centro", titulo: "Centro", atividades: [{ periodo: "Manhã", ...lugar(`P${dia}`, "09:00–10:00") }], almoco: lugar(`A${dia}`, "12:00–13:00"), jantar: lugar(`J${dia}`, "19:00–20:00") })),
+    dicas: Array.from({ length: 8 }, (_, i) => `d${i}`) };
+  const respostas = [completo, { dias: [], dicas: [] }, completo];
+  const pedidos = [];
+  const client = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: respostas[pedidos.length - 1] }; } } };
+  await gerarRoteiro(pedido, {}, client);
+  const r = await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true });
+  assert.equal(pedidos.length, 3);
+  assert.match(pedidos[2], /Este é o roteiro completo, com horários/);
+  assert.equal(r.dias[0].almoco.horario, "12:00–13:00");
+}));
