@@ -255,6 +255,9 @@ button.voando .frase { display: inline-block; animation: frase 2.4s ease both; }
 .pg-cab, .pg-rod { display: none; }
 /* Capa e contracapa: foto ao fundo, escurecida em verde */
 .top-capa, .top-fim { background: var(--tv) !important; color: #fff; min-height: 560px; display: flex; flex-direction: column; justify-content: flex-end; }
+.top-logo { display: block; height: 30px; width: auto; }
+.top-capa-logo { position: absolute; top: 24px; left: 24px; z-index: 1; }
+.top-capa-logo .top-logo { height: 40px; }
 .top-capa-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .top-capa::after, .top-fim::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(13,53,50,0) 0%, rgba(13,53,50,.55) 40%, #0D3532 72%); }
 .top-fim::after { background: rgba(13,53,50,.86); }
@@ -332,7 +335,8 @@ button.voando .frase { display: inline-block; animation: frase 2.4s ease both; }
 /* Contracapa */
 .top-fim { justify-content: center; text-align: center; min-height: 380px; }
 .top-fim .top-voo svg { width: 36px; height: 36px; }
-.top-marca { color: var(--to); font-family: var(--font-display); font-weight: 800; font-size: 20px; margin: 24px 0 4px; }
+.top-marca { margin: 28px 0 8px; display: flex; justify-content: center; }
+.top-marca .top-logo { height: 56px; }
 .top-fim small { color: rgba(255,255,255,.7); font-size: 11px; }
 @media (max-width: 520px) {
   .top .pg { padding: 22px 18px; }
@@ -363,7 +367,10 @@ button.voando .frase { display: inline-block; animation: frase 2.4s ease both; }
   .top { display: block; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .top .pg { border-radius: 0; min-height: 297mm; padding: 16mm 18mm 22mm; break-after: page; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
   .top .pg:last-child { break-after: auto; }
-  .top .pg-cab { display: flex; justify-content: space-between; font-size: 9pt; color: #5E7370; margin-bottom: 14mm; }
+  .top .pg-cab { display: flex; justify-content: space-between; align-items: center; font-size: 9pt; color: #5E7370; margin-bottom: 12mm; }
+  .top .pg-cab .top-logo { height: 9mm; }
+  .top-capa-logo { top: 14mm; left: 18mm; }
+  .top-capa-logo .top-logo { height: 13mm; }
   .top .pg-rod { display: flex; justify-content: space-between; position: absolute; left: 18mm; right: 18mm; bottom: 10mm; font-size: 9pt; color: #9A7414; }
   .top-dicas .pg-cab { color: rgba(255,255,255,.7); }
   .top-dicas .pg-rod { color: var(--to); }
