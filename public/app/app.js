@@ -1068,7 +1068,9 @@ lerSalvas();
   if (orc >= 100) { $("orcamento").value = orc.toLocaleString("pt-BR"); marcarFaixa(); }
   const pessoas = Number(q.get("pessoas"));
   if (Number.isInteger(pessoas) && pessoas >= 1 && pessoas <= 9) $("pessoas").value = String(pessoas);
-  const estilo = { "0": 0, "1": 1, "2": 2, economico: 0, equilibrado: 1, conforto: 2 }[norm(q.get("estilo") || "")];
+  const ESTILO_LINK = { "0": 0, "1": 1, "2": 2, economico: 0, equilibrado: 1, conforto: 2 };
+  const chaveEstilo = norm(q.get("estilo") || "");
+  const estilo = Object.hasOwn(ESTILO_LINK, chaveEstilo) ? ESTILO_LINK[chaveEstilo] : undefined;
   if (estilo !== undefined) document.querySelector(`input[name="estilo"][value="${estilo}"]`).checked = true;
   const origem = ORIGENS.find(o => norm(o.n) === norm(q.get("origem") || ""));
   if (origem) $("origem").value = origem.n;
