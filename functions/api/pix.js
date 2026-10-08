@@ -4,6 +4,7 @@ import { pixLigado, criarPix, situacaoPix, guardarPedido, podeCriarPix, PixInval
 // Corpo máximo: o pedido e a tela da viagem cabem folgados em 20 KB.
 const MAX_CORPO = 20_000;
 import { EntradaInvalida } from "../../server/veredito.js";
+import { conferirTurnstile, RoboSuspeito } from "../../server/turnstile.js";
 
 export async function onRequestPost({ request, env }) {
   if (!pixLigado(env)) return json({ erro: "O pagamento ainda não está ligado." }, FALHA);
@@ -17,6 +18,8 @@ export async function onRequestPost({ request, env }) {
   }
   try {
     if (body?.id) return json(await situacaoPix(body.id, env));
+    // Turnstile: só liga quando existir o TURNSTILE_SECRET na Cloudflare.
+    await conferirTurnstile(body?.turnstile, request.headers.get("CF-Connecting-IP"), env);
     if (!(await podeCriarPix(request.headers.get("CF-Connecting-IP")))) return json({ erro: "Muitos Pix gerados agora. Espere um pouco e tente de novo." }, 429);
     const pix = await criarPix(body, env);
     // Guarda o pedido 30 dias para recuperar em outro aparelho. Se o KV falhar, o Pix segue valendo.
@@ -24,6 +27,7 @@ export async function onRequestPost({ request, env }) {
     return json(pix);
   } catch (e) {
     if (e instanceof PixInvalido || e instanceof EntradaInvalida) return json({ erro: e.message }, 400);
+    if (e instanceof RoboSuspeito) return json({ erro: e.message }, 403);
     console.error("pix", e);
     return json({ erro: "Não deu para falar com o Mercado Pago agora. Tente de novo." }, FALHA);
   }

@@ -326,6 +326,29 @@ async function postar(caminho, dados, signal) {
   return corpo;
 }
 
+// Turnstile (o "não sou robô" invisível da Cloudflare) no roteiro grátis e no Pix. Desligado enquanto a chave
+// do site estiver vazia; ligar junto com o TURNSTILE_SECRET na Cloudflare (sem a chave aqui, o servidor recusaria).
+const TURNSTILE_SITE_KEY = "";
+let turnstilePronto = null;
+function tokenTurnstile() {
+  if (!TURNSTILE_SITE_KEY) return Promise.resolve(undefined);
+  turnstilePronto ||= new Promise((ok, erro) => {
+    const s = document.createElement("script");
+    s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    s.onload = ok; s.onerror = () => { turnstilePronto = null; erro(new Error("Não deu para carregar a verificação. Recarregue a página.")); };
+    document.head.appendChild(s);
+  });
+  return turnstilePronto.then(() => new Promise((ok, erro) => {
+    const caixa = document.createElement("div");
+    document.body.appendChild(caixa);
+    const id = window.turnstile.render(caixa, {
+      sitekey: TURNSTILE_SITE_KEY, appearance: "interaction-only",
+      callback: t => { ok(t); setTimeout(() => { window.turnstile.remove(id); caixa.remove(); }, 0); },
+      "error-callback": () => { erro(new Error("Não conseguimos confirmar que é você. Tente de novo.")); caixa.remove(); }
+    });
+  }));
+}
+
 let state = null;
 let pedido = null;
 
@@ -806,7 +829,7 @@ async function gerarRoteiro() {
   state.roteiro = { loading: true };
   renderRoteiro();
   try {
-    const r = await postar("/api/roteiro", pedidoRoteiro(), ctlRoteiro.signal);
+    const r = await postar("/api/roteiro", { ...pedidoRoteiro(), turnstile: await tokenTurnstile() }, ctlRoteiro.signal);
     if (state.atual !== alvo) return;
     state.roteiro = r;
     evento("RoteiroPronto", { destino: c.destino?.n });
@@ -930,7 +953,7 @@ function ligarCompleto() {
       v.pedido = { ...pedidoRoteiro(v.ordem), completo: true, nome };
       // A tela da viagem vai junto e fica guardada 30 dias: quem pagar e perder o roteiro remonta tudo em outro aparelho.
       const viagem = { entrada: state.entrada, atual: state.atual, modo: state.modo, noitesMax: state.noitesMax, foco: state.foco };
-      const pix = await postar("/api/pix", { pedido: v.pedido, email, viagem });
+      const pix = await postar("/api/pix", { pedido: v.pedido, email, viagem, turnstile: await tokenTurnstile() });
       if (state.roteiro !== ro) return;
       v.pix = pix; v.email = email; v.aviso = "";
       guardarPendente(idViagem(), { pix, pedido: v.pedido, email, ordem: v.ordem?.map(p => p.n) || [], criado: Date.now() });

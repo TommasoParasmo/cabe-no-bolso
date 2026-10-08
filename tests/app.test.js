@@ -629,7 +629,14 @@ test("cadastro de e-mail guarda no KV só o necessário e vale a última escolha
   const l = JSON.parse(kv.get("ana@email.com"));
   assert.equal(l.novidades, false);
   assert.deepEqual(l.destinos, ["Lima", "Salvador"]);
-  assert.deepEqual(Object.keys(l).sort(), ["destinos", "email", "novidades", "primeiro", "ultimo"]);
+  assert.deepEqual(Object.keys(l).sort(), ["aceite", "confirmado", "destinos", "email", "novidades", "primeiro", "ultimo"]);
+  assert.equal(l.confirmado, false);
+  assert.equal(l.aceite, null);
+  // Aceite registra quando e de onde, mas só a confirmação pelo e-mail libera marketing.
+  await guardarLead({ email: "ana@email.com", novidades: true }, { LEADS });
+  const m = JSON.parse(kv.get("ana@email.com"));
+  assert.equal(m.confirmado, false);
+  assert.equal(m.aceite.origem, "download do roteiro");
   // Sem o KV ligado, o download segue liberado, mas o app pede o e-mail de novo depois.
   assert.deepEqual(await guardarLead({ email: "b@email.com" }, {}), { ok: true, guardado: false });
 });
@@ -703,6 +710,29 @@ test("pix: só libera order paga, do valor certo e do mesmo roteiro", async () =
   const { fetchFn, pedidos } = mercadoPago(paga);
   await assert.rejects(situacaoPix("../payments", env, fetchFn), PixInvalido);
   assert.equal(pedidos.length, 0, "id estranho não vira URL");
+});
+
+test("Detalhado: vale o pedido guardado com o Pix (não o nome do navegador) e cada pagamento tem 3 gerações", async () => {
+  const { guardarPedido, liberarDetalhado, contarGeracao, referencia, SemGeracoes, PixInvalido, GERACOES_POR_PAGAMENTO } = await import("../server/pix.js");
+  const kv = new Map();
+  const LEADS = { get: async k => (kv.has(k) ? JSON.parse(kv.get(k)) : null), put: async (k, v) => { kv.set(k, v); } };
+  const env = { MP_ACCESS_TOKEN: "tok", LEADS };
+  const pedido = { ...pedidoRio, completo: true, nome: "Ana" };
+  await guardarPedido("ORD01ABC123", { pedido, email: "ana@email.com" }, env);
+  const paga = { id: "ORD01ABC123", status: "processed", total_amount: "14.90", external_reference: await referencia(pedido) };
+  // O navegador manda outro nome: vale o guardado.
+  const liberado = await liberarDetalhado("ORD01ABC123", { ...pedido, nome: "Ana2" }, env, mercadoPago(paga).fetchFn);
+  assert.equal(liberado.nome, "Ana");
+  // Pedido de outro roteiro com o mesmo pagamento: recusado.
+  await assert.rejects(liberarDetalhado("ORD01ZZZ999", { ...pedido, noites: 9 }, env, mercadoPago({ ...paga, id: "ORD01ZZZ999" }).fetchFn), PixInvalido);
+  // Gerações novas contadas por pagamento; a quarta é recusada.
+  const contar = contarGeracao("ORD01ABC123", env);
+  for (let i = 0; i < GERACOES_POR_PAGAMENTO; i++) await contar();
+  await assert.rejects(contar(), SemGeracoes);
+  // Do cache não conta: o gancho só roda quando vai chamar a IA.
+  let chamou = 0;
+  await assert.rejects(gerarRoteiro({ destino: "Salvador", noites: 2 }, {}, null, null, globalThis.fetch, { completo: true, antesDeGerar: async () => { chamou++; throw new SemGeracoes("x"); } }), SemGeracoes);
+  assert.equal(chamou, 1);
 });
 
 test("recuperar o roteiro pago: pedido guardado 30 dias, liberado só com número, e-mail e pagamento", async () => {
@@ -959,4 +989,25 @@ test("veredito com datas flexíveis usa os dias mais baratos do destino e cai pa
   assert.ok(urls.some(u => u.includes("departure_at=2027-05-15&")), "tenta as datas de exemplo");
   await assert.rejects(montarVeredito({ ...pedido, flexivel: { mes: "2020-01", noites: 5 } }), /daqui para a frente/);
   await assert.rejects(montarVeredito({ ...pedido, flexivel: { mes: "2027-05", noites: 0 } }), /quantas noites/);
+});
+
+test("teto do dia para o roteiro grátis e Turnstile desligado sem o secret", async () => {
+  const { tetoDoDia, TetoAtingido, TETO_USD_DIA } = await import("../server/uso.js");
+  const { conferirTurnstile, RoboSuspeito } = await import("../server/turnstile.js");
+  const kv = new Map([["uso:2026-10-08", JSON.stringify({ usd: TETO_USD_DIA - 0.01 })]]);
+  const LEADS = { get: async k => (kv.has(k) ? JSON.parse(kv.get(k)) : null) };
+  const agora = () => new Date("2026-10-08T15:00:00-03:00");
+  await tetoDoDia({ LEADS }, agora)();
+  kv.set("uso:2026-10-08", JSON.stringify({ usd: TETO_USD_DIA }));
+  const erro = console.error; console.error = () => {};
+  try {
+    await assert.rejects(tetoDoDia({ LEADS }, agora)(), TetoAtingido);
+    await tetoDoDia({ LEADS, TETO_USD_DIA: "50" }, agora)(); // teto maior pela variável da Cloudflare
+  } finally { console.error = erro; }
+  // Turnstile: sem secret não confere nada; com secret, exige token válido.
+  await conferirTurnstile(undefined, "1.2.3.4", {});
+  await assert.rejects(conferirTurnstile(undefined, "1.2.3.4", { TURNSTILE_SECRET: "s" }), RoboSuspeito);
+  const verifica = ok => async () => new Response(JSON.stringify({ success: ok }));
+  await conferirTurnstile("tok", "1.2.3.4", { TURNSTILE_SECRET: "s" }, verifica(true));
+  await assert.rejects(conferirTurnstile("tok", "1.2.3.4", { TURNSTILE_SECRET: "s" }, verifica(false)), RoboSuspeito);
 });

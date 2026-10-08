@@ -32,6 +32,11 @@ export async function guardarLead(body, env = {}, ip = null) {
     email,
     // Vale a última escolha: quem desmarca deixa de receber.
     novidades: body?.novidades === true,
+    // LGPD: qualquer um pode digitar o e-mail de outra pessoa. Marketing só para quem confirmar pelo link
+    // do e-mail de confirmação (dupla confirmação, a fazer junto com o envio de e-mail). Até lá, fica
+    // registrado quando e de onde veio o aceite, e "confirmado" só vira true pelo link.
+    confirmado: body?.novidades === true ? Boolean(antigo?.confirmado && antigo?.novidades) : false,
+    aceite: body?.novidades === true ? (antigo?.novidades && antigo?.aceite) || { quando: agora, origem: "download do roteiro" } : null,
     destinos: [...new Set([...(antigo?.destinos || []), destino].filter(Boolean))].slice(-20),
     primeiro: antigo?.primeiro || agora,
     ultimo: agora

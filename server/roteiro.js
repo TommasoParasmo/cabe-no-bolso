@@ -335,7 +335,7 @@ async function comGemini(p, chave, fetchFn, ate = Infinity) {
 }
 
 // `completo`: o roteiro pago, com horários e mais dicas (quem confere o pagamento é functions/api/roteiro.js).
-export async function gerarRoteiro(body, env = {}, client = null, ip = null, fetchFn = globalThis.fetch, { completo = false, fotosFetch = globalThis.fetch, prazoMs = PRAZO_MS } = {}) {
+export async function gerarRoteiro(body, env = {}, client = null, ip = null, fetchFn = globalThis.fetch, { completo = false, fotosFetch = globalThis.fetch, prazoMs = PRAZO_MS, antesDeGerar = null } = {}) {
   // O nome só entra no completo (e na chave do cache dele): o roteiro grátis não pede nome.
   const p = { ...validarPedido(body), completo, nome: completo ? lerNome(body) : "" };
   const chaveDe = extra => `https://cache.cabenobolso/roteiro/v12?${new URLSearchParams({
@@ -345,6 +345,8 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null, fet
   const chave = chaveDe(completo ? { k: "top2", nm: norm(p.nome) } : {});
   const guardado = await lerCache(chave);
   if (guardado) return { ...guardado, cache: true };
+  // Roteiro novo vai gastar IA: quem chamou pode barrar antes (ex.: gerações por pagamento do Detalhado).
+  if (antesDeGerar) await antesDeGerar();
   // Tokens de cada chamada à IA, somados e registrados no fim (deu certo ou não: o gasto aconteceu).
   const uso = novoUso();
   let resultado = "erro";
