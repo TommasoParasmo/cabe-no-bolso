@@ -175,6 +175,14 @@ button:disabled { opacity: .55; cursor: default; }
 .day li .c { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
 .day li.ref .p, .day li.ref .lugar { color: var(--warn); }
 .day li .dica { grid-column: 2 / -1; color: var(--muted); font-size: 12px; margin-top: -2px; }
+.day li .desc { grid-column: 2 / -1; font-size: 13px; margin-top: -2px; }
+.day .sobre { margin: 6px 0 8px; font-size: 13px; color: var(--muted); }
+.day .gasto { margin: 8px 0 0; }
+.day .foto { margin: 8px 0; }
+.day .foto img { display: block; width: 100%; max-height: 260px; object-fit: cover; border-radius: 10px; background: var(--line); }
+.day .foto figcaption { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.day .foto figcaption a { color: inherit; }
+.apresentacao { margin: 0 0 12px; padding: 12px 14px; border-left: 3px solid var(--accent); background: var(--chip, transparent); border-radius: 8px; font-size: 15px; }
 .day li .lugar { color: inherit; text-decoration: underline; text-decoration-color: var(--line, #ccc); text-underline-offset: 3px; }
 .tips { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
 .alt { background: var(--warn-bg); border-color: transparent; }
@@ -183,7 +191,7 @@ button:disabled { opacity: .55; cursor: default; }
   .grid, .two { grid-template-columns: minmax(0, 1fr); }
   .day li { grid-template-columns: minmax(0, 1fr) auto; }
   .day li .p { grid-column: 1 / -1; padding: 0; }
-  .day li .dica { grid-column: 1 / -1; }
+  .day li .dica, .day li .desc { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: no-preference) {
   .result.fresh > * { animation: rise .35s ease both; }

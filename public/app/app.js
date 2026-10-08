@@ -541,9 +541,10 @@ function renderRoteiro() {
   if (ro?.dias) {
     card.innerHTML = `
       <h3>${ro.completo ? "Roteiro completo" : "Roteiro dia a dia"} em ${esc(ro.ordem?.join(" + ") || state.atual.destino.n)}</h3>
+      ${ro.apresentacao ? `<p class="apresentacao">${esc(ro.apresentacao)}</p>` : ""}
       ${ro.resumido ? `<p class="hint">Sua viagem tem ${esc(ro.resumido.viagem)} dias; o roteiro vai até ${esc(ro.resumido.dias)} dias${new Set(ro.dias.map(d => d.cidade)).size > 1 ? ", divididos entre as cidades" : ", os primeiros da viagem"}.</p>` : ""}
       <div class="days">${ro.dias.map(d => `
-        <div class="day"><span class="n">DIA ${esc(d.dia)}</span><div><h4>${esc(d.titulo)}</h4>${regiaoDoDia(d) ? `<small class="hint">${esc(regiaoDoDia(d))}</small>` : ""}<ul>${itensDoDia(d).map(a => `<li${a.refeicao ? ' class="ref"' : ""}><span class="p">${esc(a.horario || String(a.periodo).toLowerCase())}</span><a class="lugar" href="${a.maps ? esc(a.maps) : mapa(a.nome, d.cidade, a.bairro)}" target="_blank" rel="noopener">${esc(a.nome)} ↗</a><span class="c">${Number(a.custo) ? brl(a.custo) : "grátis"}</span>${a.dica ? `<small class="dica">${esc(a.dica)}</small>` : ""}</li>`).join("")}</ul></div></div>`).join("")}
+        <div class="day"><span class="n">DIA ${esc(d.dia)}</span><div><h4>${esc(d.titulo)}</h4>${regiaoDoDia(d) ? `<small class="hint">${esc(regiaoDoDia(d))}</small>` : ""}${fotoDoDia(d)}${d.sobreRegiao ? `<p class="sobre">${esc(d.sobreRegiao)}</p>` : ""}<ul>${itensDoDia(d).map(a => `<li${a.refeicao ? ' class="ref"' : ""}><span class="p">${esc(a.horario || String(a.periodo).toLowerCase())}</span><a class="lugar" href="${a.maps ? esc(a.maps) : mapa(a.nome, d.cidade, a.bairro)}" target="_blank" rel="noopener">${esc(a.nome)} ↗</a><span class="c">${Number(a.custo) ? brl(a.custo) : "grátis"}</span>${a.descricao ? `<small class="desc">${esc(a.descricao)}</small>` : ""}${a.comoChegar ? `<small class="dica">Como chegar: ${esc(a.comoChegar)}</small>` : ""}${a.dica ? `<small class="dica">${a.descricao ? "Dica: " : ""}${esc(a.dica)}</small>` : ""}</li>`).join("")}</ul>${ro.completo ? `<p class="hint gasto">Gasto previsto no dia: ${brl(gastoDoDia(d))} para o grupo</p>` : ""}</div></div>`).join("")}
       </div>
       ${(ro.fontes || []).length ? `<details class="fontes"><summary class="hint">Fontes: Google Maps (${ro.fontes.length} ${ro.fontes.length > 1 ? "lugares" : "lugar"})</summary><ul class="hint">${ro.fontes.map(f => `<li><a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.nome)}</a> · Google Maps</li>`).join("")}</ul></details>` : ""}
       ${ro.totalPasseios != null ? `<p class="hint">Passeios: ${brl(ro.totalPasseios)} de ${brl(ro.verba)} de verba.${ro.totalRefeicoes ? ` Almoços e jantares sugeridos: cerca de ${brl(ro.totalRefeicoes)} (já contam na alimentação).` : ""}</p>` : ""}
@@ -573,7 +574,7 @@ function renderRoteiro() {
 const ORDEM = ["manh", "almo", "tard", "jant", "noit"];
 const posicao = periodo => { const i = ORDEM.findIndex(o => String(periodo).toLowerCase().startsWith(o)); return i < 0 ? 2 : i; };
 function itensDoDia(d) {
-  const refeicoes = [["almoço", d.almoco], ["jantar", d.jantar]].filter(([, r]) => r?.nome).map(([periodo, r]) => ({ periodo, nome: r.nome, bairro: r.bairro, custo: r.custo, maps: r.maps, horario: r.horario, dica: r.dica, refeicao: true }));
+  const refeicoes = [["almoço", d.almoco], ["jantar", d.jantar]].filter(([, r]) => r?.nome).map(([periodo, r]) => ({ periodo, nome: r.nome, bairro: r.bairro, custo: r.custo, maps: r.maps, horario: r.horario, dica: r.dica, descricao: r.descricao, comoChegar: r.comoChegar, refeicao: true }));
   const itens = [...(d.atividades || []), ...refeicoes];
   // No roteiro completo, a ordem é a dos horários ("09:00–11:30").
   const porHora = itens.every(a => /^\d{1,2}:\d{2}/.test(a.horario || ""));
@@ -583,6 +584,17 @@ function itensDoDia(d) {
 
 // Região do dia (ex.: "Barra"), e a cidade quando a viagem tem várias.
 const regiaoDoDia = d => [d.regiao, state.atual.paradas && d.cidade].filter(Boolean).join(" · ");
+
+// Roteiro completo: passeios, almoço e jantar do dia somados.
+const gastoDoDia = d => [...(d.atividades || []), d.almoco, d.jantar].reduce((t, a) => t + (Number(a?.custo) || 0), 0);
+
+// Foto da atração em destaque do dia (roteiro completo), com autor e licença do Wikimedia Commons.
+function fotoDoDia(d) {
+  const a = (d.atividades || []).find(x => x.foto?.url?.startsWith("https://upload.wikimedia.org/"));
+  if (!a) return "";
+  const f = a.foto;
+  return `<figure class="foto"><img src="${esc(f.url)}" alt="${esc(a.nome)}" loading="lazy"><figcaption>${esc(a.nome)} · Foto: <a href="${esc(f.pagina)}" target="_blank" rel="noopener">${esc(f.autor)}, ${esc(f.licenca)}</a>, Wikimedia Commons</figcaption></figure>`;
+}
 
 // Busca o lugar no Google Maps, onde a pessoa vê nota, fotos e avaliações. O bairro ajuda a achar o lugar certo.
 function mapa(nome, cidade, bairro) {
@@ -655,7 +667,7 @@ function cartaoCompleto() {
   }
   const v = ro.venda;
   const ordem = v.ordem;
-  if (v.gerando) return `<div class="completo nao-imprimir" id="completo-box"><h3>Roteiro completo</h3><button type="button" class="primary" id="completo-gerando" disabled></button><p class="hint" style="margin:0">Pagamento recebido. Pode levar cerca de 1 minuto, fique nesta tela.</p></div>`;
+  if (v.gerando) return `<div class="completo nao-imprimir" id="completo-box"><h3>Roteiro completo</h3><button type="button" class="primary" id="completo-gerando" disabled></button><p class="hint" style="margin:0">Pagamento recebido. O roteiro completo pode levar até 3 minutos, porque está sendo feito personalizado com as suas escolhas. Fique nesta tela, ele aparece aqui.</p></div>`;
   return `
     <div class="completo nao-imprimir" id="completo-box">
       <h3>Quer o roteiro completo? ${reais(PRECO_COMPLETO)}</h3>
@@ -671,6 +683,8 @@ function cartaoCompleto() {
         <div class="actions"><button type="button" class="primary" id="pix-copiar">Copiar código Pix</button><button type="button" id="pix-conferir">Já paguei</button></div>
         <p class="hint" style="margin:0">Abra o app do seu banco, escolha Pix copia e cola (ou leia o QR Code) e pague. O roteiro completo aparece aqui sozinho.</p>` : `
         <form class="lead" id="pix-form" novalidate>
+          <label for="pix-nome">Seu primeiro nome (o roteiro vem personalizado para você)</label>
+          <input id="pix-nome" type="text" required autocomplete="given-name" maxlength="40" placeholder="Ana" value="${esc(v.nome || "")}">
           <label for="pix-email">Seu e-mail (vai no comprovante)</label>
           <input id="pix-email" type="email" required autocomplete="email" inputmode="email" maxlength="254" placeholder="voce@email.com" value="${esc(v.email || "")}">
           <button type="submit" class="primary">Pagar ${reais(PRECO_COMPLETO)} no Pix</button>
@@ -691,8 +705,11 @@ function ligarCompleto() {
   });
   $("pix-form")?.addEventListener("submit", async ev => {
     ev.preventDefault();
+    const nome = $("pix-nome").value.replace(/\s+/g, " ").trim().slice(0, 40);
     const email = $("pix-email").value.trim();
+    if (!nome) return aviso("Escreva seu nome.", true);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return aviso("Confira o e-mail.", true);
+    v.nome = nome;
     // Um Pix por vez: dois cliques gerariam duas cobranças, e a pessoa poderia pagar a que o app não acompanha.
     const botao = $("pix-form").querySelector("button");
     if (botao.disabled) return;
@@ -700,7 +717,8 @@ function ligarCompleto() {
     aviso("Gerando o Pix…");
     try {
       // O pedido vai junto: o Pix fica preso a este roteiro, nesta ordem de cidades.
-      v.pedido = { ...pedidoRoteiro(v.ordem), completo: true };
+      // O nome não muda a referência do Pix: só personaliza o roteiro.
+      v.pedido = { ...pedidoRoteiro(v.ordem), completo: true, nome };
       const pix = await postar("/api/pix", { pedido: v.pedido, email });
       if (state.roteiro !== ro) return;
       v.pix = pix; v.email = email; v.aviso = "";
@@ -908,7 +926,8 @@ async function baixarRoteiro() {
 function textoRoteiro() {
   const ro = state.roteiro;
   const dias = ro.dias.map(d => [`Dia ${d.dia}: ${d.titulo}${d.regiao ? ` (${d.regiao})` : ""}`,
-    ...itensDoDia(d).map(a => `- ${a.horario || a.periodo}: ${a.nome}${Number(a.custo) ? ` · ${brl(a.custo)}` : ""}${a.maps ? ` · ${a.maps}` : ""}${a.dica ? `\n  ${a.dica}` : ""}`)].join("\n"));
+    ...(d.sobreRegiao ? [d.sobreRegiao] : []),
+    ...itensDoDia(d).map(a => `- ${a.horario || a.periodo}: ${a.nome}${Number(a.custo) ? ` · ${brl(a.custo)}` : ""}${a.maps ? ` · ${a.maps}` : ""}${a.descricao ? `\n  ${a.descricao}` : ""}${a.comoChegar ? `\n  Como chegar: ${a.comoChegar}` : ""}${a.dica ? `\n  ${a.dica}` : ""}`)].join("\n"));
   const fontes = (ro.fontes || []).length ? `\n\nFontes: Google Maps\n${ro.fontes.map(f => `${f.nome} · Google Maps · ${f.url}`).join("\n")}` : "";
-  return `Roteiro em ${state.atual.destino.n} · Vai Dar Viagem\n\n${dias.join("\n\n")}${fontes}\n\nMonte o seu: https://vaidarviagem.com.br/app/`;
+  return `Roteiro em ${state.atual.destino.n} · Vai Dar Viagem\n\n${ro.apresentacao ? `${ro.apresentacao}\n\n` : ""}${dias.join("\n\n")}${fontes}\n\nMonte o seu: https://vaidarviagem.com.br/app/`;
 }

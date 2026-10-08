@@ -74,11 +74,12 @@ const semMeta = s => {
 };
 
 // Monta o roteiro em português no formato do app. Devolve null quando a resposta vem cortada ou fora do formato.
-export async function montarComGemini(texto, Roteiro, chave, fetchFn) {
+// `limite`: tokens de resposta; o roteiro completo, com descrição e guia de cada lugar, é bem maior.
+export async function montarComGemini(texto, Roteiro, chave, fetchFn, limite = 32000) {
   const r = await chamar(fetchFn, chave, {
     contents: [{ role: "user", parts: [{ text: texto }] }],
     generationConfig: {
-      maxOutputTokens: 32000,
+      maxOutputTokens: limite,
       responseMimeType: "application/json",
       responseJsonSchema: semMeta(z.toJSONSchema(Roteiro)),
       thinkingConfig: { thinkingLevel: "LOW" }

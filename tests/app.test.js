@@ -6,6 +6,9 @@ import { precoVoo } from "../server/precos.js";
 import { montarVeredito, EntradaInvalida } from "../server/veredito.js";
 import { gerarRoteiro, validarPedido, LimiteAtingido, LIMITE_DIA, limiteDia, foraDaRegiao } from "../server/roteiro.js";
 
+// Wikimedia falsa sem resultados: os testes do completo não saem para a internet.
+const semFotos = async () => new Response("{}");
+
 const base = {
   orcamento: 7000, origem: "São Paulo", destino: "", ida: "2026-11-20", volta: "2026-11-25",
   pessoas: 2, estilo: 1, interesses: ["praia"]
@@ -611,7 +614,7 @@ test("roteiro completo pede horários, uma dica por lugar e mais dicas, com cach
     dias: [1, 2].map(dia => ({ dia, cidade: "Salvador", regiao: "Centro", titulo: "Centro", atividades: [{ periodo: "Manhã", ...lugar(`Pelourinho ${dia}`, "09:00–11:30") }], almoco: lugar(`Restô ${dia}`, "12:00–13:30"), jantar: lugar(`Bar ${dia}`, "19:30–21:00") })),
     dicas: Array.from({ length: 10 }, (_, i) => `dica ${i}`) } }; } } };
   const pedido = { destino: "Salvador", noites: 1, pessoas: 2, estilo: 1, verbaPasseios: 500 };
-  const r = await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true });
+  const r = await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true, fotosFetch: semFotos });
   assert.match(pedidos[0].messages[0].content, /horario/);
   assert.match(pedidos[0].messages[0].content, /8 dicas/);
   assert.match(pedidos[0].messages[0].content, /5 ou 6 atividades por dia: 2 de manhã, 2 à tarde e 1 ou 2 à noite/);
@@ -619,7 +622,7 @@ test("roteiro completo pede horários, uma dica por lugar e mais dicas, com cach
   assert.equal(r.dias[0].almoco.horario, "12:00–13:30");
   assert.equal(r.dias[0].atividades[0].dica, "Dica de Pelourinho 1");
   assert.equal(pedidos.length, 1);
-  assert.equal((await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true })).cache, true);
+  assert.equal((await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true, fotosFetch: semFotos })).cache, true);
   // O simples do mesmo pedido não vem do cache do completo.
   await gerarRoteiro(pedido, {}, client);
   assert.equal(pedidos.length, 2);
@@ -633,11 +636,11 @@ test("roteiro completo com menos de 8 dicas pede de novo e não vai para o cache
     dias: [1, 2].map(dia => ({ dia, cidade: "Salvador", regiao: "Centro", titulo: "Centro", atividades: [{ periodo: "Manhã", ...lugar(`P${dia}`) }], almoco: lugar(`A${dia}`), jantar: lugar(`J${dia}`) })),
     dicas: ["só uma"] } }; } } };
   const pedido = { destino: "Salvador", noites: 1, pessoas: 3, estilo: 1, verbaPasseios: 500 };
-  const r = await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true });
+  const r = await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true, fotosFetch: semFotos });
   assert.equal(pedidos.length, 2);
   assert.match(pedidos[1], /inclua 8 dicas da viagem; a tentativa anterior trouxe 1/);
   assert.equal(r.dicas.length, 1);
-  await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true });
+  await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true, fotosFetch: semFotos });
   assert.equal(pedidos.length, 4);
 }));
 
@@ -655,22 +658,22 @@ test("roteiro completo aproveita o simples do cache: mantém os lugares, acresce
   const pedido = { destino: "Salvador", noites: 1, pessoas: 4, estilo: 1, verbaPasseios: 500 };
   const dia = n => ({ dia: n, cidade: "Salvador", regiao: "Centro", titulo: "Centro", atividades: [{ periodo: "Manhã", nome: `Museu ${n}`, bairro: "Centro", custo: 0 }],
     almoco: { nome: `Restô ${n}`, bairro: "Centro", custo: 50 }, jantar: { nome: `Bar ${n}`, bairro: "Centro", custo: 60 } });
-  const hora = (horario, dica) => ({ horario, dica });
-  const ativ = (nome, periodo, horario, custo = 0) => ({ nome, bairro: "Centro", custo, periodo, horario, dica: `Dica ${nome}` });
+  const hora = (horario, dica) => ({ horario, dica, descricao: "Lugar bom", comoChegar: "5 min a pé" });
+  const ativ = (nome, periodo, horario, custo = 0) => ({ nome, bairro: "Centro", custo, periodo, horario, dica: `Dica ${nome}`, descricao: `Sobre ${nome}`, comoChegar: "10 min a pé", destaque: false });
   const cheio = n => [ativ(`Museu ${n}`, "manhã", "09:00–10:30"), ativ(`Igreja ${n}`, "manhã", "10:45–11:45"), ativ(`Forte ${n}`, "tarde", "14:00–15:30", 40.4),
     ativ(`Praça ${n}`, "tarde", "16:00–17:00"), ativ(`Mirante ${n}`, "noite", "21:00–22:00")];
   const respostas = [
     { dias: [dia(1), dia(2)], dicas: ["a", "b", "c"] },
     // Atalho no Claude: dias trocados de lugar, não serve.
-    { dias: [2, 1].map(n => ({ dia: n, atividades: cheio(n), almoco: hora("12:00–13:00", "x"), jantar: hora("19:00–20:30", "x") })), dicas: Array(8).fill("d") }
+    { apresentacao: "Oi", dias: [2, 1].map(n => ({ dia: n, sobreRegiao: "x", atividades: cheio(n), almoco: hora("12:00–13:00", "x"), jantar: hora("19:00–20:30", "x") })), dicas: Array(8).fill("d") }
   ];
   const pedidos = [];
   const client = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: respostas[pedidos.length - 1] }; } } };
   await gerarRoteiro(pedido, {}, client);
-  const g = geminiFalso([{ content: { parts: [{ text: JSON.stringify({ dias: [1, 2].map(n => ({ dia: n, atividades: cheio(n), almoco: hora("12:00–13:00", "Peça o prato do dia"), jantar: hora("19:00–20:30", "Reserve") })),
+  const g = geminiFalso([{ content: { parts: [{ text: JSON.stringify({ apresentacao: "Ana, Salvador vai te encantar!", dias: [1, 2].map(n => ({ dia: n, sobreRegiao: `Centro histórico ${n}`, atividades: cheio(n), almoco: hora("12:00–13:00", "Peça o prato do dia"), jantar: hora("19:00–20:30", "Reserve") })),
     dicas: Array.from({ length: 8 }, (_, i) => `dica ${i}`) }) }] }, finishReason: "STOP" }]);
   // Gemini responde certo de primeira.
-  const r = await gerarRoteiro(pedido, { GEMINI_API_KEY: "k" }, client, null, g.fetchFn, { completo: true });
+  const r = await gerarRoteiro(pedido, { GEMINI_API_KEY: "k" }, client, null, g.fetchFn, { completo: true, fotosFetch: semFotos });
   assert.equal(pedidos.length, 1);
   assert.equal(g.pedidos.length, 1);
   assert.equal(g.pedidos[0].corpo.tools, undefined);
@@ -682,14 +685,14 @@ test("roteiro completo aproveita o simples do cache: mantém os lugares, acresce
   assert.equal(r.dias[0].jantar.nome, "Bar 1");
   assert.equal(r.totalPasseios, 80);
   assert.equal(r.dicas.length, 8);
-  assert.equal((await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true })).cache, true);  // Só com o Claude, a resposta com os dias trocados é recusada e o completo é montado do zero.
+  assert.equal((await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true, fotosFetch: semFotos })).cache, true);  // Só com o Claude, a resposta com os dias trocados é recusada e o completo é montado do zero.
   const pedido2 = { ...pedido, pessoas: 7 };
   pedidos.length = 0;
   const so = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: pedidos.length === 2 ? respostas[1] : respostas[0] }; } } };
   await gerarRoteiro(pedido2, {}, so);
-  await gerarRoteiro(pedido2, {}, so, null, globalThis.fetch, { completo: true }).catch(() => {});
+  await gerarRoteiro(pedido2, {}, so, null, globalThis.fetch, { completo: true, fotosFetch: semFotos }).catch(() => {});
   assert.match(pedidos[1], /Mantenha todas as atividades/);
-  assert.match(pedidos[2], /Este é o roteiro completo, com horários/);
+  assert.match(pedidos[2], /Este é o roteiro completo\./);
 }));
 
 test("roteiro completo monta do zero quando a resposta do atalho não casa com o simples", () => comCache(async () => {
@@ -701,8 +704,74 @@ test("roteiro completo monta do zero quando a resposta do atalho não casa com o
   const pedidos = [];
   const client = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: respostas[pedidos.length - 1] }; } } };
   await gerarRoteiro(pedido, {}, client);
-  const r = await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true });
+  const r = await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true, fotosFetch: semFotos });
   assert.equal(pedidos.length, 3);
-  assert.match(pedidos[2], /Este é o roteiro completo, com horários/);
+  assert.match(pedidos[2], /Este é o roteiro completo\./);
   assert.equal(r.dias[0].almoco.horario, "12:00–13:00");
 }));
+
+// Wikimedia falsa: busca na Wikipédia e licença no Commons.
+function wikiFalsa({ titulo = "Elevador Lacerda", imagem = "Elevador_Lacerda.jpg", thumb = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Elevador_Lacerda.jpg/800px-Elevador_Lacerda.jpg", licenca = "CC BY-SA 4.0", resumo = "O elevador liga a Cidade Baixa à Cidade Alta de Salvador." } = {}) {
+  const urls = [];
+  const fetchFn = async url => {
+    urls.push(url);
+    if (url.includes("commons.wikimedia.org")) return new Response(JSON.stringify({ query: { pages: [{ imageinfo: [{ extmetadata: { Artist: { value: '<a href="x">Maria Silva</a>' }, LicenseShortName: { value: licenca } } }] }] } }));
+    return new Response(JSON.stringify({ query: { pages: [{ title: titulo, pageimage: imagem, extract: resumo, fullurl: "https://pt.wikipedia.org/wiki/x", thumbnail: { source: thumb } }] } }));
+  };
+  return { fetchFn, urls };
+}
+
+test("foto do lugar vem do Commons com autor e licença, e só se o artigo for do lugar", async () => {
+  const { fotoDoLugar } = await import("../server/fotos.js");
+  const w = wikiFalsa();
+  const f = await fotoDoLugar("Elevador Lacerda", "Salvador", w.fetchFn);
+  assert.match(w.urls[0], /pt\.wikipedia\.org/);
+  assert.deepEqual(f, { url: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Elevador_Lacerda.jpg/800px-Elevador_Lacerda.jpg",
+    autor: "Maria Silva", licenca: "CC BY-SA 4.0", pagina: "https://commons.wikimedia.org/wiki/File%3AElevador_Lacerda.jpg" });
+  // Artigo de outra coisa (a cidade), imagem fora do Commons ou SVG: sem foto.
+  assert.equal(await fotoDoLugar("Elevador Lacerda", "Salvador", wikiFalsa({ titulo: "Salvador (Bahia)" }).fetchFn), null);
+  assert.equal(await fotoDoLugar("Elevador Lacerda", "Salvador", wikiFalsa({ thumb: "https://upload.wikimedia.org/wikipedia/en/a/ab/x.jpg" }).fetchFn), null);
+  assert.equal(await fotoDoLugar("Elevador Lacerda", "Salvador", wikiFalsa({ imagem: "Mapa.svg" }).fetchFn), null);
+  assert.equal(await fotoDoLugar("Elevador Lacerda", "Salvador", async () => { throw new Error("rede"); }), null);
+  // Outro museu que só divide a palavra "museu", ou um lugar de mesmo nome em outra cidade: sem foto.
+  assert.equal(await fotoDoLugar("Museu do Ipiranga", "São Paulo", wikiFalsa({ titulo: "Museu de Arte de São Paulo", resumo: "Museu em São Paulo." }).fetchFn), null);
+  assert.ok(await fotoDoLugar("Museu do Ipiranga", "São Paulo", wikiFalsa({ titulo: "Museu do Ipiranga", resumo: "Museu em São Paulo." }).fetchFn));
+  assert.equal(await fotoDoLugar("Catedral Metropolitana", "Brasília", wikiFalsa({ titulo: "Catedral Metropolitana", resumo: "Igreja no centro de Fortaleza." }).fetchFn), null);
+});
+
+test("roteiro completo leva o nome da pessoa, um destaque por dia com foto e cache separado por nome", () => comCache(async () => {
+  const pedido = { destino: "Salvador", noites: 1, pessoas: 2, estilo: 1, verbaPasseios: 500 };
+  const lugar = (nome, horario, destaque) => ({ nome, bairro: "Comércio", custo: 0, horario, dica: "x", descricao: `Sobre ${nome}`, comoChegar: "a pé", ...(destaque === undefined ? {} : { destaque }) });
+  const pedidos = [];
+  const client = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: {
+    apresentacao: "Ana, prepare-se!",
+    dias: [1, 2].map(dia => ({ dia, cidade: "Salvador", regiao: "Comércio", titulo: "Centro", sobreRegiao: "Bairro antigo",
+      atividades: [lugar(`Mercado Modelo ${dia}`, "09:00–10:00", true), lugar(`Elevador Lacerda ${dia}`, "10:30–11:00", true)],
+      almoco: lugar(`Restô ${dia}`, "12:00–13:00"), jantar: lugar(`Bar ${dia}`, "19:00–20:00") })),
+    dicas: Array.from({ length: 8 }, (_, i) => `d${i}`) } }; } } };
+  const w = wikiFalsa({ titulo: "Mercado Modelo", resumo: "Mercado em Salvador." });
+  const r = await gerarRoteiro({ ...pedido, nome: '  Ana "Maria"\n{x}  ' }, {}, client, null, globalThis.fetch, { completo: true, fotosFetch: w.fetchFn });
+  assert.match(pedidos[0], /chamando o viajante pelo nome \("Ana Maria x"/);
+  assert.match(pedidos[0], /"descricao"/);
+  assert.match(pedidos[0], /"comoChegar"/);
+  assert.match(pedidos[0], /"sobreRegiao"/);
+  assert.equal(r.apresentacao, "Ana, prepare-se!");
+  assert.deepEqual(r.dias[0].atividades.map(a => a.destaque), [true, false]);
+  assert.equal(r.dias[0].atividades[0].foto.autor, "Maria Silva");
+  assert.equal(r.dias[0].atividades[1].foto, undefined);
+  assert.equal(r.dias[0].sobreRegiao, "Bairro antigo");
+  // Mesmo pedido com o mesmo nome vem do cache; com outro nome, monta outro.
+  assert.equal((await gerarRoteiro({ ...pedido, nome: "Ana Maria x" }, {}, client, null, globalThis.fetch, { completo: true, fotosFetch: semFotos })).cache, true);
+  await gerarRoteiro({ ...pedido, nome: "João" }, {}, client, null, globalThis.fetch, { completo: true, fotosFetch: semFotos });
+  assert.equal(pedidos.length, 2);
+  assert.match(pedidos[1], /"João"/);
+  // O roteiro grátis não usa o nome.
+  await gerarRoteiro({ ...pedido, pessoas: 3, nome: "Ana" }, {}, client);
+  assert.doesNotMatch(pedidos.at(-1), /Ana/);
+}));
+
+test("o nome não muda a referência do Pix", async () => {
+  const { referencia } = await import("../server/pix.js");
+  const pedido = { destino: "Salvador", noites: 2, pessoas: 2, verbaPasseios: 300 };
+  assert.equal(await referencia({ ...pedido, nome: "Ana" }), await referencia(pedido));
+});
