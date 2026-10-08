@@ -430,7 +430,8 @@ test("roteiro com GEMINI_API_KEY consulta o Google Maps e monta o roteiro só co
 });
 
 test("uso de tokens: uma linha por roteiro e soma do dia no KV, sem dados pessoais", async () => {
-  const { registrarUso, novoUso, PRECOS } = await import("../server/uso.js");
+  const { registrarUso, novoUso, precosEm, resumoUso } = await import("../server/uso.js");
+  const PRECOS = precosEm();
   const kv = new Map();
   const LEADS = { get: async k => (kv.has(k) ? JSON.parse(kv.get(k)) : null), put: async (k, v) => { kv.set(k, v); } };
   const respostas = [mapsOk, jsonOk];
@@ -457,7 +458,12 @@ test("uso de tokens: uma linha por roteiro e soma do dia no KV, sem dados pessoa
   const dia = JSON.parse(kv.get(chave));
   assert.deepEqual(dia.roteiros, { gratis: 1, detalhado: 1 });
   assert.equal(dia.modelos["claude-sonnet-5-5"].saida, 4000);
-  assert.ok(Math.abs(dia.usd - (linha.usd + (3000 * 3 + 4000 * 15) / 1e6)) < 1e-9);
+  assert.ok(Math.abs(dia.usd - (linha.usd + (3000 * 2 + 4000 * 10) / 1e6)) < 1e-9);
+  // Preço do Gemini: introdutório até 31/12/2026, cheio a partir de 01/01/2027 (Brasília).
+  const g = novoUso(); g.gemini("gemini-3.8-flash", { promptTokenCount: 1e6, candidatesTokenCount: 1e6 });
+  assert.equal(resumoUso(g, {}, new Date("2026-12-31T23:59:00-03:00")).usd, 0.75 + 3.75);
+  assert.equal(resumoUso(g, {}, new Date("2027-01-01T00:00:00-03:00")).usd, 1.5 + 7.5);
+  assert.equal(resumoUso(g, { PRECOS_IA: '{"gemini-3.8-flash":{"entrada":1,"saida":1}}' }).usd, 2, "PRECOS_IA na Cloudflare vale por cima");
   assert.equal(linha.usd, linha.modelos["gemini-3.8-flash"].usd + linha.modelos["google-maps"].usd);
 });
 
