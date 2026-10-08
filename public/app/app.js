@@ -537,19 +537,22 @@ function renderRoteiro() {
   const card = $("roteiro-card");
   if (!card) return;
   const ro = state.roteiro;
+  pararPix();
   if (ro?.dias) {
     card.innerHTML = `
-      <h3>Roteiro dia a dia em ${esc(state.atual.destino.n)}</h3>
+      <h3>${ro.completo ? "Roteiro completo" : "Roteiro dia a dia"} em ${esc(ro.ordem?.join(" + ") || state.atual.destino.n)}</h3>
       ${ro.resumido ? `<p class="hint">Sua viagem tem ${esc(ro.resumido.viagem)} dias; o roteiro vai até ${esc(ro.resumido.dias)} dias${new Set(ro.dias.map(d => d.cidade)).size > 1 ? ", divididos entre as cidades" : ", os primeiros da viagem"}.</p>` : ""}
       <div class="days">${ro.dias.map(d => `
-        <div class="day"><span class="n">DIA ${esc(d.dia)}</span><div><h4>${esc(d.titulo)}</h4>${regiaoDoDia(d) ? `<small class="hint">${esc(regiaoDoDia(d))}</small>` : ""}<ul>${itensDoDia(d).map(a => `<li${a.refeicao ? ' class="ref"' : ""}><span class="p">${esc(String(a.periodo).toLowerCase())}</span><a class="lugar" href="${a.maps ? esc(a.maps) : mapa(a.nome, d.cidade, a.bairro)}" target="_blank" rel="noopener">${esc(a.nome)} ↗</a><span class="c">${Number(a.custo) ? brl(a.custo) : "grátis"}</span></li>`).join("")}</ul></div></div>`).join("")}
+        <div class="day"><span class="n">DIA ${esc(d.dia)}</span><div><h4>${esc(d.titulo)}</h4>${regiaoDoDia(d) ? `<small class="hint">${esc(regiaoDoDia(d))}</small>` : ""}<ul>${itensDoDia(d).map(a => `<li${a.refeicao ? ' class="ref"' : ""}><span class="p">${esc(a.horario || String(a.periodo).toLowerCase())}</span><a class="lugar" href="${a.maps ? esc(a.maps) : mapa(a.nome, d.cidade, a.bairro)}" target="_blank" rel="noopener">${esc(a.nome)} ↗</a><span class="c">${Number(a.custo) ? brl(a.custo) : "grátis"}</span>${a.dica ? `<small class="dica">${esc(a.dica)}</small>` : ""}</li>`).join("")}</ul></div></div>`).join("")}
       </div>
       ${(ro.fontes || []).length ? `<details class="fontes"><summary class="hint">Fontes: Google Maps (${ro.fontes.length} ${ro.fontes.length > 1 ? "lugares" : "lugar"})</summary><ul class="hint">${ro.fontes.map(f => `<li><a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.nome)}</a> · Google Maps</li>`).join("")}</ul></details>` : ""}
       ${ro.totalPasseios != null ? `<p class="hint">Passeios: ${brl(ro.totalPasseios)} de ${brl(ro.verba)} de verba.${ro.totalRefeicoes ? ` Almoços e jantares sugeridos: cerca de ${brl(ro.totalRefeicoes)} (já contam na alimentação).` : ""}</p>` : ""}
       ${ro.acimaDaVerba ? `<div class="warn-box">Este roteiro passou da verba de passeios. Troque alguma atividade paga por uma grátis.</div>` : ""}
-      ${(ro.dicas || []).length ? `<h3>Como economizar</h3><ul class="tips">${ro.dicas.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
+      ${(ro.dicas || []).length ? `<h3>${ro.completo ? "Dicas da viagem" : "Como economizar"}</h3><ul class="tips">${ro.dicas.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
+      ${ro.completoAVenda && !ro.completo ? cartaoCompleto() : ""}
       <div class="baixar nao-imprimir" id="baixar-box"><button type="button" class="primary" id="baixar">Baixar roteiro em PDF</button></div>`;
     $("baixar").onclick = () => leadOk() ? baixarRoteiro() : pedirEmail();
+    if (ro.completoAVenda && !ro.completo) ligarCompleto();
     return;
   }
   const busy = ro?.loading;
@@ -570,8 +573,12 @@ function renderRoteiro() {
 const ORDEM = ["manh", "almo", "tard", "jant", "noit"];
 const posicao = periodo => { const i = ORDEM.findIndex(o => String(periodo).toLowerCase().startsWith(o)); return i < 0 ? 2 : i; };
 function itensDoDia(d) {
-  const refeicoes = [["almoço", d.almoco], ["jantar", d.jantar]].filter(([, r]) => r?.nome).map(([periodo, r]) => ({ periodo, nome: r.nome, bairro: r.bairro, custo: r.custo, maps: r.maps, refeicao: true }));
-  return [...(d.atividades || []), ...refeicoes].map((a, i) => ({ a, i })).sort((x, y) => posicao(x.a.periodo) - posicao(y.a.periodo) || x.i - y.i).map(x => x.a);
+  const refeicoes = [["almoço", d.almoco], ["jantar", d.jantar]].filter(([, r]) => r?.nome).map(([periodo, r]) => ({ periodo, nome: r.nome, bairro: r.bairro, custo: r.custo, maps: r.maps, horario: r.horario, dica: r.dica, refeicao: true }));
+  const itens = [...(d.atividades || []), ...refeicoes];
+  // No roteiro completo, a ordem é a dos horários ("09:00–11:30").
+  const porHora = itens.every(a => /^\d{1,2}:\d{2}/.test(a.horario || ""));
+  const chave = a => porHora ? a.horario.padStart(5, "0") : posicao(a.periodo);
+  return itens.map((a, i) => ({ a, i })).sort((x, y) => (chave(x.a) < chave(y.a) ? -1 : chave(x.a) > chave(y.a) ? 1 : 0) || x.i - y.i).map(x => x.a);
 }
 
 // Região do dia (ex.: "Barra"), e a cidade quando a viagem tem várias.
@@ -585,20 +592,26 @@ function mapa(nome, cidade, bairro) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
-async function gerarRoteiro() {
+// Pedido de roteiro. `paradas`: a ordem das cidades (no roteiro completo, a que a pessoa escolheu).
+function pedidoRoteiro(paradas = state.atual.paradas) {
   const { entrada: f, atual: c } = state;
+  return {
+    destino: paradas ? paradas[0].n : c.destino.n, noites: f.noites,
+    paradas: paradas?.map(p => ({ destino: p.n, noites: p.noites })), pessoas: f.pessoas, estilo: f.estilo, interesses: f.interesses, foco: state.foco,
+    verbaPasseios: c.itens.find(i => i.categoria === "Passeios").valor,
+    verbaAlimentacao: c.itens.find(i => i.categoria === "Alimentação").valor
+  };
+}
+
+async function gerarRoteiro() {
+  const c = state.atual;
   const alvo = c;
   ctlRoteiro = new AbortController();
   evento("MontarRoteiro", { destino: c.destino?.n, veredito: c.estado });
   state.roteiro = { loading: true };
   renderRoteiro();
   try {
-    const r = await postar("/api/roteiro", {
-      destino: c.paradas ? c.paradas[0].n : c.destino.n, noites: f.noites,
-      paradas: c.paradas?.map(p => ({ destino: p.n, noites: p.noites })), pessoas: f.pessoas, estilo: f.estilo, interesses: f.interesses, foco: state.foco,
-      verbaPasseios: c.itens.find(i => i.categoria === "Passeios").valor,
-      verbaAlimentacao: c.itens.find(i => i.categoria === "Alimentação").valor
-    }, ctlRoteiro.signal);
+    const r = await postar("/api/roteiro", pedidoRoteiro(), ctlRoteiro.signal);
     if (state.atual !== alvo) return;
     state.roteiro = r;
     evento("RoteiroPronto", { destino: c.destino?.n });
@@ -608,6 +621,148 @@ async function gerarRoteiro() {
     state.roteiro = e.name === "AbortError" ? null : { erro: e.message };
   }
   renderRoteiro();
+}
+
+// ---- Roteiro completo (pago no Pix): horários de cada lugar, ordem das cidades escolhida e mais dicas ----
+const PRECO_COMPLETO = 9.9;
+// brl() arredonda para reais inteiros; o preço precisa dos centavos (R$ 9,90).
+const reais = v => Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+let timerPix = null;
+const pararPix = () => { clearInterval(timerPix); timerPix = null; };
+// Pix gerado fica guardado no aparelho por viagem: quem fecha ou recarrega a página antes de liberar
+// (pagou ou não) volta, monta o roteiro simples de novo e o mesmo Pix reaparece, já sendo conferido.
+const PIX_PENDENTE = "pix-pendente";
+const SETE_DIAS_MS = 7 * 86400e3;
+function lerPendentes() {
+  try {
+    const todos = JSON.parse(localStorage.getItem(PIX_PENDENTE) || "{}");
+    return Object.fromEntries(Object.entries(todos).filter(([, p]) => Date.now() - p.criado < SETE_DIAS_MS));
+  } catch { return {}; }
+}
+function guardarPendente(id, dados) {
+  const todos = lerPendentes();
+  if (dados) todos[id] = dados; else delete todos[id];
+  try { localStorage.setItem(PIX_PENDENTE, JSON.stringify(todos)); } catch {}
+}
+
+function cartaoCompleto() {
+  const ro = state.roteiro;
+  if (!ro.venda) {
+    const p = lerPendentes()[idViagem()];
+    ro.venda = { ordem: state.atual.paradas ? [...state.atual.paradas] : null };
+    if (p) Object.assign(ro.venda, { pix: p.pix, pedido: p.pedido, email: p.email,
+      ordem: ro.venda.ordem && p.ordem.map(n => ro.venda.ordem.find(x => x.n === n)).filter(Boolean) });
+  }
+  const v = ro.venda;
+  const ordem = v.ordem;
+  if (v.gerando) return `<div class="completo nao-imprimir" id="completo-box"><h3>Roteiro completo</h3><button type="button" class="primary" id="completo-gerando" disabled></button><p class="hint" style="margin:0">Pagamento recebido. Pode levar cerca de 1 minuto, fique nesta tela.</p></div>`;
+  return `
+    <div class="completo nao-imprimir" id="completo-box">
+      <h3>Quer o roteiro completo? ${reais(PRECO_COMPLETO)}</h3>
+      <ul class="hint vantagens">
+        <li>Horário de cada passeio, almoço e jantar, de acordo com o funcionamento de cada lugar</li>
+        <li>Uma dica prática para cada lugar: melhor hora, o que pedir, se precisa reservar</li>
+        ${ordem ? "<li>Você escolhe a ordem das cidades</li>" : ""}
+        <li>Mais dicas da viagem: transporte, segurança e o que comprar antes</li>
+      </ul>
+      ${ordem && !v.pix ? `<div class="ordem"><b>Ordem das cidades</b><ol>${ordem.map((p, i) => `<li><span>${esc(p.n)} <small class="hint">${esc(p.noites)} ${p.noites > 1 ? "noites" : "noite"}</small></span><button type="button" class="mover" data-i="${i}" data-d="-1" ${i ? "" : "disabled"} aria-label="Subir ${esc(p.n)}">↑</button><button type="button" class="mover" data-i="${i}" data-d="1" ${i < ordem.length - 1 ? "" : "disabled"} aria-label="Descer ${esc(p.n)}">↓</button></li>`).join("")}</ol><p class="hint" style="margin:0">Os preços acima são da ordem original; a ordem nova vale para o roteiro.</p></div>` : ""}
+      ${v.pix ? `
+        ${v.pix.qrCode ? `<img class="qr" src="data:image/png;base64,${esc(v.pix.qrCode)}" alt="QR Code do Pix" width="200" height="200">` : ""}
+        <div class="actions"><button type="button" class="primary" id="pix-copiar">Copiar código Pix</button><button type="button" id="pix-conferir">Já paguei</button></div>
+        <p class="hint" style="margin:0">Abra o app do seu banco, escolha Pix copia e cola (ou leia o QR Code) e pague. O roteiro completo aparece aqui sozinho.</p>` : `
+        <form class="lead" id="pix-form" novalidate>
+          <label for="pix-email">Seu e-mail (vai no comprovante)</label>
+          <input id="pix-email" type="email" required autocomplete="email" inputmode="email" maxlength="254" placeholder="voce@email.com" value="${esc(v.email || "")}">
+          <button type="submit" class="primary">Pagar ${reais(PRECO_COMPLETO)} no Pix</button>
+        </form>`}
+      <div class="status${v.erro ? " err" : ""}" id="pix-status" role="status" aria-live="polite">${esc(v.aviso || "")}</div>
+    </div>`;
+}
+
+function ligarCompleto() {
+  const ro = state.roteiro, v = ro.venda;
+  const st = $("pix-status");
+  const aviso = (msg, err) => { v.aviso = msg; v.erro = err; st.className = "status" + (err ? " err" : ""); st.textContent = msg; };
+  if (v.gerando) { pararRoteiro = voando($("completo-gerando"), FRASES_ROTEIRO); return; }
+  document.querySelectorAll("#completo-box .mover").forEach(b => b.onclick = () => {
+    const i = Number(b.dataset.i), j = i + Number(b.dataset.d);
+    [v.ordem[i], v.ordem[j]] = [v.ordem[j], v.ordem[i]];
+    renderRoteiro();
+  });
+  $("pix-form")?.addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const email = $("pix-email").value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return aviso("Confira o e-mail.", true);
+    // Um Pix por vez: dois cliques gerariam duas cobranças, e a pessoa poderia pagar a que o app não acompanha.
+    const botao = $("pix-form").querySelector("button");
+    if (botao.disabled) return;
+    botao.disabled = true;
+    aviso("Gerando o Pix…");
+    try {
+      // O pedido vai junto: o Pix fica preso a este roteiro, nesta ordem de cidades.
+      v.pedido = { ...pedidoRoteiro(v.ordem), completo: true };
+      const pix = await postar("/api/pix", { pedido: v.pedido, email });
+      if (state.roteiro !== ro) return;
+      v.pix = pix; v.email = email; v.aviso = "";
+      guardarPendente(idViagem(), { pix, pedido: v.pedido, email, ordem: v.ordem?.map(p => p.n) || [], criado: Date.now() });
+      evento("GerouPix", { destino: state.atual.destino?.n });
+      renderRoteiro();
+    } catch (e) { botao.disabled = false; aviso(e.message, true); }
+  });
+  if (!v.pix) return;
+  $("pix-copiar").onclick = async () => {
+    try { await navigator.clipboard.writeText(v.pix.copiaECola); aviso("Código copiado. Cole no app do banco, em Pix copia e cola."); }
+    catch { prompt("Copie o código Pix:", v.pix.copiaECola); }
+  };
+  let conferindo = false;
+  const conferir = async manual => {
+    if (conferindo) return;
+    conferindo = true;
+    try {
+      // Já pago antes (o roteiro falhou ao montar): tenta montar de novo.
+      if (v.pago) return montarCompleto(ro);
+      const { status } = await postar("/api/pix", { id: v.pix.id });
+      if (state.roteiro !== ro) return;
+      if (status === "pago") {
+        v.pago = true;
+        window.fbq?.("track", "Purchase", { value: PRECO_COMPLETO, currency: "BRL" });
+        return montarCompleto(ro);
+      }
+      if (status === "expirado") {
+        pararPix(); v.pix = null; guardarPendente(idViagem());
+        v.aviso = "O Pix expirou. Gere outro para pagar."; v.erro = true;
+        return renderRoteiro();
+      }
+      if (manual) aviso("Ainda não recebemos o pagamento. Assim que cair, o roteiro completo aparece aqui.");
+    } catch (e) { if (manual) aviso(e.message, true); }
+    finally { conferindo = false; }
+  };
+  $("pix-conferir").onclick = () => conferir(true);
+  if (!v.pago) timerPix = setInterval(() => document.hidden || conferir(false), 4000);
+}
+
+async function montarCompleto(ro) {
+  pararPix();
+  const v = ro.venda;
+  v.gerando = true; v.aviso = "";
+  renderRoteiro();
+  try {
+    const r = await postar("/api/roteiro", { ...v.pedido, pagamento: v.pix.id });
+    if (state.roteiro !== ro) return;
+    // O e-mail do Pix também libera o PDF, sem pedir de novo.
+    fetch(`${API}/api/lead`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: v.email, novidades: false, destino: state.atual.destino.n }) })
+      .then(x => x.ok && x.json()).then(x => { if (x?.guardado) try { localStorage.setItem(LEAD, "1"); } catch {} }).catch(() => {});
+    guardarPendente(idViagem());
+    state.roteiro = { ...r, completo: true, ordem: v.ordem?.map(p => p.n) };
+    evento("RoteiroCompleto", { destino: state.atual.destino?.n });
+    renderRoteiro();
+    if (salvas.some(x => x.id === idViagem())) salvarViagem();
+  } catch (e) {
+    if (state.roteiro !== ro) return;
+    v.gerando = false;
+    v.aviso = `Pagamento recebido, mas o roteiro completo não carregou (${e.message}). Toque em "Já paguei" para tentar de novo.`; v.erro = true;
+    renderRoteiro();
+  }
 }
 
 function setStatus(msg, err) { $("status").textContent = msg; $("status").className = "status" + (err ? " err" : ""); }
@@ -753,7 +908,7 @@ async function baixarRoteiro() {
 function textoRoteiro() {
   const ro = state.roteiro;
   const dias = ro.dias.map(d => [`Dia ${d.dia}: ${d.titulo}${d.regiao ? ` (${d.regiao})` : ""}`,
-    ...itensDoDia(d).map(a => `- ${a.periodo}: ${a.nome}${Number(a.custo) ? ` · ${brl(a.custo)}` : ""}${a.maps ? ` · ${a.maps}` : ""}`)].join("\n"));
+    ...itensDoDia(d).map(a => `- ${a.horario || a.periodo}: ${a.nome}${Number(a.custo) ? ` · ${brl(a.custo)}` : ""}${a.maps ? ` · ${a.maps}` : ""}${a.dica ? `\n  ${a.dica}` : ""}`)].join("\n"));
   const fontes = (ro.fontes || []).length ? `\n\nFontes: Google Maps\n${ro.fontes.map(f => `${f.nome} · Google Maps · ${f.url}`).join("\n")}` : "";
   return `Roteiro em ${state.atual.destino.n} · Vai Dar Viagem\n\n${dias.join("\n\n")}${fontes}\n\nMonte o seu: https://vaidarviagem.com.br/app/`;
 }

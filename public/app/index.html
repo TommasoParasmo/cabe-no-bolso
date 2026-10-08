@@ -174,6 +174,7 @@ button:disabled { opacity: .55; cursor: default; }
 .day li .p { color: var(--muted); font-size: 12px; padding-top: 2px; }
 .day li .c { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
 .day li.ref .p, .day li.ref .lugar { color: var(--warn); }
+.day li .dica { grid-column: 2 / -1; color: var(--muted); font-size: 12px; margin-top: -2px; }
 .day li .lugar { color: inherit; text-decoration: underline; text-decoration-color: var(--line, #ccc); text-underline-offset: 3px; }
 .tips { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
 .alt { background: var(--warn-bg); border-color: transparent; }
@@ -182,6 +183,7 @@ button:disabled { opacity: .55; cursor: default; }
   .grid, .two { grid-template-columns: minmax(0, 1fr); }
   .day li { grid-template-columns: minmax(0, 1fr) auto; }
   .day li .p { grid-column: 1 / -1; padding: 0; }
+  .day li .dica { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: no-preference) {
   .result.fresh > * { animation: rise .35s ease both; }
@@ -210,6 +212,16 @@ button.voando .frase { display: inline-block; animation: frase 2.4s ease both; }
   button.voando .aviao { animation: none; left: 14px; }
   button.voando .frase { animation: none; }
 }
+.completo { display: grid; gap: 10px; border: 1px solid var(--accent); border-radius: 14px; padding: 14px; }
+.completo h3 { margin: 0; }
+.completo .vantagens { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.completo .ordem { display: grid; gap: 6px; }
+.completo .ordem ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; counter-reset: c; }
+.completo .ordem li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; counter-increment: c; }
+.completo .ordem li span::before { content: counter(c) ". "; font-weight: 700; }
+.completo .mover { padding: 4px 10px; min-width: 36px; }
+.completo .qr { width: 200px; height: 200px; background: #fff; border-radius: 8px; padding: 6px; }
+.completo .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .warn-box { background: var(--warn-bg); color: var(--ink); border-radius: 12px; padding: 12px 14px; font-size: 14px; }
 .baixar { display: grid; gap: 8px; padding-top: 4px; }
 .lead { display: grid; gap: 10px; }
