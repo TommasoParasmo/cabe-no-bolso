@@ -98,6 +98,19 @@ test("veredito que não cabe traz noites possíveis e alternativas", async () =>
   assert.ok(r.opcoes.length > 0 && r.opcoes.every(o => o.estado !== "nao_cabe" && o.destino.n !== "Paris"));
 });
 
+test("veredito sem saída: nada perto cabe, mostra os mais perto e o que mudar", async () => {
+  const r = await montarVeredito({ ...base, destino: "Maceió", orcamento: 2000, ida: "2026-11-20", volta: "2026-11-25" }, {}, aviasales(0).fetchImpl);
+  assert.equal(r.atual.estado, "nao_cabe");
+  assert.ok(r.opcoes.length > 0, "nunca lista vazia");
+  assert.ok(r.opcoes.every(o => o.estado !== "nao_cabe" || o.perto));
+  assert.deepEqual(r.mudancas.map(m => m.texto), ["No estilo Econômico", "Indo 1 pessoa", "1 pessoa no Econômico"]);
+  const [eco, um, ambos] = r.mudancas;
+  assert.ok(eco.total < r.atual.total && um.total < r.atual.total && ambos.total < Math.min(eco.total, um.total));
+  // Já no Econômico com 1 pessoa, não sugere nada a mudar.
+  const so = await montarVeredito({ ...base, destino: "Maceió", orcamento: 500, pessoas: 1, estilo: 0 }, {}, aviasales(0).fetchImpl);
+  assert.deepEqual(so.mudancas, []);
+});
+
 test("veredito rejeita entrada inválida", async () => {
   await assert.rejects(montarVeredito({ ...base, orcamento: 10 }), EntradaInvalida);
   await assert.rejects(montarVeredito({ ...base, volta: "2026-11-19" }), EntradaInvalida);
