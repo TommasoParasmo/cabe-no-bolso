@@ -758,12 +758,14 @@ function roteiroTop(ro) {
         <span class="top-voo">${ICONE_AVIAO}</span>
         <h2>Boa viagem${nome ? `, ${esc(nome)}` : ""}.</h2>
         <div class="top-marca">${logo(true)}</div>
-        <small>Feito em ${esc(periodoLongo(hoje))}. Preços e horários conferidos nessa data, vale confirmar antes de ir.<br>vaidarviagem.com.br</small>
+        <small>Feito em ${esc(periodoLongo(hoje))}. Preços e horários conferidos nessa data, vale confirmar antes de ir.<br>${ro.pagamento ? `Pedido ${esc(ro.pagamento)} · ` : ""}vaidarviagem.com.br</small>
       </div>
     </section>`;
 
   const fontes = (ro.fontes || []).length ? `<details class="fontes nao-imprimir"><summary class="hint">Fontes: Google Maps (${ro.fontes.length} ${ro.fontes.length > 1 ? "lugares" : "lugar"})</summary><ul class="hint">${ro.fontes.map(x => `<li><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.nome)}</a> · Google Maps</li>`).join("")}</ul></details>` : "";
-  return `<div class="top">${capa}${carta}${resumo}${dias}${dicas}${fim}</div>${fontes}
+  // Confirmação do pedido na tela (o e-mail de confirmação vem depois): número, valor e o que foi comprado.
+  const confirmacao = ro.pagamento ? `<div class="confirmado nao-imprimir"><b>Pagamento confirmado</b><span>Pedido ${esc(ro.pagamento)} · ${reais(PRECO_COMPLETO)} · Roteiro Detalhado de ${esc(cidade)}</span><small>Guarde o número do pedido: com ele e o e-mail do Pix você recupera este roteiro em outro aparelho por 30 dias.</small></div>` : "";
+  return `${confirmacao}<div class="top">${capa}${carta}${resumo}${dias}${dicas}${fim}</div>${fontes}
     <div class="baixar nao-imprimir" id="baixar-box"><button type="button" class="primary" id="baixar">Baixar roteiro em PDF</button></div>`;
 }
 
@@ -916,7 +918,9 @@ function ligarCompleto() {
       // O pedido vai junto: o Pix fica preso a este roteiro, nesta ordem de cidades.
       // O nome não muda a referência do Pix: só personaliza o roteiro.
       v.pedido = { ...pedidoRoteiro(v.ordem), completo: true, nome };
-      const pix = await postar("/api/pix", { pedido: v.pedido, email });
+      // A tela da viagem vai junto e fica guardada 30 dias: quem pagar e perder o roteiro remonta tudo em outro aparelho.
+      const viagem = { entrada: state.entrada, atual: state.atual, modo: state.modo, noitesMax: state.noitesMax, foco: state.foco };
+      const pix = await postar("/api/pix", { pedido: v.pedido, email, viagem });
       if (state.roteiro !== ro) return;
       v.pix = pix; v.email = email; v.aviso = "";
       guardarPendente(idViagem(), { pix, pedido: v.pedido, email, ordem: v.ordem?.map(p => p.n) || [], criado: Date.now() });
@@ -968,7 +972,7 @@ async function montarCompleto(ro) {
     fetch(`${API}/api/lead`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: v.email, novidades: false, destino: state.atual.destino.n }) })
       .then(x => x.ok && x.json()).then(x => { if (x?.guardado) try { localStorage.setItem(LEAD, "1"); } catch {} }).catch(() => {});
     guardarPendente(idViagem());
-    state.roteiro = { ...r, completo: true, nome: v.nome || v.pedido?.nome, ordem: v.ordem?.map(p => p.n) };
+    state.roteiro = { ...r, completo: true, nome: v.nome || v.pedido?.nome, ordem: v.ordem?.map(p => p.n), pagamento: v.pix.id };
     evento("RoteiroCompleto", { destino: state.atual.destino?.n });
     renderRoteiro();
     if (salvas.some(x => x.id === idViagem())) salvarViagem();
