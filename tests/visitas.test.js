@@ -32,3 +32,18 @@ test("falha da Cloudflare não mostra número", async () => {
   assert.equal(await visualizacoesDaSemana(env, fetchDe({}, false)), null);
   assert.equal(await visualizacoesDaSemana(env, async () => { throw new Error("rede"); }), null);
 });
+
+test("falha fica guardada no cache e não repete a consulta a cada visita", async () => {
+  const mapa = new Map();
+  globalThis.caches = { default: {
+    match: async req => (mapa.has(req.url) ? new Response(mapa.get(req.url)) : undefined),
+    put: async (req, res) => { mapa.set(req.url, await res.text()); }
+  } };
+  try {
+    let n = 0;
+    const falha = async () => { n++; return { ok: false, json: async () => ({}) }; };
+    assert.equal(await visualizacoesDaSemana(env, falha), null);
+    assert.equal(await visualizacoesDaSemana(env, falha), null);
+    assert.equal(n, 1);
+  } finally { delete globalThis.caches; }
+});

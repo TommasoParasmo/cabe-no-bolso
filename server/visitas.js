@@ -6,7 +6,8 @@
 import { lerCache, gravarCache } from "./cache.js";
 
 const API = "https://api.cloudflare.com/client/v4/graphql";
-const GUARDA_S = 3600; // uma consulta por hora, no máximo
+const GUARDA_S = 3600; // uma consulta por hora em cada data center da Cloudflare (o cache é local de cada um)
+const FALHA_S = 600;
 const PRAZO_MS = 6000;
 const MINIMO = 300;
 
@@ -29,8 +30,9 @@ export async function visualizacoesDaSemana(env = {}, fetchFn = globalThis.fetch
   if (!token || !zona) return null;
   const minimo = Number(env.VISITAS_MINIMO) || MINIMO;
   const chave = `https://cache.cabenobolso/visitas?${new URLSearchParams({ z: zona, v: "1" })}`;
-  let semana = (await lerCache(chave))?.semana;
-  if (!Number.isFinite(semana)) {
+  const guardado = await lerCache(chave);
+  let semana = guardado?.semana;
+  if (!guardado) {
     try {
       const r = await fetchFn(API, {
         method: "POST", signal: AbortSignal.timeout(PRAZO_MS),
@@ -41,8 +43,8 @@ export async function visualizacoesDaSemana(env = {}, fetchFn = globalThis.fetch
     } catch {
       semana = null;
     }
-    if (semana === null) return null;
-    await gravarCache(chave, { semana }, GUARDA_S);
+    // Falha também fica guardada (10 min), para token errado ou Cloudflare fora não virar uma consulta por visita.
+    await gravarCache(chave, { semana }, semana === null ? FALHA_S : GUARDA_S);
   }
-  return semana >= minimo ? { semana } : null;
+  return Number.isFinite(semana) && semana >= minimo ? { semana } : null;
 }
