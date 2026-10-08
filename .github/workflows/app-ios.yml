@@ -1,11 +1,8 @@
 name: App iOS
 
+# Só sob demanda (aba Actions > Run workflow): o app ainda não está publicado e, com o repositório
+# privado, cada build gasta minutos da cota grátis do GitHub Actions (macOS conta 10 vezes).
 on:
-  push:
-    branches: [main]
-    paths: ["mobile/**", "public/**", ".github/workflows/app-ios.yml"]
-  pull_request:
-    paths: ["mobile/**", "public/**", ".github/workflows/app-ios.yml"]
   workflow_dispatch:
 
 # Por enquanto compila para o simulador, sem assinatura. O envio para o

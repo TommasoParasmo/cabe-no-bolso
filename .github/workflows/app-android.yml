@@ -1,11 +1,8 @@
 name: App Android
 
+# Só sob demanda (aba Actions > Run workflow): o app ainda não está publicado e, com o repositório
+# privado, cada build gasta minutos da cota grátis do GitHub Actions (macOS conta 10 vezes).
 on:
-  push:
-    branches: [main]
-    paths: ["mobile/**", "public/**", ".github/workflows/app-android.yml"]
-  pull_request:
-    paths: ["mobile/**", "public/**", ".github/workflows/app-android.yml"]
   workflow_dispatch:
 
 jobs:
