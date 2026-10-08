@@ -42,7 +42,8 @@
       const escolha = ev.target.closest("button")?.dataset.escolha;
       if (!escolha) return;
       // Quem aceitou e depois recusou: o Pixel já carregado só sai ao recarregar a página.
-      if (ler() === "sim" && escolha === "nao") { gravar(escolha); location.reload(); return; }
+      // Confere o Pixel na página, não o que foi gravado: sem localStorage, ler() volta vazio.
+      if (window.fbq && escolha === "nao") { gravar(escolha); location.reload(); return; }
       gravar(escolha);
       aviso.remove();
       if (escolha === "sim") carregarPixel();
