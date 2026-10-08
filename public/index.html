@@ -69,6 +69,10 @@ a{color:inherit}
 .hero .lead{font-size:20px;opacity:.85;max-width:34ch;margin-top:22px}
 .hero .ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}
 .hero small{display:block;margin-top:14px;opacity:.6}
+.hero .prova{margin-top:18px;font-size:15px;opacity:.9}
+.hero .visitas{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:14px;opacity:.85}
+.hero .visitas[hidden]{display:none}
+.hero .visitas::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--gold)}
 .example{background:var(--surf);color:var(--ink);border-radius:28px;padding:30px;box-shadow:0 30px 70px rgba(0,0,0,.28);display:grid;gap:14px}
 .example .big{display:flex;align-items:baseline;gap:8px}
 .example .big span{font:700 22px var(--display);color:var(--mut)}
@@ -153,6 +157,8 @@ footer p{font-size:13px;opacity:.65;max-width:62ch}
         <p class="lead">Você informa o valor e a gente monta a viagem completa: passagem, hotel, comida e passeios. E diz se vai dar, antes de você gastar um centavo.</p>
         <div class="ctas"><a class="btn" href="/app/">Planejar minha viagem</a><a class="btn ghost" href="#exemplo">Ver um exemplo</a></div>
         <small>Grátis para simular. Sem cadastro.</small>
+        <p class="prova">Criado por quem já ajudou mais de 1.000 viajantes a planejar suas viagens.</p>
+        <p class="visitas" id="visitas" hidden></p>
       </div>
       <aside class="example" id="exemplo" aria-label="Exemplo de veredito">
         <p class="fine" style="font-size:14px">Exemplo: São Paulo para Salvador, 5 noites, 2 pessoas</p>
@@ -230,6 +236,7 @@ footer p{font-size:13px;opacity:.65;max-width:62ch}
 </section>
 </main>
 <footer><div class="wrap"><img src="/marca/logo-escuro.png" alt="Vai Dar Viagem" width="132" height="46"><p>Preços de passagens e hotéis fornecidos por parceiros. Alguns links podem gerar comissão, sem custo extra para você. © 2026 Vai Dar Viagem · contato@vaidarviagem.com.br · <a href="/termos.html">Termos de uso</a> · <a href="/privacidade.html">Política de privacidade</a> · <a href="/termos.html#reembolso">Reembolso</a> · <a href="/privacidade.html#cookies" data-cookies>Cookies</a></p></div></footer>
+<script src="/lib/visitas.js" defer></script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});</script>
 </body>
 </html>
