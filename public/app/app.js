@@ -693,6 +693,10 @@ function ligarCompleto() {
     ev.preventDefault();
     const email = $("pix-email").value.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return aviso("Confira o e-mail.", true);
+    // Um Pix por vez: dois cliques gerariam duas cobranças, e a pessoa poderia pagar a que o app não acompanha.
+    const botao = $("pix-form").querySelector("button");
+    if (botao.disabled) return;
+    botao.disabled = true;
     aviso("Gerando o Pix…");
     try {
       // O pedido vai junto: o Pix fica preso a este roteiro, nesta ordem de cidades.
@@ -703,7 +707,7 @@ function ligarCompleto() {
       guardarPendente(idViagem(), { pix, pedido: v.pedido, email, ordem: v.ordem?.map(p => p.n) || [], criado: Date.now() });
       evento("GerouPix", { destino: state.atual.destino?.n });
       renderRoteiro();
-    } catch (e) { aviso(e.message, true); }
+    } catch (e) { botao.disabled = false; aviso(e.message, true); }
   });
   if (!v.pix) return;
   $("pix-copiar").onclick = async () => {
@@ -724,7 +728,11 @@ function ligarCompleto() {
         window.fbq?.("track", "Purchase", { value: PRECO_COMPLETO, currency: "BRL" });
         return montarCompleto(ro);
       }
-      if (status === "expirado") { pararPix(); v.pix = null; guardarPendente(idViagem()); renderRoteiro(); return aviso("O Pix expirou. Gere outro para pagar.", true); }
+      if (status === "expirado") {
+        pararPix(); v.pix = null; guardarPendente(idViagem());
+        v.aviso = "O Pix expirou. Gere outro para pagar."; v.erro = true;
+        return renderRoteiro();
+      }
       if (manual) aviso("Ainda não recebemos o pagamento. Assim que cair, o roteiro completo aparece aqui.");
     } catch (e) { if (manual) aviso(e.message, true); }
     finally { conferindo = false; }
