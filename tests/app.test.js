@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { DESTINOS } from "../public/lib/dados.js";
 import { custo, acharDestino, noitesQueCabem } from "../public/lib/custo.js";
 import { precoVoo, datasMaisBaratas } from "../server/precos.js";
-import { montarVeredito, EntradaInvalida } from "../server/veredito.js";
+import { montarVeredito as montarVereditoHoje, EntradaInvalida } from "../server/veredito.js";
+// "Hoje" fixo: as datas dos testes (ida 20/11/2026) não podem virar passado com o tempo.
+const HOJE = "2026-10-08";
+const montarVeredito = (b, env, f) => montarVereditoHoje(b, env, f, { hoje: HOJE });
 import { gerarRoteiro, validarPedido, LimiteAtingido, LIMITE_DIA, limiteDia, foraDaRegiao } from "../server/roteiro.js";
 
 // Wikimedia falsa sem resultados: os testes do completo não saem para a internet.
@@ -104,6 +107,19 @@ test("QA P2: ida no passado, origem fora das sugestões e 1 noite no singular", 
   assert.ok(sug.opcoes.every(o => o.destino.n !== "São Paulo"));
   const umaNoite = await montarVeredito({ ...base, destino: "Rio de Janeiro", ida: "2026-11-20", volta: "2026-11-21" }, {}, aviasales(0).fetchImpl);
   assert.match(umaNoite.atual.itens.find(i => i.categoria === "Hospedagem").detalhe, /^1 noite,/);
+});
+
+test("veredito sem saída: nada perto cabe, mostra os mais perto e o que mudar", async () => {
+  const r = await montarVeredito({ ...base, destino: "Maceió", orcamento: 2000, ida: "2026-11-20", volta: "2026-11-25" }, {}, aviasales(0).fetchImpl);
+  assert.equal(r.atual.estado, "nao_cabe");
+  assert.ok(r.opcoes.length > 0, "nunca lista vazia");
+  assert.ok(r.opcoes.every(o => o.estado !== "nao_cabe" || o.perto));
+  assert.deepEqual(r.mudancas.map(m => m.texto), ["No estilo Econômico", "Indo 1 pessoa", "1 pessoa no Econômico"]);
+  const [eco, um, ambos] = r.mudancas;
+  assert.ok(eco.total < r.atual.total && um.total < r.atual.total && ambos.total < Math.min(eco.total, um.total));
+  // Já no Econômico com 1 pessoa, não sugere nada a mudar.
+  const so = await montarVeredito({ ...base, destino: "Maceió", orcamento: 500, pessoas: 1, estilo: 0 }, {}, aviasales(0).fetchImpl);
+  assert.deepEqual(so.mudancas, []);
 });
 
 test("veredito rejeita entrada inválida", async () => {

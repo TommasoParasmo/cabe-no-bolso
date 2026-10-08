@@ -16,7 +16,9 @@ const noitesTxt = n => `${n} ${n > 1 ? "noites" : "noite"}`;
   $("ida").value = iso(a); $("volta").value = iso(b);
   // Ida a partir de amanhã (a API também recusa data passada).
   const amanha = new Date(); amanha.setDate(amanha.getDate() + 1);
-  $("ida").min = iso(amanha); $("volta").min = iso(amanha);
+  // Data local (iso() é em UTC e, à noite no Brasil, pularia um dia).
+  const local = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  $("ida").min = local(amanha); $("volta").min = local(amanha);
   // Datas flexíveis: os próximos 12 meses, começando pelo mês da ida padrão.
   const meses = Array.from({ length: 12 }, (_, i) => new Date(new Date().getFullYear(), new Date().getMonth() + i, 1));
   $("mes").innerHTML = meses.map(m => {
@@ -449,7 +451,8 @@ function cartaoPassagem(c, f, L) {
 }
 
 // Sugestão que não cabe: o app não diz "não vai dar", mostra quanto falta ("com mais um pouquinho você iria").
-const quase = (o, modo = state?.modo) => modo === "sugestao" && o.estado === "nao_cabe";
+// "Com mais um pouquinho": sugestão que não cabe, ou destino alternativo mostrado porque nenhum outro cabe (perto).
+const quase = (o, modo = state?.modo) => (modo === "sugestao" || o.perto) && o.estado === "nao_cabe";
 const rotulo = (o, modo) => quase(o, modo) ? `com mais ${brl(-o.diff)}` : ESTADO[o.estado];
 
 function opcoesHtml(opcoes, atual, filtro = () => true) {
@@ -485,6 +488,7 @@ function render(fresh) {
       <h2>${manchete}</h2>
       ${e.flexivel ? `<p class="datas-achadas">${viagem ? `Datas de exemplo: ${dataCurta(f.ida)} a ${dataCurta(f.volta)}. Na viagem por várias cidades ainda não buscamos os dias mais baratos.` : c.ida ? `Dias mais baratos que achamos: ${dataCurta(c.ida)} a ${dataCurta(c.volta)}` : c.meio === "onibus" ? `De ônibus o preço quase não muda com a data. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.` : `Ainda não há preço de voo com ${noitesTxt(f.noites)} nesse mês. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.`}</p>` : ""}
       ${ajuste ? `<p>${ajuste}</p>` : c.estado === "apertado" ? "<p>Sobra pouco para imprevistos. Vale comprar a passagem logo, antes de o preço subir.</p>" : ""}
+      ${state.modo === "destino" && c.estado === "nao_cabe" && !c.perto && state.mudancas?.length ? `<ul class="mudancas">${state.mudancas.map(m => `<li>${esc(m.texto)}: ${brl(m.total)} · ${m.estado !== "nao_cabe" ? "<b>cabe</b>" : `ainda faltam ${brl(-m.diff)}`}</li>`).join("")}</ul>` : ""}
       <div class="nums">
         <div><span class="eyebrow">Seu orçamento</span><b>${brl(f.orcamento)}</b></div>
         <div><span class="eyebrow">Custo estimado</span><b>${brl(c.total)}</b></div>
@@ -497,7 +501,7 @@ function render(fresh) {
     </article>
     ${mostrarOpcoes ? `
     <section class="card">
-      <h3>${comparar ? "Comparando os destinos que você escolheu" : state.modo === "sugestao" ? (state.opcoes.every(quase) ? "Lugares que com mais um pouquinho você iria" : `As melhores viagens para ${brl(f.orcamento)}`) : "Destinos que cabem no seu orçamento"}</h3>
+      <h3>${comparar ? "Comparando os destinos que você escolheu" : state.opcoes.every(quase) ? "Lugares que com mais um pouquinho você iria" : state.modo === "sugestao" ? `As melhores viagens para ${brl(f.orcamento)}` : "Destinos que cabem no seu orçamento"}</h3>
       ${state.modo === "sugestao"
         ? ["nacional", "internacional"].map(g => {
           const doGrupo = state.opcoes.filter(o => o.grupo === g);
@@ -522,7 +526,7 @@ function render(fresh) {
       </section>
     </div>`}
     ${noExterior(c) ? cartaoExterior(c) : ""}
-    <section class="card" id="roteiro-card"></section>
+    ${c.estado === "nao_cabe" && !quase(c) ? "" : `<section class="card" id="roteiro-card"></section>`}
   `;
   r.querySelectorAll(".opt").forEach(b => b.onclick = () => escolher(Number(b.dataset.i)));
   $("salvar").onclick = salvarViagem;
