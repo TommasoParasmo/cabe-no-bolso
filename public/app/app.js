@@ -633,7 +633,9 @@ function roteiroTop(ro) {
   const chegada = (ro.ordem && c.paradas?.find(p => p.n === ro.ordem[0])) || c.paradas?.[0] || c.destino;
   const imgFoto = (a, cls) => `<img class="${cls}" src="${esc(a.foto.url)}" alt="${esc(a.nome)}">`;
   const credito = a => `<a href="${esc(a.foto.pagina)}" target="_blank" rel="noopener">Foto: ${esc(a.foto.autor)}, ${esc(a.foto.licenca)}, via Wikimedia Commons</a>`;
-  const cab = () => `<div class="pg-cab"><span>Roteiro ${esc(de || "Detalhado")}, ${esc(cidade)}</span><span>Vai Dar Viagem</span></div>`;
+  // Logo da marca: a versão escura (texto claro) vai nas páginas de fundo verde ou com foto.
+  const logo = escuro => `<img class="top-logo" src="/marca/${escuro ? "logo-escuro" : "logo"}.png" alt="Vai Dar Viagem" width="640" height="223">`;
+  const cab = escuro => `<div class="pg-cab"><span>Roteiro ${esc(de || "Detalhado")}, ${esc(cidade)}</span>${logo(escuro)}</div>`;
   const rod = `<div class="pg-rod"><span>${ESTRELA} Roteiro Detalhado${nome ? `, feito para ${esc(nome)}` : ""}</span><span>vaidarviagem.com.br</span></div>`;
   const titulo = nome ? `${esc(nome)}, sua ${esc(cidade)} em ${n} dias` : `Sua ${esc(cidade)} em ${n} dias`;
   const hoje = new Date().toISOString().slice(0, 10);
@@ -641,6 +643,7 @@ function roteiroTop(ro) {
   const capa = `
     <section class="pg top-capa">
       ${capaFoto ? imgFoto(capaFoto, "top-capa-img") : ""}
+      <div class="top-capa-logo">${logo(true)}</div>
       <div class="top-capa-txt">
         <p class="top-kicker">${ESTRELA} Roteiro Detalhado, Vai Dar Viagem</p>
         <h2>${titulo}</h2>
@@ -689,7 +692,7 @@ function roteiroTop(ro) {
     const topo = `<p class="top-kicker">Dia ${esc(d.dia)} de ${n}</p><h3>${esc(d.titulo)}</h3>`;
     return `
     <section class="pg top-dia">
-      ${a ? `<header class="top-dia-foto">${imgFoto(a, "top-dia-img")}${cab()}<div>${topo}<small class="top-credito">${credito(a)}</small></div></header>` : `${cab()}<header class="top-dia-sem">${topo}</header>`}
+      ${a ? `<header class="top-dia-foto">${imgFoto(a, "top-dia-img")}${cab(true)}<div>${topo}<small class="top-credito">${credito(a)}</small></div></header>` : `${cab()}<header class="top-dia-sem">${topo}</header>`}
       <div class="top-dia-info">
         ${d.sobreRegiao ? `<div class="top-bairro"><p class="top-rotulo">${ICONE_PIN} O bairro${d.regiao ? `: ${esc(d.regiao)}` : ""}</p><p>${esc(d.sobreRegiao)}</p></div>` : ""}
         <div class="top-gasto"><small>Gasto previsto</small><b>${brl(gastoDoDia(d))}</b><small>para ${pessoas} ${pessoas > 1 ? "pessoas" : "pessoa"}</small></div>
@@ -711,7 +714,7 @@ function roteiroTop(ro) {
 
   const dicas = (ro.dicas || []).length ? `
     <section class="pg top-dicas">
-      ${cab()}
+      ${cab(true)}
       <p class="top-kicker">${ESTRELA} Roteiro Detalhado</p>
       <h2>${ro.dicas.length} dicas para a sua viagem${nome ? `, ${esc(nome)}` : ""}</h2>
       <ol>${ro.dicas.map((t, i) => `<li><b>${String(i + 1).padStart(2, "0")}</b><p>${esc(t)}</p></li>`).join("")}</ol>
@@ -724,7 +727,7 @@ function roteiroTop(ro) {
       <div>
         <span class="top-voo">${ICONE_AVIAO}</span>
         <h2>Boa viagem${nome ? `, ${esc(nome)}` : ""}.</h2>
-        <p class="top-marca">Vai Dar Viagem</p>
+        <div class="top-marca">${logo(true)}</div>
         <small>Feito em ${esc(periodoLongo(hoje))}. Preços e horários conferidos nessa data, vale confirmar antes de ir.<br>vaidarviagem.com.br</small>
       </div>
     </section>`;
