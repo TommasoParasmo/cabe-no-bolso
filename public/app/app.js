@@ -517,7 +517,7 @@ function render(fresh) {
       </section>
     </div>`}
     ${noExterior(c) ? cartaoExterior(c) : ""}
-    ${c.estado === "nao_cabe" && !quase(c) ? "" : `<section class="card" id="roteiro-card"></section>`}
+    ${c.estado === "nao_cabe" && !quase(c) && !state.roteiro?.dias ? "" : `<section class="card" id="roteiro-card"></section>`}
   `;
   r.querySelectorAll(".opt").forEach(b => b.onclick = () => escolher(Number(b.dataset.i)));
   $("salvar").onclick = salvarViagem;
@@ -1061,6 +1061,33 @@ async function compartilhar() {
   } catch {}
 }
 lerSalvas();
+
+// ---- Recuperar o Roteiro Detalhado pago em outro aparelho: número do pedido + e-mail do Pix ----
+$("rec-form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const st = $("rec-status"), botao = $("rec-ir");
+  const aviso = (msg, err) => { st.className = "status" + (err ? " err" : ""); st.textContent = msg; };
+  const id = $("rec-id").value.replace(/\s+/g, "").toUpperCase();
+  const email = $("rec-email").value.trim();
+  if (!/^ORD[0-9A-Z]{6,40}$/.test(id)) return aviso("O número do pedido começa com ORD. Confira.", true);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return aviso("Confira o e-mail.", true);
+  if (botao.disabled) return;
+  botao.disabled = true;
+  aviso("Conferindo o pagamento. Se o roteiro precisar ser refeito, pode levar até 2 minutos.");
+  const parar = voando(botao, FRASES_ROTEIRO);
+  try {
+    const r = await postar("/api/recuperar", { id, email });
+    if (!r.viagem?.atual) throw new Error(`Achamos o pagamento, mas não a viagem. Escreva para ${CONTATO} com o número do pedido.`);
+    pedido?.abort(); setStatus(""); // um cálculo pendente não pode substituir a viagem recuperada
+    state = { ...r.viagem, opcoes: [], roteiro: { ...r.roteiro, completo: true, nome: r.pedido.nome, ordem: r.pedido.paradas?.map(p => p.destino), pagamento: r.id } };
+    render(false);
+    salvarViagem(); // fica em "Minhas viagens" neste aparelho
+    aviso("");
+    $("recuperar").open = false;
+    $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) { aviso(e.message, true); }
+  finally { parar(); botao.disabled = false; }
+});
 
 // ---- Baixar o roteiro: na primeira vez pede o e-mail (lead), depois baixa direto ----
 const LEAD = "lead-ok";

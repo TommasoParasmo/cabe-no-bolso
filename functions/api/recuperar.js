@@ -1,6 +1,6 @@
 // Recupera o Roteiro Detalhado pago em outro aparelho: número do pedido + e-mail do Pix.
 // Confere no Mercado Pago e refaz o roteiro com o pedido guardado (vem do cache se ainda estiver lá).
-import { gerarRoteiro } from "../../server/roteiro.js";
+import { gerarRoteiro, Demorou } from "../../server/roteiro.js";
 import { EntradaInvalida } from "../../server/veredito.js";
 import { pixLigado, recuperarPedido, podeRecuperar, PixInvalido, PixNaoPago, PedidoNaoGuardado } from "../../server/pix.js";
 
@@ -21,6 +21,7 @@ export async function onRequestPost({ request, env }) {
     if (e instanceof PixInvalido || e instanceof EntradaInvalida) return json({ erro: e.message }, 400);
     if (e instanceof PixNaoPago) return json({ erro: e.message }, 402);
     if (e instanceof PedidoNaoGuardado) return json({ erro: e.message }, 404);
+    if (e instanceof Demorou) return json({ erro: e.message }, 504);
     console.error("recuperar", e);
     return json({ erro: "Algo falhou ao recuperar o roteiro. Tente de novo." }, 502);
   }
