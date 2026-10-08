@@ -456,12 +456,28 @@ test("Gemini com lista do Maps ou roteiro curto cai para o Claude", async () => 
 });
 
 test("viagem de mais de 15 dias em várias cidades resume em 15 dias passando por todas", async () => {
-  let pedido;
-  const client = { messages: { parse: async req => { pedido = req; return resposta([0], 15).messages.parse(req); } } };
+  const pedidos = [];
+  // 1ª tentativa: 15 dias, todos em Lisboa e com número repetido; 2ª: 8 em Lisboa e 7 em "Paris, França".
+  const tentativas = [
+    diasDe({ cidade: "Lisboa", titulo: "Lisboa", atividades: [] }, 15).map(d => ({ ...d, dia: Math.min(d.dia, 14) })),
+    diasDe({ cidade: "Lisboa", titulo: "Lisboa", atividades: [] }, 15).map(d => d.dia > 8 ? { ...d, cidade: "Paris, França" } : d)
+  ];
+  const client = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: { dias: tentativas[pedidos.length - 1], dicas: [] } }; } } };
   const r = await gerarRoteiro({ paradas: [{ destino: "Lisboa", noites: 11 }, { destino: "Paris", noites: 10 }], verbaPasseios: 2000 }, {}, client);
-  assert.match(pedido.messages[0].content, /15 dias de roteiro no total \(a viagem tem 22 dias, mas o roteiro resume em 15\)\. Distribua os 15 dias entre as cidades nessa proporção, passando por todas/);
+  assert.match(pedidos[0], /15 dias de roteiro no total \(a viagem tem 22 dias, mas o roteiro resume em 15\)\. Distribua os 15 dias entre as cidades nessa proporção, passando por todas/);
+  assert.equal(pedidos.length, 2);
+  assert.match(pedidos[1], /ficaram sem nenhum dia: Paris/);
   assert.equal(r.dias.length, 15);
+  assert.deepEqual(r.dias.map(d => d.dia), Array.from({ length: 15 }, (_, i) => i + 1));
+  assert.equal(r.dias[14].cidade, "Paris, França");
   assert.deepEqual(r.resumido, { dias: 15, viagem: 22 });
+});
+
+test("cidade do roteiro aceita outra grafia do nome", async () => {
+  const { faltaNoRoteiro } = await import("../server/roteiro.js");
+  const p = validarPedido({ paradas: [{ destino: "Bangkok", noites: 2 }, { destino: "Seul", noites: 1 }] });
+  assert.deepEqual(faltaNoRoteiro(p, [{ cidade: "Bangkok" }, { cidade: "Bangkok" }, { cidade: "Seoul" }, { cidade: "Seoul" }]), []);
+  assert.match(faltaNoRoteiro(p, [{ cidade: "Bangkok" }, { cidade: "Bangkok" }, { cidade: "Bangkok" }, { cidade: "Bangkok" }]).join(), /sem nenhum dia: Seul/);
 });
 
 test("roteiro do Gemini devolve as fontes do Google Maps e não aceita lista do Maps cortada", async () => {
