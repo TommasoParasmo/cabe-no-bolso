@@ -1106,7 +1106,7 @@ $("rec-form").addEventListener("submit", async ev => {
 const ESTILO_DESC = [
   "Pousadas e hotéis simples bem avaliados, refeições práticas e passeios grátis ou baratos.",
   "Hotéis de preço médio, bons restaurantes e as principais atrações pagas.",
-  "Hotéis entre os melhores da cidade, restaurantes melhores e passeios guiados."
+  "Hotéis entre os melhores da cidade, restaurantes melhores e mais verba para passeios pagos."
 ];
 function mostrarEstilo() {
   const v = Number(document.querySelector('input[name="estilo"]:checked')?.value ?? 1);
