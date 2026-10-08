@@ -429,6 +429,38 @@ test("roteiro com GEMINI_API_KEY consulta o Google Maps e monta o roteiro só co
   assert.equal(r.dias[0].jantar.maps, undefined);
 });
 
+test("uso de tokens: uma linha por roteiro e soma do dia no KV, sem dados pessoais", async () => {
+  const { registrarUso, novoUso, PRECOS } = await import("../server/uso.js");
+  const kv = new Map();
+  const LEADS = { get: async k => (kv.has(k) ? JSON.parse(kv.get(k)) : null), put: async (k, v) => { kv.set(k, v); } };
+  const respostas = [mapsOk, jsonOk];
+  let n = 0;
+  const fetchFn = async () => new Response(JSON.stringify({ candidates: [respostas[n++]], usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 200, thoughtsTokenCount: 50 } }));
+  const logs = []; const log = console.log; console.log = (...a) => logs.push(a.join(" "));
+  try {
+    await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 8, verbaPasseios: 300 }, { GEMINI_API_KEY: "k", LEADS }, null, null, fetchFn);
+  } finally { console.log = log; }
+  const linha = JSON.parse(logs.find(l => l.startsWith("uso: ")).slice(5));
+  assert.equal(linha.tipo, "gratis");
+  assert.equal(linha.resultado, "ok");
+  assert.deepEqual(linha.modelos["gemini-3.8-flash"], { chamadas: 2, entrada: 2000, saida: 500, usd: (2000 * PRECOS["gemini-3.8-flash"].entrada + 500 * PRECOS["gemini-3.8-flash"].saida) / 1e6 });
+  assert.ok(!/Salvador|@/.test(logs.find(l => l.startsWith("uso: "))), "sem destino nem e-mail");
+  // A busca no Google Maps também tem custo (1 consulta quando a resposta não lista as consultas).
+  assert.equal(linha.modelos["google-maps"].chamadas, 1);
+  assert.equal(linha.modelos["google-maps"].usd, PRECOS["google-maps"].porMil / 1000);
+  const [chave] = [...kv.keys()].filter(k => k.startsWith("uso:"));
+  assert.match(chave, /^uso:\d{4}-\d{2}-\d{2}$/);
+  // Claude soma no mesmo dia, separado por modelo.
+  const uso = novoUso(); uso.claude("claude-sonnet-5-5", { input_tokens: 3000, output_tokens: 4000 });
+  console.log = () => {};
+  try { await registrarUso(uso, { tipo: "detalhado", resultado: "ok" }, { LEADS }); } finally { console.log = log; }
+  const dia = JSON.parse(kv.get(chave));
+  assert.deepEqual(dia.roteiros, { gratis: 1, detalhado: 1 });
+  assert.equal(dia.modelos["claude-sonnet-5-5"].saida, 4000);
+  assert.ok(Math.abs(dia.usd - (linha.usd + (3000 * 3 + 4000 * 15) / 1e6)) < 1e-9);
+  assert.equal(linha.usd, linha.modelos["gemini-3.8-flash"].usd + linha.modelos["google-maps"].usd);
+});
+
 test("roteiro cai para o Claude quando o Gemini falha", async () => {
   const { pedidos, fetchFn } = geminiFalso([{ status: 429 }]);
   let claude = 0;
