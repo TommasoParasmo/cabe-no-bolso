@@ -130,10 +130,12 @@ test("precoVoo com data exata vazia no cache ainda usa o preço do mês", () => 
   assert.equal(urls.length, 0);
 }));
 
-test("noitesQueCabem considera ficar só 1 noite", () => {
-  const f = { ...base, noites: 2, orcamento: 0 };
+test("noitesQueCabem sugere no mínimo 2 noites", () => {
+  const f = { ...base, noites: 5, orcamento: 0 };
   const um = custo(rio, { ...f, noites: 1 });
-  assert.equal(noitesQueCabem(rio, { ...f, orcamento: um.total }), 1);
+  const dois = custo(rio, { ...f, noites: 2 });
+  assert.equal(noitesQueCabem(rio, { ...f, orcamento: um.total }), 0);
+  assert.equal(noitesQueCabem(rio, { ...f, orcamento: dois.total }), 2);
 });
 
 // Repete um dia de exemplo para o roteiro ter todos os dias pedidos (noites + 1).

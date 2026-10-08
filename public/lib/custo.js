@@ -207,9 +207,12 @@ export function ranking(f, { excluir = null, voos = new Map() } = {}) {
     .sort((a, b) => pontuar(b, f) - pontuar(a, f));
 }
 
-// Maior número de noites (abaixo do pedido) que cabe no orçamento, ou 0.
+// Menos que isso não vale a viagem: não sugerimos encurtar para 1 noite.
+export const NOITES_MIN_SUGESTAO = 2;
+
+// Maior número de noites (abaixo do pedido, a partir de NOITES_MIN_SUGESTAO) que cabe no orçamento, ou 0.
 export function noitesQueCabem(dest, f, voo) {
-  for (let n = f.noites - 1; n >= 1; n--) if (custo(dest, { ...f, noites: n }, voo).diff >= 0) return n;
+  for (let n = f.noites - 1; n >= NOITES_MIN_SUGESTAO; n--) if (custo(dest, { ...f, noites: n }, voo).diff >= 0) return n;
   return 0;
 }
 
