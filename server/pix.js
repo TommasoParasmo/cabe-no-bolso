@@ -61,10 +61,18 @@ async function lerOrder(id, env, fetchFn) {
 
 const pago = o => o.status === "processed" && Number(o.total_amount) >= Number(PRECO);
 
-// Situação para o app: "pago", "esperando" ou "expirado" (expirada ou cancelada: precisa gerar outro Pix).
-export async function situacaoPix(id, env, fetchFn = globalThis.fetch) {
+// Pix sem pagamento passado do prazo. O Mercado Pago só muda a order para expirada dias depois,
+// então o prazo do próprio pagamento é que decide quando o app oferece um Pix novo.
+const venceu = (o, agora) => {
+  const prazo = Date.parse(o.transactions?.payments?.[0]?.date_of_expiration);
+  return prazo < agora;
+};
+
+// Situação para o app: "pago", "esperando" ou "expirado" (expirada, cancelada ou vencida: precisa gerar outro Pix).
+export async function situacaoPix(id, env, fetchFn = globalThis.fetch, agora = Date.now()) {
   const o = await lerOrder(id, env, fetchFn);
-  return { status: pago(o) ? "pago" : ["expired", "canceled", "failed"].includes(o.status) ? "expirado" : "esperando" };
+  if (pago(o)) return { status: "pago" };
+  return { status: ["expired", "canceled", "failed"].includes(o.status) || venceu(o, agora) ? "expirado" : "esperando" };
 }
 
 // Confere que a order foi paga e é deste roteiro. Devolve a referência.

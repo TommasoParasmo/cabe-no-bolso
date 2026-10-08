@@ -610,6 +610,12 @@ test("pix: só libera order paga, do valor certo e do mesmo roteiro", async () =
   await assert.rejects(conferirPagamento("ORD01ABC123", pedidoRio, env, mercadoPago(esperando).fetchFn), PixNaoPago);
   assert.deepEqual(await situacaoPix("ORD01ABC123", env, mercadoPago(esperando).fetchFn), { status: "esperando" });
   assert.deepEqual(await situacaoPix("ORD01ABC123", env, mercadoPago({ ...paga, status: "expired" }).fetchFn), { status: "expirado" });
+  // O Mercado Pago demora dias para marcar a order como expirada: o prazo do pagamento já decide.
+  const comPrazo = (o, prazo) => ({ ...o, transactions: { payments: [{ date_of_expiration: prazo }] } });
+  const agora = Date.parse("2026-10-08T12:00:00Z");
+  assert.deepEqual(await situacaoPix("ORD01ABC123", env, mercadoPago(comPrazo(esperando, "2026-10-08T11:59:00.000-00:00")).fetchFn, agora), { status: "expirado" });
+  assert.deepEqual(await situacaoPix("ORD01ABC123", env, mercadoPago(comPrazo(esperando, "2026-10-08T12:30:00.000-00:00")).fetchFn, agora), { status: "esperando" });
+  assert.deepEqual(await situacaoPix("ORD01ABC123", env, mercadoPago(comPrazo(paga, "2026-10-08T11:59:00.000-00:00")).fetchFn, agora), { status: "pago" }, "pago no limite continua pago");
   const { fetchFn, pedidos } = mercadoPago(paga);
   await assert.rejects(situacaoPix("../payments", env, fetchFn), PixInvalido);
   assert.equal(pedidos.length, 0, "id estranho não vira URL");
