@@ -92,7 +92,7 @@ export function custo(dest, f, voo) {
         ? `Ida e volta ${origem.ap}–${dest.ap}, ${fmt(vooPessoa)} por pessoa${fonteVoo === "aviasales" ? ", preço encontrado no Aviasales" : ", estimativa"}`
         : "Sem passagem: destino na sua cidade"
     },
-    { categoria: "Hospedagem", valor: diaria * quartos * f.noites, detalhe: `${f.noites} noites, ${quartos} ${quartos > 1 ? "quartos" : "quarto"} a ${fmt(diaria)}` },
+    { categoria: "Hospedagem", valor: diaria * quartos * f.noites, detalhe: `${f.noites} ${f.noites > 1 ? "noites" : "noite"}, ${quartos} ${quartos > 1 ? "quartos" : "quarto"} a ${fmt(diaria)}` },
     { categoria: "Alimentação", valor: r10(comida), detalhe: `${fmt(r10(comida / f.pessoas / dias))} por pessoa por dia` },
     { categoria: "Passeios", valor: r10(passeios), detalhe: `${fmt(r10(passeios / f.pessoas / f.noites))} por pessoa por dia` },
     { categoria: "Transporte local", valor: r10(transp), detalhe: traslado ? `Inclui traslado do aeroporto de ${dest.ap}` : "Metrô, ônibus e aplicativos" }
