@@ -1,5 +1,5 @@
 // Pix do roteiro completo. Com { pedido, email } cria a cobrança; com { id } diz se já foi paga.
-import { pixLigado, criarPix, situacaoPix, PixInvalido } from "../../server/pix.js";
+import { pixLigado, criarPix, situacaoPix, guardarPedido, PixInvalido } from "../../server/pix.js";
 import { EntradaInvalida } from "../../server/veredito.js";
 
 export async function onRequestPost({ request, env }) {
@@ -11,7 +11,11 @@ export async function onRequestPost({ request, env }) {
     return json({ erro: "Pedido inválido." }, 400);
   }
   try {
-    return json(body?.id ? await situacaoPix(body.id, env) : await criarPix(body, env));
+    if (body?.id) return json(await situacaoPix(body.id, env));
+    const pix = await criarPix(body, env);
+    // Guarda o pedido 30 dias para recuperar em outro aparelho. Se o KV falhar, o Pix segue valendo.
+    await guardarPedido(pix.id, body, env).catch(e => console.error("pix: pedido não guardado", e));
+    return json(pix);
   } catch (e) {
     if (e instanceof PixInvalido || e instanceof EntradaInvalida) return json({ erro: e.message }, 400);
     console.error("pix", e);

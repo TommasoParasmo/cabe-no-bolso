@@ -8,11 +8,17 @@ const COLORS = ["var(--accent)", "var(--sun)", "#7A8FD6", "#D96C8A", "#6FB58C", 
 const ESTADO = { cabe: "Vai dar viagem", apertado: "Vai dar, no aperto", nao_cabe: "Não vai dar" };
 
 const iso = d => d.toISOString().slice(0, 10);
+const noitesTxt = n => `${n} ${n > 1 ? "noites" : "noite"}`;
 (function init() {
   $("origem").innerHTML = ORIGENS.map(o => `<option>${esc(o.n)}</option>`).join("");
   const a = new Date(); a.setDate(a.getDate() + 45);
   const b = new Date(a); b.setDate(b.getDate() + 5);
   $("ida").value = iso(a); $("volta").value = iso(b);
+  // Ida a partir de amanhã (a API também recusa data passada).
+  const amanha = new Date(); amanha.setDate(amanha.getDate() + 1);
+  // Data local (iso() é em UTC e, à noite no Brasil, pularia um dia).
+  const local = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  $("ida").min = local(amanha); $("volta").min = local(amanha);
   // Datas flexíveis: os próximos 12 meses, começando pelo mês da ida padrão.
   const meses = Array.from({ length: 12 }, (_, i) => new Date(new Date().getFullYear(), new Date().getMonth() + i, 1));
   $("mes").innerHTML = meses.map(m => {
@@ -245,7 +251,9 @@ let visiveis = [], ativa = -1;
 function abrirLista() {
   const q = norm($("destino").value);
   visiveis = OPCOES.filter(o => !escolhidos.includes(o.v) && (!q || norm(o.v).includes(q) || norm(o.nota).includes(q)));
-  ativa = q && visiveis.length ? 0 : -1;
+  // Nome exato ("Porto") é o escolhido no Enter, não o primeiro que contém o texto ("Porto de Galinhas").
+  const exato = visiveis.findIndex(o => norm(o.v) === q);
+  ativa = q && visiveis.length ? Math.max(0, exato) : -1;
   let grupo = "";
   $("sugestoes").innerHTML = visiveis.length ? visiveis.map((o, i) => {
     const titulo = o.grupo !== grupo ? `<li class="grupo" role="presentation">${grupo = o.grupo}</li>` : "";
@@ -275,7 +283,8 @@ $("sugestoes").addEventListener("mousedown", e => {
   if (!li) return;
   e.preventDefault();
   addDestino(visiveis[Number(li.dataset.i)].v);
-  abrirLista();
+  // Fecha a lista: aberta, ela cobria "Comparar / Visitar todos" e "me sugira destinos".
+  fecharLista();
 });
 $("destino").addEventListener("keydown", e => {
   const aberta = !$("sugestoes").hidden;
@@ -290,7 +299,7 @@ $("destino").addEventListener("keydown", e => {
     if (!v) return;
     e.preventDefault();
     addDestino(v);
-    abrirLista();
+    fecharLista();
   } else if (e.key === "Escape") fecharLista();
 });
 
@@ -476,9 +485,9 @@ function render(fresh) {
   r.innerHTML = `
     <article class="verdict" data-state="${quase(c) ? "quase" : c.estado}">
       <span class="pill">${quase(c) ? "Com mais um pouquinho" : ESTADO[c.estado]}</span>
-      <div class="eyebrow">${viagem ? `Viagem por ${c.paradas.length} cidades · ${c.paradas.map(p => `${esc(p.n)} (${p.noites})`).join(" → ")}` : `${quase(c) ? "Mais perto do seu orçamento · " : state.modo === "sugestao" ? "Nossa sugestão · " : comparar ? "Melhor entre os escolhidos · " : ""}${esc(c.destino.n)}, ${esc(c.destino.p)}`} · ${f.noites} noites · ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} · ${ESTILOS[f.estilo]}</div>
+      <div class="eyebrow">${viagem ? `Viagem por ${c.paradas.length} cidades · ${c.paradas.map(p => `${esc(p.n)} (${p.noites})`).join(" → ")}` : `${quase(c) ? "Mais perto do seu orçamento · " : state.modo === "sugestao" ? "Nossa sugestão · " : comparar ? "Melhor entre os escolhidos · " : ""}${esc(c.destino.n)}, ${esc(c.destino.p)}`} · ${noitesTxt(f.noites)} · ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} · ${ESTILOS[f.estilo]}</div>
       <h2>${manchete}</h2>
-      ${e.flexivel ? `<p class="datas-achadas">${viagem ? `Datas de exemplo: ${dataCurta(f.ida)} a ${dataCurta(f.volta)}. Na viagem por várias cidades ainda não buscamos os dias mais baratos.` : c.ida ? `Dias mais baratos que achamos: ${dataCurta(c.ida)} a ${dataCurta(c.volta)}` : c.meio === "onibus" ? `De ônibus o preço quase não muda com a data. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.` : `Ainda não há preço de voo com ${f.noites} noites nesse mês. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.`}</p>` : ""}
+      ${e.flexivel ? `<p class="datas-achadas">${viagem ? `Datas de exemplo: ${dataCurta(f.ida)} a ${dataCurta(f.volta)}. Na viagem por várias cidades ainda não buscamos os dias mais baratos.` : c.ida ? `Dias mais baratos que achamos: ${dataCurta(c.ida)} a ${dataCurta(c.volta)}` : c.meio === "onibus" ? `De ônibus o preço quase não muda com a data. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.` : `Ainda não há preço de voo com ${noitesTxt(f.noites)} nesse mês. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.`}</p>` : ""}
       ${ajuste ? `<p>${ajuste}</p>` : c.estado === "apertado" ? "<p>Sobra pouco para imprevistos. Vale comprar a passagem logo, antes de o preço subir.</p>" : ""}
       ${state.modo === "destino" && c.estado === "nao_cabe" && !c.perto && state.mudancas?.length ? `<ul class="mudancas">${state.mudancas.map(m => `<li>${esc(m.texto)}: ${brl(m.total)} · ${m.estado !== "nao_cabe" ? "<b>cabe</b>" : `ainda faltam ${brl(-m.diff)}`}</li>`).join("")}</ul>` : ""}
       <div class="nums">
@@ -518,7 +527,7 @@ function render(fresh) {
       </section>
     </div>`}
     ${noExterior(c) ? cartaoExterior(c) : ""}
-    ${c.estado === "nao_cabe" && !quase(c) ? "" : `<section class="card" id="roteiro-card"></section>`}
+    ${c.estado === "nao_cabe" && !quase(c) && !state.roteiro?.dias ? "" : `<section class="card" id="roteiro-card"></section>`}
   `;
   r.querySelectorAll(".opt").forEach(b => b.onclick = () => escolher(Number(b.dataset.i)));
   $("salvar").onclick = salvarViagem;
@@ -759,12 +768,14 @@ function roteiroTop(ro) {
         <span class="top-voo">${ICONE_AVIAO}</span>
         <h2>Boa viagem${nome ? `, ${esc(nome)}` : ""}.</h2>
         <div class="top-marca">${logo(true)}</div>
-        <small>Feito em ${esc(periodoLongo(hoje))}. Preços e horários conferidos nessa data, vale confirmar antes de ir.<br>vaidarviagem.com.br</small>
+        <small>Feito em ${esc(periodoLongo(hoje))}. Preços e horários conferidos nessa data, vale confirmar antes de ir.<br>${ro.pagamento ? `Pedido ${esc(ro.pagamento)} · ` : ""}vaidarviagem.com.br</small>
       </div>
     </section>`;
 
   const fontes = (ro.fontes || []).length ? `<details class="fontes nao-imprimir"><summary class="hint">Fontes: Google Maps (${ro.fontes.length} ${ro.fontes.length > 1 ? "lugares" : "lugar"})</summary><ul class="hint">${ro.fontes.map(x => `<li><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.nome)}</a> · Google Maps</li>`).join("")}</ul></details>` : "";
-  return `<div class="top">${capa}${carta}${resumo}${dias}${dicas}${fim}</div>${fontes}
+  // Confirmação do pedido na tela (o e-mail de confirmação vem depois): número, valor e o que foi comprado.
+  const confirmacao = ro.pagamento ? `<div class="confirmado nao-imprimir"><b>Pagamento confirmado</b><span>Pedido ${esc(ro.pagamento)} · ${reais(PRECO_COMPLETO)} · Roteiro Detalhado de ${esc(cidade)}</span><small>Guarde o número do pedido: com ele e o e-mail do Pix você recupera este roteiro em outro aparelho por 30 dias.</small></div>` : "";
+  return `${confirmacao}<div class="top">${capa}${carta}${resumo}${dias}${dicas}${fim}</div>${fontes}
     <div class="baixar nao-imprimir" id="baixar-box"><button type="button" class="primary" id="baixar">Baixar roteiro em PDF</button></div>`;
 }
 
@@ -917,7 +928,9 @@ function ligarCompleto() {
       // O pedido vai junto: o Pix fica preso a este roteiro, nesta ordem de cidades.
       // O nome não muda a referência do Pix: só personaliza o roteiro.
       v.pedido = { ...pedidoRoteiro(v.ordem), completo: true, nome };
-      const pix = await postar("/api/pix", { pedido: v.pedido, email });
+      // A tela da viagem vai junto e fica guardada 30 dias: quem pagar e perder o roteiro remonta tudo em outro aparelho.
+      const viagem = { entrada: state.entrada, atual: state.atual, modo: state.modo, noitesMax: state.noitesMax, foco: state.foco };
+      const pix = await postar("/api/pix", { pedido: v.pedido, email, viagem });
       if (state.roteiro !== ro) return;
       v.pix = pix; v.email = email; v.aviso = "";
       guardarPendente(idViagem(), { pix, pedido: v.pedido, email, ordem: v.ordem?.map(p => p.n) || [], criado: Date.now() });
@@ -969,7 +982,7 @@ async function montarCompleto(ro) {
     fetch(`${API}/api/lead`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: v.email, novidades: false, destino: state.atual.destino.n }) })
       .then(x => x.ok && x.json()).then(x => { if (x?.guardado) try { localStorage.setItem(LEAD, "1"); } catch {} }).catch(() => {});
     guardarPendente(idViagem());
-    state.roteiro = { ...r, completo: true, nome: v.nome || v.pedido?.nome, ordem: v.ordem?.map(p => p.n) };
+    state.roteiro = { ...r, completo: true, nome: v.nome || v.pedido?.nome, ordem: v.ordem?.map(p => p.n), pagamento: v.pix.id };
     evento("RoteiroCompleto", { destino: state.atual.destino?.n });
     renderRoteiro();
     if (salvas.some(x => x.id === idViagem())) salvarViagem();
@@ -1048,7 +1061,7 @@ function renderSalvas() {
 }
 async function compartilhar() {
   const { entrada: e, atual: c } = state; const f = comDatas(e, c);
-  const texto = `${c.destino.n}: ${quase(c) ? `com mais ${brl(-c.diff)} vai dar viagem` : ESTADO[c.estado]}. ${f.noites} noites para ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} por cerca de ${brl(c.total)}. Simule a sua viagem:`;
+  const texto = `${c.destino.n}: ${quase(c) ? `com mais ${brl(-c.diff)} vai dar viagem` : ESTADO[c.estado]}. ${noitesTxt(f.noites)} para ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} por cerca de ${brl(c.total)}. Simule a sua viagem:`;
   const url = "https://vaidarviagem.com.br/app/";
   try {
     const Share = plugin("Share");
@@ -1059,6 +1072,33 @@ async function compartilhar() {
   } catch {}
 }
 lerSalvas();
+
+// ---- Recuperar o Roteiro Detalhado pago em outro aparelho: número do pedido + e-mail do Pix ----
+$("rec-form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const st = $("rec-status"), botao = $("rec-ir");
+  const aviso = (msg, err) => { st.className = "status" + (err ? " err" : ""); st.textContent = msg; };
+  const id = $("rec-id").value.replace(/\s+/g, "").toUpperCase();
+  const email = $("rec-email").value.trim();
+  if (!/^ORD[0-9A-Z]{6,40}$/.test(id)) return aviso("O número do pedido começa com ORD. Confira.", true);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return aviso("Confira o e-mail.", true);
+  if (botao.disabled) return;
+  botao.disabled = true;
+  aviso("Conferindo o pagamento. Se o roteiro precisar ser refeito, pode levar até 2 minutos.");
+  const parar = voando(botao, FRASES_ROTEIRO);
+  try {
+    const r = await postar("/api/recuperar", { id, email });
+    if (!r.viagem?.atual) throw new Error(`Achamos o pagamento, mas não a viagem. Escreva para ${CONTATO} com o número do pedido.`);
+    pedido?.abort(); setStatus(""); // um cálculo pendente não pode substituir a viagem recuperada
+    state = { ...r.viagem, opcoes: [], roteiro: { ...r.roteiro, completo: true, nome: r.pedido.nome, ordem: r.pedido.paradas?.map(p => p.destino), pagamento: r.id } };
+    render(false);
+    salvarViagem(); // fica em "Minhas viagens" neste aparelho
+    aviso("");
+    $("recuperar").open = false;
+    $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) { aviso(e.message, true); }
+  finally { parar(); botao.disabled = false; }
+});
 
 // ---- Formulário preenchido pelo link (anúncios): ?destino=Maceió&orcamento=2000&pessoas=1&estilo=economico&noites=4&ida=2026-11-20 ----
 // destino aceita vários separados por vírgula; estilo aceita 0/1/2 ou economico/equilibrado/conforto; origem é a cidade de saída.

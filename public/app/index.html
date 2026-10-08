@@ -154,6 +154,10 @@ button:disabled { opacity: .55; cursor: default; }
 .salvas .abrir { flex: 1; min-width: 0; text-align: left; display: grid; gap: 2px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
 .salvas .abrir small { color: var(--muted); font-size: 12px; font-weight: 500; }
 .salvas .tirar { border: 0; background: transparent; color: var(--muted); font-size: 16px; padding: 0 8px; }
+.recuperar > summary { cursor: pointer; font-weight: 600; color: var(--accent); }
+.recuperar[open] > summary { margin-bottom: 4px; }
+.confirmado { display: grid; gap: 4px; margin-bottom: 14px; padding: 14px 18px; border-radius: 16px; background: rgba(226,178,63,.16); border: 1px solid rgba(226,178,63,.5); }
+.confirmado small { color: var(--muted); }
 
 /* Resultado: veredito em cima, detalhes em duas colunas, roteiro embaixo */
 .result { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 24px; align-items: start; }
@@ -602,6 +606,18 @@ if (window.fbq) { fbq('init', '1648295673479841'); fbq('track', 'PageView'); }
   </div>
 
   <section class="card" id="minhas" hidden></section>
+  <details class="card recuperar" id="recuperar">
+    <summary>Já paguei o Roteiro Detalhado e perdi</summary>
+    <form class="lead" id="rec-form" novalidate>
+      <p class="hint" style="margin:0">Use o número do pedido (começa com ORD e aparece embaixo do QR Code do Pix e no fim do PDF) e o e-mail que você colocou no Pix. Os pedidos ficam guardados por 30 dias.</p>
+      <label for="rec-id">Número do pedido</label>
+      <input id="rec-id" type="text" required autocapitalize="characters" autocomplete="off" spellcheck="false" maxlength="48" placeholder="ORD01...">
+      <label for="rec-email">E-mail do Pix</label>
+      <input id="rec-email" type="email" required autocomplete="email" inputmode="email" maxlength="254" placeholder="voce@email.com">
+      <button type="submit" class="primary" id="rec-ir">Recuperar meu roteiro</button>
+      <div class="status" id="rec-status" role="status" aria-live="polite"></div>
+    </form>
+  </details>
   <section class="result" id="result" aria-live="polite"></section>
 
   <p class="fine">Passagens: preços encontrados no Aviasales a partir de buscas recentes, ou estimativa quando não há busca para a rota. Hospedagem, comida e passeios: médias estimadas por destino. Confira os valores nos sites parceiros antes de reservar. Alguns links geram comissão, sem custo extra para você. <a href="/privacidade.html">Política de privacidade</a>.</p>

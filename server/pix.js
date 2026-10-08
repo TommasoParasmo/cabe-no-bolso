@@ -3,6 +3,7 @@
 // Sem banco: a cobrança leva no external_reference a "impressão digital" do pedido de roteiro,
 // e a liberação confere na hora com o Mercado Pago que a order foi paga e é daquele roteiro.
 import { validarPedido } from "./roteiro.js";
+import { lerCache, gravarCache } from "./cache.js";
 
 export const PRECO = "9.90";
 const API = "https://api.mercadopago.com/v1/orders";
@@ -82,4 +83,64 @@ export async function conferirPagamento(id, body, env, fetchFn = globalThis.fetc
   if (!pago(o)) throw new PixNaoPago("O pagamento ainda não caiu.");
   if (o.external_reference !== ref) throw new PixInvalido("Esse pagamento é de outro roteiro.");
   return ref;
+}
+
+// ---- Recuperar o roteiro pago em outro aparelho ----
+// O pedido (e a tela da viagem, para remontar o resultado) fica 30 dias no KV com o número da order.
+// Quem pagou e perdeu o roteiro (trocou de aparelho, limpou o navegador) recupera com o número do
+// pedido e o e-mail do Pix, conferidos no Mercado Pago. Só o e-mail nunca basta: mostraria a viagem de outra pessoa.
+export const GUARDA_DIAS = 30;
+const MAX_GUARDADO = 100_000;
+const RECUPERAR_IP_DIA = 20;
+const chavePedido = id => `pedido:${String(id).toUpperCase()}`;
+
+export class PedidoNaoGuardado extends Error {}
+
+// A consulta da order no Mercado Pago não devolve o e-mail de quem pagou. Guardamos só um código
+// (SHA-256 do número do pedido com o e-mail), que confere o e-mail digitado sem permitir descobrir qual é.
+async function codigoEmail(id, email) {
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${String(id).toUpperCase()}:${String(email).trim().toLowerCase()}`));
+  return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+export async function guardarPedido(id, { pedido, viagem, email }, env) {
+  if (!env?.LEADS) return false;
+  const tela = viagem && typeof viagem === "object" ? viagem : null;
+  const base = { pedido, conferir: await codigoEmail(id, email), criado: new Date().toISOString() };
+  let valor = JSON.stringify({ ...base, viagem: tela });
+  // Tela grande demais (não deveria acontecer) não entra; o pedido sozinho ainda refaz o roteiro.
+  if (valor.length > MAX_GUARDADO) valor = JSON.stringify({ ...base, viagem: null });
+  await env.LEADS.put(chavePedido(id), valor, { expirationTtl: GUARDA_DIAS * 86400 });
+  return true;
+}
+
+// Freio contra quem tenta adivinhar pedidos: tentativas por IP por dia.
+export async function podeRecuperar(ip) {
+  if (!ip) return true;
+  const chave = `https://cache.cabenobolso/recuperar-limite?${new URLSearchParams({ ip, d: new Date().toISOString().slice(0, 10) })}`;
+  const n = (await lerCache(chave))?.n || 0;
+  if (n >= RECUPERAR_IP_DIA) return false;
+  await gravarCache(chave, { n: n + 1 }, 86400);
+  return true;
+}
+
+// Devolve { pedido, viagem } só se a order existe, é do e-mail informado, foi paga e é daquele pedido.
+export async function recuperarPedido(body, env, fetchFn = globalThis.fetch) {
+  const id = String(body?.id ?? "").trim().toUpperCase();
+  const email = String(body?.email ?? "").trim().toLowerCase();
+  // Mesma resposta para pedido inexistente e e-mail diferente: não revela se um número existe.
+  const naoAchou = () => new PixInvalido("Não achamos um pedido com esse número e esse e-mail. Confira os dois ou escreva para contato@vaidarviagem.com.br.");
+  if (email.length > 254 || !EMAIL.test(email)) throw naoAchou();
+  let o;
+  try { o = await lerOrder(id, env, fetchFn); } catch (e) { throw e instanceof PixInvalido ? naoAchou() : e; }
+  // Sem o pedido guardado não dá para conferir o e-mail: mesma resposta, para não revelar se o número existe.
+  const guardado = await env.LEADS?.get(chavePedido(id), "json").catch(() => null);
+  if (!guardado?.pedido || guardado.conferir !== await codigoEmail(id, email)) throw naoAchou();
+  // Se o Mercado Pago devolver o e-mail, ele também tem que bater.
+  if (o.payer?.email && String(o.payer.email).trim().toLowerCase() !== email) throw naoAchou();
+  if (!pago(o)) throw new PixNaoPago("Esse pedido ainda não foi pago. Se você acabou de pagar, espere um minuto e tente de novo.");
+  if (await referencia(guardado.pedido).catch(() => null) !== o.external_reference) {
+    throw new PedidoNaoGuardado("Achamos o pagamento, mas não o pedido. Escreva para contato@vaidarviagem.com.br com o número do pedido.");
+  }
+  return { pedido: guardado.pedido, viagem: guardado.viagem || null };
 }

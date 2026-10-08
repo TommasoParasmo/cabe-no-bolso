@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { DESTINOS } from "../public/lib/dados.js";
 import { custo, acharDestino, noitesQueCabem } from "../public/lib/custo.js";
 import { precoVoo, datasMaisBaratas } from "../server/precos.js";
-import { montarVeredito, EntradaInvalida } from "../server/veredito.js";
+import { montarVeredito as montarVereditoHoje, EntradaInvalida } from "../server/veredito.js";
+// "Hoje" fixo: as datas dos testes (ida 20/11/2026) não podem virar passado com o tempo.
+const HOJE = "2026-10-08";
+const montarVeredito = (b, env, f) => montarVereditoHoje(b, env, f, { hoje: HOJE });
 import { gerarRoteiro, validarPedido, LimiteAtingido, LIMITE_DIA, limiteDia, foraDaRegiao } from "../server/roteiro.js";
 
 // Wikimedia falsa sem resultados: os testes do completo não saem para a internet.
@@ -96,6 +99,14 @@ test("veredito que não cabe traz noites possíveis e alternativas", async () =>
   const r = await montarVeredito({ ...base, destino: "Paris", orcamento: 9000 }, {}, aviasales(0).fetchImpl);
   assert.equal(r.atual.estado, "nao_cabe");
   assert.ok(r.opcoes.length > 0 && r.opcoes.every(o => o.estado !== "nao_cabe" && o.destino.n !== "Paris"));
+});
+
+test("QA P2: ida no passado, origem fora das sugestões e 1 noite no singular", async () => {
+  await assert.rejects(montarVeredito({ ...base, destino: "Salvador", ida: "2026-09-01", volta: "2026-09-05" }), /a partir de amanhã/);
+  const sug = await montarVeredito({ ...base, orcamento: 1500, pessoas: 1, estilo: 0 }, {}, aviasales(0).fetchImpl);
+  assert.ok(sug.opcoes.every(o => o.destino.n !== "São Paulo"));
+  const umaNoite = await montarVeredito({ ...base, destino: "Rio de Janeiro", ida: "2026-11-20", volta: "2026-11-21" }, {}, aviasales(0).fetchImpl);
+  assert.match(umaNoite.atual.itens.find(i => i.categoria === "Hospedagem").detalhe, /^1 noite,/);
 });
 
 test("veredito sem saída: nada perto cabe, mostra os mais perto e o que mudar", async () => {
@@ -651,6 +662,32 @@ test("pix: só libera order paga, do valor certo e do mesmo roteiro", async () =
   const { fetchFn, pedidos } = mercadoPago(paga);
   await assert.rejects(situacaoPix("../payments", env, fetchFn), PixInvalido);
   assert.equal(pedidos.length, 0, "id estranho não vira URL");
+});
+
+test("recuperar o roteiro pago: pedido guardado 30 dias, liberado só com número, e-mail e pagamento", async () => {
+  const { guardarPedido, recuperarPedido, referencia, GUARDA_DIAS, PixInvalido, PixNaoPago, PedidoNaoGuardado } = await import("../server/pix.js");
+  const kv = new Map(); let ttl;
+  const LEADS = { get: async (k, tipo) => (kv.has(k) ? JSON.parse(kv.get(k)) : null), put: async (k, v, o) => { kv.set(k, v); ttl = o.expirationTtl; } };
+  const env = { MP_ACCESS_TOKEN: "tok", LEADS };
+  const viagem = { entrada: { orcamento: 5000 }, atual: { destino: { n: "Rio de Janeiro" } }, modo: "destino" };
+  assert.equal(await guardarPedido("ORD01ABC123", { pedido: pedidoRio, viagem, email: "Ana@Email.com" }, env), true);
+  assert.equal(ttl, GUARDA_DIAS * 86400);
+  assert.ok(!/ana|email\.com/i.test(kv.get("pedido:ORD01ABC123")), "o e-mail não fica no KV, só um código");
+  // A consulta da order no Mercado Pago não traz o payer: a conferência é pelo código guardado.
+  const paga = { id: "ORD01ABC123", status: "processed", total_amount: "9.90", external_reference: await referencia(pedidoRio) };
+  const r = await recuperarPedido({ id: " ord01abc123 ", email: "ana@email.com " }, env, mercadoPago(paga).fetchFn);
+  assert.deepEqual(r.viagem, viagem);
+  assert.equal(r.pedido.destino, pedidoRio.destino);
+  // E-mail diferente e pedido inexistente dão a mesma resposta (não revela se o número existe).
+  await assert.rejects(recuperarPedido({ id: "ORD01ABC123", email: "outra@email.com" }, env, mercadoPago(paga).fetchFn), PixInvalido);
+  await assert.rejects(recuperarPedido({ id: "ORD01ABC123", email: "ana@email.com" }, env, mercadoPago({}, 404).fetchFn), PixInvalido);
+  await assert.rejects(recuperarPedido({ id: "ORD01ABC123", email: "" }, env, mercadoPago(paga).fetchFn), PixInvalido);
+  await assert.rejects(recuperarPedido({ id: "ORD01ABC123", email: "ana@email.com" }, env, mercadoPago({ ...paga, status: "action_required" }).fetchFn), PixNaoPago);
+  // Se o Mercado Pago trouxer o e-mail, ele também precisa bater.
+  await assert.rejects(recuperarPedido({ id: "ORD01ABC123", email: "ana@email.com" }, env, mercadoPago({ ...paga, payer: { email: "outra@email.com" } }).fetchFn), PixInvalido);
+  // Pedido que não está guardado: mesma resposta de e-mail errado; guardado de outro roteiro: avisa.
+  await assert.rejects(recuperarPedido({ id: "ORD01ZZZ999", email: "ana@email.com" }, env, mercadoPago({ ...paga, id: "ORD01ZZZ999" }).fetchFn), PixInvalido);
+  await assert.rejects(recuperarPedido({ id: "ORD01ABC123", email: "ana@email.com" }, env, mercadoPago({ ...paga, external_reference: "outra" }).fetchFn), PedidoNaoGuardado);
 });
 
 test("roteiro completo pede horários, uma dica por lugar e mais dicas, com cache separado do simples", () => comCache(async () => {
