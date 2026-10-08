@@ -918,6 +918,7 @@ function cartaoCompleto() {
           <input id="pix-nome" type="text" required autocomplete="given-name" maxlength="40" placeholder="Ana" value="${esc(v.nome || "")}">
           <label for="pix-email">Seu e-mail (vai no comprovante)</label>
           <input id="pix-email" type="email" required autocomplete="email" inputmode="email" maxlength="254" placeholder="voce@email.com" value="${esc(v.email || "")}">
+          <p class="hint resumo-compra"><b>Roteiro Detalhado: ${reais(PRECO_COMPLETO)}, pagamento único por Pix.</b> Você recebe na tela, logo depois do pagamento, um roteiro dia a dia em PDF para esta simulação. Os preços são estimativas e podem mudar até a hora de reservar. Se mudar de ideia, devolvemos o valor em até 7 dias, sem perguntas. Ao pagar, você aceita os <a href="/termos.html" target="_blank" rel="noopener">Termos de uso</a>.</p>
           <button type="submit" class="primary">Pagar ${reais(PRECO_COMPLETO)} no Pix</button>
         </form>`}
       <div class="status${v.erro ? " err" : ""}" id="pix-status" role="status" aria-live="polite">${esc(v.aviso || "")}</div>

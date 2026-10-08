@@ -475,20 +475,8 @@ button.voando .frase { display: inline-block; animation: frase 2.4s ease both; }
   .top-fim h2 { font-size: 44pt; }
 }
 </style>
-<!-- Meta Pixel Code -->
-<script>
-// No app de celular (Capacitor) o pixel fica de fora: rastreio ali exige outro consentimento.
-if (!window.Capacitor) !function(f,b,e,v,n,t,s)
-{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-n.queue=[];t=b.createElement(e);t.async=!0;
-t.src=v;s=b.getElementsByTagName(e)[0];
-s.parentNode.insertBefore(t,s)}(window, document,'script',
-'https://connect.facebook.net/en_US/fbevents.js');
-if (window.fbq) { fbq('init', '1648295673479841'); fbq('track', 'PageView'); }
-</script>
-<!-- End Meta Pixel Code -->
+<!-- Pixel da Meta: só carrega depois de aceitar os cookies (aviso em /lib/cookies.js) -->
+<script src="/lib/cookies.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -621,7 +609,8 @@ if (window.fbq) { fbq('init', '1648295673479841'); fbq('track', 'PageView'); }
   </details>
   <section class="result" id="result" aria-live="polite"></section>
 
-  <p class="fine">Passagens: preços encontrados no Aviasales a partir de buscas recentes, ou estimativa quando não há busca para a rota. Hospedagem, comida e passeios: médias estimadas por destino. Confira os valores nos sites parceiros antes de reservar. Alguns links geram comissão, sem custo extra para você. <a href="/privacidade.html">Política de privacidade</a>.</p>
+  <p class="fine">Passagens: preços encontrados no Aviasales a partir de buscas recentes, ou estimativa quando não há busca para a rota. Hospedagem, comida e passeios: médias estimadas por destino. Confira os valores nos sites parceiros antes de reservar. Alguns links geram comissão, sem custo extra para você.</p>
+  <p class="fine">Vai Dar Viagem · <a href="mailto:contato@vaidarviagem.com.br">contato@vaidarviagem.com.br</a> · <a href="/termos.html">Termos de uso</a> · <a href="/privacidade.html">Política de privacidade</a> · <a href="/termos.html#reembolso">Reembolso</a> · <a href="/privacidade.html#cookies" data-cookies>Cookies</a></p>
 </div>
 <script type="module" src="./app.js"></script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});</script>
