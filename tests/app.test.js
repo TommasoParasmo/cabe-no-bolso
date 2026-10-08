@@ -560,27 +560,39 @@ function mercadoPago(order, status = 200) {
   return { fetchFn, pedidos };
 }
 
-test("pix: prévia mostra só o dia 1 e guarda o roteiro inteiro para quem pagar", () => comCache(async () => {
-  const { previa, roteiroGuardado, referencia } = await import("../server/pix.js");
-  const roteiro = { dias: [1, 2, 3].map(n => ({ dia: n, titulo: `Dia ${n}`, cidade: "Rio de Janeiro", atividades: [] })), dicas: ["a", "b"], totalPasseios: 100 };
-  const ref = await referencia(pedidoRio);
-  assert.match(ref, /^[0-9a-f]{40}$/);
-  assert.equal(ref, await referencia({ ...pedidoRio }), "mesmo pedido, mesma referência");
-  assert.notEqual(ref, await referencia({ ...pedidoRio, noites: 4 }));
-  const p = await previa(roteiro, ref);
-  assert.equal(p.dias.length, 1);
-  assert.deepEqual(p.dicas, []);
-  assert.deepEqual(p.bloqueado.dias.map(d => d.titulo), ["Dia 2", "Dia 3"]);
-  assert.equal(p.bloqueado.preco, 9.9);
-  assert.equal((await roteiroGuardado(ref)).dias.length, 3);
+test("roteiro completo pede horários, uma dica por lugar e mais dicas, com cache separado do simples", () => comCache(async () => {
+  const pedidos = [];
+  const lugar = (nome, horario) => ({ nome, bairro: "Centro", custo: 0, horario, dica: `Dica de ${nome}` });
+  const client = { messages: { parse: async req => { pedidos.push(req); return { parsed_output: {
+    dias: [1, 2].map(dia => ({ dia, cidade: "Salvador", regiao: "Centro", titulo: "Centro", atividades: [{ periodo: "Manhã", ...lugar(`Pelourinho ${dia}`, "09:00–11:30") }], almoco: lugar(`Restô ${dia}`, "12:00–13:30"), jantar: lugar(`Bar ${dia}`, "19:30–21:00") })),
+    dicas: Array.from({ length: 10 }, (_, i) => `dica ${i}`) } }; } } };
+  const pedido = { destino: "Salvador", noites: 1, pessoas: 2, estilo: 1, verbaPasseios: 500 };
+  const r = await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true });
+  assert.match(pedidos[0].messages[0].content, /horario/);
+  assert.match(pedidos[0].messages[0].content, /8 dicas/);
+  assert.equal(r.dicas.length, 8);
+  assert.equal(r.dias[0].almoco.horario, "12:00–13:30");
+  assert.equal(r.dias[0].atividades[0].dica, "Dica de Pelourinho 1");
+  assert.equal(pedidos.length, 1);
+  assert.equal((await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true })).cache, true);
+  // O simples do mesmo pedido não vem do cache do completo.
+  await gerarRoteiro(pedido, {}, client);
+  assert.equal(pedidos.length, 2);
+  assert.doesNotMatch(pedidos.at(-1).messages[0].content, /horario/);
 }));
 
-test("pix: cria a order de R$ 9,90 com a referência do roteiro e devolve o copia e cola", async () => {
+test("pix: cria a order de R$ 9,90 presa ao pedido de roteiro e devolve o copia e cola", async () => {
   const { criarPix, PixInvalido } = await import("../server/pix.js");
   const { fetchFn, pedidos } = mercadoPago({ id: "ORD01ABC123", status: "action_required",
     transactions: { payments: [{ payment_method: { qr_code: "00020126580014br.gov.bcb.pix", qr_code_base64: "iVBOR", ticket_url: "https://mp/t" } }] } });
-  const ref = "a".repeat(40);
-  const r = await criarPix({ ref, email: " Voce@Email.com " }, { MP_ACCESS_TOKEN: "tok" }, fetchFn);
+  const { referencia } = await import("../server/pix.js");
+  const ref = await referencia(pedidoRio);
+  assert.match(ref, /^[0-9a-f]{40}$/);
+  assert.notEqual(ref, await referencia({ ...pedidoRio, noites: 4 }));
+  // A ordem das cidades escolhida faz parte do que foi pago.
+  const ida = [{ destino: "Rio de Janeiro", noites: 2 }, { destino: "Salvador", noites: 2 }];
+  assert.notEqual(await referencia({ ...pedidoRio, paradas: ida }), await referencia({ ...pedidoRio, paradas: [...ida].reverse() }));
+  const r = await criarPix({ pedido: pedidoRio, email: " Voce@Email.com " }, { MP_ACCESS_TOKEN: "tok" }, fetchFn);
   assert.deepEqual(r, { id: "ORD01ABC123", copiaECola: "00020126580014br.gov.bcb.pix", qrCode: "iVBOR", link: "https://mp/t", preco: 9.9 });
   const [p] = pedidos;
   assert.equal(p.url, "https://api.mercadopago.com/v1/orders");
@@ -590,8 +602,8 @@ test("pix: cria a order de R$ 9,90 com a referência do roteiro e devolve o copi
   assert.equal(p.corpo.external_reference, ref);
   assert.deepEqual(p.corpo.transactions.payments[0].payment_method, { id: "pix", type: "bank_transfer" });
   assert.equal(p.corpo.payer.email, "voce@email.com");
-  await assert.rejects(criarPix({ ref, email: "x" }, { MP_ACCESS_TOKEN: "tok" }, fetchFn), PixInvalido);
-  await assert.rejects(criarPix({ ref: "abc", email: "a@b.com" }, { MP_ACCESS_TOKEN: "tok" }, fetchFn), PixInvalido);
+  await assert.rejects(criarPix({ pedido: pedidoRio, email: "x" }, { MP_ACCESS_TOKEN: "tok" }, fetchFn), PixInvalido);
+  await assert.rejects(criarPix({ pedido: { destino: "Narnia", noites: 3 }, email: "a@b.com" }, { MP_ACCESS_TOKEN: "tok" }, fetchFn), EntradaInvalida);
   assert.equal(pedidos.length, 1, "entrada inválida não chama o Mercado Pago");
 });
 

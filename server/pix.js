@@ -1,14 +1,12 @@
-// Roteiro completo pago no Pix (Mercado Pago, API de Orders). Só liga com MP_ACCESS_TOKEN na Cloudflare;
-// sem ela, o roteiro sai inteiro de graça como antes.
+// Roteiro completo (com horários e mais dicas) pago no Pix: Mercado Pago, API de Orders.
+// Só liga com MP_ACCESS_TOKEN na Cloudflare; sem ela, o app não oferece o roteiro completo.
 // Sem banco: a cobrança leva no external_reference a "impressão digital" do pedido de roteiro,
 // e a liberação confere na hora com o Mercado Pago que a order foi paga e é daquele roteiro.
 import { validarPedido } from "./roteiro.js";
-import { lerCache, gravarCache } from "./cache.js";
 
 export const PRECO = "9.90";
 const API = "https://api.mercadopago.com/v1/orders";
 const EMAIL = /^[^\s@<>"',;]{1,64}@[^\s@<>"',;]+\.[a-z]{2,}$/i;
-const DOIS_DIAS = 2 * 86400;
 
 export class PixInvalido extends Error {}
 export class PixNaoPago extends Error {}
@@ -23,24 +21,11 @@ export async function referencia(body) {
   return [...new Uint8Array(hash)].slice(0, 20).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-// Prévia grátis: o dia 1 inteiro; dos outros dias só o título. As dicas ficam para quem paga.
-// O roteiro inteiro fica 2 dias no cache, para quem pagar receber exatamente o que viu na prévia.
-export async function previa(roteiro, ref) {
-  if (roteiro.dias.length < 2) return roteiro;
-  await gravarCache(`https://cache.cabenobolso/pago/${ref}`, roteiro, DOIS_DIAS);
-  const [primeiro, ...resto] = roteiro.dias;
-  return {
-    ...roteiro, dias: [primeiro], dicas: [],
-    bloqueado: { ref, preco: Number(PRECO), dias: resto.map(d => ({ dia: d.dia, titulo: d.titulo, cidade: d.cidade })), dicas: roteiro.dicas.length }
-  };
-}
-
-export const roteiroGuardado = ref => lerCache(`https://cache.cabenobolso/pago/${ref}`);
-
 const cabecalho = token => ({ Authorization: `Bearer ${token}`, "content-type": "application/json" });
 
-export async function criarPix({ ref, email }, env, fetchFn = globalThis.fetch) {
-  if (!/^[0-9a-f]{40}$/.test(String(ref))) throw new PixInvalido("Monte o roteiro de novo antes de pagar.");
+// `pedido`: o mesmo corpo que vai para /api/roteiro, já na ordem de cidades escolhida.
+export async function criarPix({ pedido, email }, env, fetchFn = globalThis.fetch) {
+  const ref = await referencia(pedido);
   email = String(email ?? "").trim().toLowerCase();
   if (email.length > 254 || !EMAIL.test(email)) throw new PixInvalido("Confira o e-mail.");
   const r = await fetchFn(API, {

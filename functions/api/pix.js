@@ -1,5 +1,6 @@
-// Pix do roteiro completo. Com { ref, email } cria a cobrança; com { id } diz se já foi paga.
+// Pix do roteiro completo. Com { pedido, email } cria a cobrança; com { id } diz se já foi paga.
 import { pixLigado, criarPix, situacaoPix, PixInvalido } from "../../server/pix.js";
+import { EntradaInvalida } from "../../server/veredito.js";
 
 export async function onRequestPost({ request, env }) {
   if (!pixLigado(env)) return json({ erro: "O pagamento ainda não está ligado." }, 503);
@@ -12,7 +13,7 @@ export async function onRequestPost({ request, env }) {
   try {
     return json(body?.id ? await situacaoPix(body.id, env) : await criarPix(body, env));
   } catch (e) {
-    if (e instanceof PixInvalido) return json({ erro: e.message }, 400);
+    if (e instanceof PixInvalido || e instanceof EntradaInvalida) return json({ erro: e.message }, 400);
     console.error("pix", e);
     return json({ erro: "Não deu para falar com o Mercado Pago agora. Tente de novo." }, 502);
   }
