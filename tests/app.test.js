@@ -547,3 +547,32 @@ test("cadastro de e-mail guarda no KV só o necessário e vale a última escolha
   // Sem o KV ligado, o download segue liberado, mas o app pede o e-mail de novo depois.
   assert.deepEqual(await guardarLead({ email: "b@email.com" }, {}), { ok: true, guardado: false });
 });
+
+test("roteiro completo pede horários, uma dica por lugar e mais dicas, com cache separado do simples", () => comCache(async () => {
+  const pedidos = [];
+  const lugar = (nome, horario) => ({ nome, bairro: "Centro", custo: 0, horario, dica: `Dica de ${nome}` });
+  const client = { messages: { parse: async req => { pedidos.push(req); return { parsed_output: {
+    dias: [1, 2].map(dia => ({ dia, cidade: "Salvador", regiao: "Centro", titulo: "Centro", atividades: [{ periodo: "Manhã", ...lugar(`Pelourinho ${dia}`, "09:00–11:30") }], almoco: lugar(`Restô ${dia}`, "12:00–13:30"), jantar: lugar(`Bar ${dia}`, "19:30–21:00") })),
+    dicas: Array.from({ length: 10 }, (_, i) => `dica ${i}`) } }; } } };
+  const pedido = { destino: "Salvador", noites: 1, pessoas: 2, estilo: 1, verbaPasseios: 500 };
+  const r = await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true });
+  assert.match(pedidos[0].messages[0].content, /horario/);
+  assert.match(pedidos[0].messages[0].content, /8 dicas/);
+  assert.equal(r.dicas.length, 8);
+  assert.equal(r.dias[0].almoco.horario, "12:00–13:30");
+  assert.equal(r.dias[0].atividades[0].dica, "Dica de Pelourinho 1");
+  assert.equal(pedidos.length, 1);
+  assert.equal((await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true })).cache, true);
+  // O simples do mesmo pedido não vem do cache do completo.
+  await gerarRoteiro(pedido, {}, client);
+  assert.equal(pedidos.length, 2);
+  assert.doesNotMatch(pedidos.at(-1).messages[0].content, /horario/);
+}));
+
+test("roteiro completo pede ao Google Maps o horário de funcionamento e segue a ordem de cidades escolhida", async () => {
+  const { promptMaps } = await import("../server/gemini.js");
+  const p = { ...validarPedido({ paradas: [{ destino: "Seul", noites: 3 }, { destino: "Bangkok", noites: 4 }] }), completo: true };
+  assert.match(promptMaps(p), /opening hours/);
+  assert.match(promptMaps(p), /Seul, Coreia do Sul \(3 nights\); then Bangkok/);
+  assert.doesNotMatch(promptMaps({ ...p, completo: false }), /opening hours/);
+});
