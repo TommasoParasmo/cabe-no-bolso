@@ -7,7 +7,7 @@ import { montarVeredito as montarVereditoHoje, EntradaInvalida } from "../server
 // "Hoje" fixo: as datas dos testes (ida 20/11/2026) não podem virar passado com o tempo.
 const HOJE = "2026-10-08";
 const montarVeredito = (b, env, f) => montarVereditoHoje(b, env, f, { hoje: HOJE });
-import { gerarRoteiro, validarPedido, LimiteAtingido, LIMITE_DIA, limiteDia, foraDaRegiao } from "../server/roteiro.js";
+import { gerarRoteiro, validarPedido, LimiteAtingido, LIMITE_DIA, limiteDia, foraDaRegiao, refeicoesRuins } from "../server/roteiro.js";
 
 // Wikimedia falsa sem resultados: os testes do completo não saem para a internet.
 const semFotos = async () => new Response("{}");
@@ -1011,3 +1011,28 @@ test("teto do dia para o roteiro grátis e Turnstile desligado sem o secret", as
   await conferirTurnstile("tok", "1.2.3.4", { TURNSTILE_SECRET: "s" }, verifica(true));
   await assert.rejects(conferirTurnstile("tok", "1.2.3.4", { TURNSTILE_SECRET: "s" }, verifica(false)), RoboSuspeito);
 });
+
+test("refeicoesRuins pega sorveteria como refeição e o mesmo lugar no almoço e no jantar", () => {
+  const r = nome => ({ nome, bairro: "Ribeira", custo: 40 });
+  const avisos = refeicoesRuins([
+    { dia: 1, almoco: r("Cantina da Lua"), jantar: r("Camafeu de Oxossi") },
+    { dia: 3, almoco: r("Restaurante Sorveteria da Ribeira"), jantar: r("Sorveteria da Ribeira") }
+  ]);
+  assert.equal(avisos.filter(a => a.includes("não é refeição")).length, 2);
+  assert.ok(avisos.some(a => a.includes("jantar do dia 3 (Sorveteria da Ribeira) repete o almoço")));
+  assert.ok(!avisos.some(a => a.includes("dia 1")));
+  assert.deepEqual(refeicoesRuins([{ dia: 1, almoco: r("Mosteiro de São Bento Café"), jantar: r("Rancho da Barra") }]), []);
+});
+
+test("roteiro do cache com sorveteria no almoço é refeito, não servido de novo", () => comCache(async () => {
+  const cliente = almoco => ({ messages: { parse: async () => ({ parsed_output: { dicas: [], dias: [1, 2, 3, 4].map(dia => ({ dia, cidade: "Salvador", regiao: "Centro", titulo: "Centro",
+    atividades: [{ periodo: "manhã", nome: `Museu ${dia}`, bairro: "Centro", custo: 0 }],
+    almoco: { nome: `${almoco} ${dia}`, bairro: "Centro", custo: 40 }, jantar: { nome: `Cantina ${dia}`, bairro: "Centro", custo: 50 } })) } }) } });
+  const pedido = { destino: "Salvador", noites: 3, verbaPasseios: 700 };
+  const ruim = await gerarRoteiro(pedido, {}, cliente("Sorveteria"));
+  assert.match(ruim.dias[0].almoco.nome, /Sorveteria/);
+  const novo = await gerarRoteiro(pedido, {}, cliente("Restaurante"));
+  assert.equal(novo.cache, false);
+  assert.match(novo.dias[0].almoco.nome, /Restaurante/);
+  assert.equal((await gerarRoteiro(pedido, {}, cliente("Restaurante"))).cache, true);
+}));
