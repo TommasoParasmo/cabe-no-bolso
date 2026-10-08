@@ -711,12 +711,12 @@ test("roteiro completo monta do zero quando a resposta do atalho não casa com o
 }));
 
 // Wikimedia falsa: busca na Wikipédia e licença no Commons.
-function wikiFalsa({ titulo = "Elevador Lacerda", imagem = "Elevador_Lacerda.jpg", thumb = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Elevador_Lacerda.jpg/800px-Elevador_Lacerda.jpg", licenca = "CC BY-SA 4.0" } = {}) {
+function wikiFalsa({ titulo = "Elevador Lacerda", imagem = "Elevador_Lacerda.jpg", thumb = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Elevador_Lacerda.jpg/800px-Elevador_Lacerda.jpg", licenca = "CC BY-SA 4.0", resumo = "O elevador liga a Cidade Baixa à Cidade Alta de Salvador." } = {}) {
   const urls = [];
   const fetchFn = async url => {
     urls.push(url);
     if (url.includes("commons.wikimedia.org")) return new Response(JSON.stringify({ query: { pages: [{ imageinfo: [{ extmetadata: { Artist: { value: '<a href="x">Maria Silva</a>' }, LicenseShortName: { value: licenca } } }] }] } }));
-    return new Response(JSON.stringify({ query: { pages: [{ title: titulo, pageimage: imagem, fullurl: "https://pt.wikipedia.org/wiki/x", thumbnail: { source: thumb } }] } }));
+    return new Response(JSON.stringify({ query: { pages: [{ title: titulo, pageimage: imagem, extract: resumo, fullurl: "https://pt.wikipedia.org/wiki/x", thumbnail: { source: thumb } }] } }));
   };
   return { fetchFn, urls };
 }
@@ -733,6 +733,10 @@ test("foto do lugar vem do Commons com autor e licença, e só se o artigo for d
   assert.equal(await fotoDoLugar("Elevador Lacerda", "Salvador", wikiFalsa({ thumb: "https://upload.wikimedia.org/wikipedia/en/a/ab/x.jpg" }).fetchFn), null);
   assert.equal(await fotoDoLugar("Elevador Lacerda", "Salvador", wikiFalsa({ imagem: "Mapa.svg" }).fetchFn), null);
   assert.equal(await fotoDoLugar("Elevador Lacerda", "Salvador", async () => { throw new Error("rede"); }), null);
+  // Outro museu que só divide a palavra "museu", ou um lugar de mesmo nome em outra cidade: sem foto.
+  assert.equal(await fotoDoLugar("Museu do Ipiranga", "São Paulo", wikiFalsa({ titulo: "Museu de Arte de São Paulo", resumo: "Museu em São Paulo." }).fetchFn), null);
+  assert.ok(await fotoDoLugar("Museu do Ipiranga", "São Paulo", wikiFalsa({ titulo: "Museu do Ipiranga", resumo: "Museu em São Paulo." }).fetchFn));
+  assert.equal(await fotoDoLugar("Catedral Metropolitana", "Brasília", wikiFalsa({ titulo: "Catedral Metropolitana", resumo: "Igreja no centro de Fortaleza." }).fetchFn), null);
 });
 
 test("roteiro completo leva o nome da pessoa, um destaque por dia com foto e cache separado por nome", () => comCache(async () => {
@@ -745,7 +749,7 @@ test("roteiro completo leva o nome da pessoa, um destaque por dia com foto e cac
       atividades: [lugar(`Mercado Modelo ${dia}`, "09:00–10:00", true), lugar(`Elevador Lacerda ${dia}`, "10:30–11:00", true)],
       almoco: lugar(`Restô ${dia}`, "12:00–13:00"), jantar: lugar(`Bar ${dia}`, "19:00–20:00") })),
     dicas: Array.from({ length: 8 }, (_, i) => `d${i}`) } }; } } };
-  const w = wikiFalsa({ titulo: "Mercado Modelo" });
+  const w = wikiFalsa({ titulo: "Mercado Modelo", resumo: "Mercado em Salvador." });
   const r = await gerarRoteiro({ ...pedido, nome: '  Ana "Maria"\n{x}  ' }, {}, client, null, globalThis.fetch, { completo: true, fotosFetch: w.fetchFn });
   assert.match(pedidos[0], /chamando o viajante pelo nome \("Ana Maria x"/);
   assert.match(pedidos[0], /"descricao"/);

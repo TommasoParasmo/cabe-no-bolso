@@ -6,6 +6,23 @@ const AGENTE = "VaiDarViagem/1.0 (https://vaidarviagem.com.br; contato@vaidarvia
 const semHtml = s => String(s ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 // Palavras que contam para conferir se o artigo achado é mesmo do lugar ("Museu do Amanhã" e "Museum of Tomorrow" não batem, mas a busca em português acha).
 const palavras = s => norm(s).split(/[^a-z0-9]+/).filter(w => w.length >= 4);
+// Palavras comuns a muitos lugares: sozinhas não provam que o artigo é do lugar ("Museu do Ipiranga" x "Museu de Arte").
+const COMUNS = new Set(("museu museum igreja church catedral cathedral basilica capela chapel convento mosteiro praia beach parque park praca square "
+  + "jardim garden mercado market palacio palace teatro theatre theater torre tower ponte bridge castelo castle forte fort centro center centre "
+  + "cultural nacional national municipal historico historic memorial monumento monument galeria gallery arte rua street avenida mirante "
+  + "lago lake ilha island cachoeira fonte casa house sao santa santo saint").split(" "));
+
+// O artigo é do lugar: o título traz pelo menos metade das palavras próprias do nome (ou todas, se só houver palavras comuns),
+// e o título ou o começo do artigo cita a cidade, para não pegar o lugar de mesmo nome em outra cidade.
+function ehDoLugar(pagina, doNome, daCidade) {
+  const doTitulo = palavras(pagina.title);
+  const proprias = doNome.filter(w => !COMUNS.has(w));
+  const exigidas = proprias.length ? proprias : doNome;
+  const achadas = exigidas.filter(w => doTitulo.includes(w)).length;
+  if (achadas < Math.max(1, Math.ceil(exigidas.length / (proprias.length ? 2 : 1)))) return false;
+  const texto = palavras(`${pagina.title} ${pagina.extract || ""}`);
+  return !daCidade.length || daCidade.some(w => texto.includes(w));
+}
 
 async function pedirJson(url, fetchFn) {
   const r = await fetchFn(url, { headers: { "user-agent": AGENTE, "api-user-agent": AGENTE }, signal: AbortSignal.timeout(5000) });
@@ -14,21 +31,23 @@ async function pedirJson(url, fetchFn) {
 }
 
 // Foto do lugar: o artigo da Wikipédia (português, depois inglês) com o nome do lugar e da cidade.
-// Só aceita imagem do Commons (licença livre), nunca ícone ou mapa em SVG, e só se o título do artigo tiver
-// alguma palavra do nome do lugar, para não trazer a foto da cidade inteira.
+// Só aceita imagem do Commons (licença livre), nunca ícone ou mapa em SVG, e só se o artigo for mesmo do lugar (ehDoLugar),
+// para não trazer a foto da cidade inteira nem de outro lugar parecido.
 export async function fotoDoLugar(nome, cidade, fetchFn = globalThis.fetch) {
   const doNome = palavras(nome);
+  const daCidade = palavras(cidade);
   if (!doNome.length) return null;
   for (const lingua of ["pt", "en"]) {
     try {
       const busca = await pedirJson(`https://${lingua}.wikipedia.org/w/api.php?${new URLSearchParams({
         action: "query", format: "json", formatversion: "2", generator: "search", gsrsearch: `${nome} ${cidade}`, gsrlimit: "1",
-        prop: "pageimages|info", piprop: "thumbnail|name", pithumbsize: "800", inprop: "url", origin: "*"
+        prop: "pageimages|info|extracts", piprop: "thumbnail|name", pithumbsize: "800", inprop: "url",
+        exintro: "1", explaintext: "1", exsentences: "3", origin: "*"
       })}`, fetchFn);
       const pagina = busca?.query?.pages?.[0];
       const thumb = pagina?.thumbnail?.source || "";
       if (!pagina?.pageimage || /\.svg$/i.test(pagina.pageimage) || !thumb.startsWith("https://upload.wikimedia.org/wikipedia/commons/")) continue;
-      if (!palavras(pagina.title).some(w => doNome.includes(w))) continue;
+      if (!ehDoLugar(pagina, doNome, daCidade)) continue;
       const arquivo = `File:${pagina.pageimage}`;
       const info = await pedirJson(`https://commons.wikimedia.org/w/api.php?${new URLSearchParams({
         action: "query", format: "json", formatversion: "2", titles: arquivo, prop: "imageinfo", iiprop: "extmetadata", origin: "*"

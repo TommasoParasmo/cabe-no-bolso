@@ -574,7 +574,7 @@ function renderRoteiro() {
 const ORDEM = ["manh", "almo", "tard", "jant", "noit"];
 const posicao = periodo => { const i = ORDEM.findIndex(o => String(periodo).toLowerCase().startsWith(o)); return i < 0 ? 2 : i; };
 function itensDoDia(d) {
-  const refeicoes = [["almoço", d.almoco], ["jantar", d.jantar]].filter(([, r]) => r?.nome).map(([periodo, r]) => ({ periodo, nome: r.nome, bairro: r.bairro, custo: r.custo, maps: r.maps, horario: r.horario, dica: r.dica, refeicao: true }));
+  const refeicoes = [["almoço", d.almoco], ["jantar", d.jantar]].filter(([, r]) => r?.nome).map(([periodo, r]) => ({ periodo, nome: r.nome, bairro: r.bairro, custo: r.custo, maps: r.maps, horario: r.horario, dica: r.dica, descricao: r.descricao, comoChegar: r.comoChegar, refeicao: true }));
   const itens = [...(d.atividades || []), ...refeicoes];
   // No roteiro completo, a ordem é a dos horários ("09:00–11:30").
   const porHora = itens.every(a => /^\d{1,2}:\d{2}/.test(a.horario || ""));
@@ -683,7 +683,7 @@ function cartaoCompleto() {
         <div class="actions"><button type="button" class="primary" id="pix-copiar">Copiar código Pix</button><button type="button" id="pix-conferir">Já paguei</button></div>
         <p class="hint" style="margin:0">Abra o app do seu banco, escolha Pix copia e cola (ou leia o QR Code) e pague. O roteiro completo aparece aqui sozinho.</p>` : `
         <form class="lead" id="pix-form" novalidate>
-          <label for="pix-nome">Seu nome (o roteiro vem personalizado para você)</label>
+          <label for="pix-nome">Seu primeiro nome (o roteiro vem personalizado para você)</label>
           <input id="pix-nome" type="text" required autocomplete="given-name" maxlength="40" placeholder="Ana" value="${esc(v.nome || "")}">
           <label for="pix-email">Seu e-mail (vai no comprovante)</label>
           <input id="pix-email" type="email" required autocomplete="email" inputmode="email" maxlength="254" placeholder="voce@email.com" value="${esc(v.email || "")}">
