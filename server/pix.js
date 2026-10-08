@@ -80,6 +80,34 @@ export async function situacaoPix(id, env, fetchFn = globalThis.fetch, agora = D
   return { status: ["expired", "canceled", "failed"].includes(o.status) || venceu(o, agora) ? "expirado" : "esperando" };
 }
 
+// ---- Roteiro Detalhado liberado por um pagamento ----
+// O pedido vale o que foi guardado no KV quando o Pix foi criado (destino, ordem das cidades, nome), nunca o que
+// o navegador manda depois: senão, trocando só o nome, um Pix virava gerações de IA sem fim.
+// Cada pagamento dá direito a GERACOES_POR_PAGAMENTO roteiros novos (tentativas que chamam a IA); depois, só o cache.
+// Os direitos ficam num registro próprio (roteiros:ORD), para os kits de créditos poderem mudar o limite depois.
+export const GERACOES_POR_PAGAMENTO = 3;
+const chaveDireitos = id => `roteiros:${String(id).toUpperCase()}`;
+export class SemGeracoes extends Error {}
+
+export async function liberarDetalhado(id, body, env, fetchFn = globalThis.fetch) {
+  const o = await lerOrder(id, env, fetchFn);
+  if (!pago(o)) throw new PixNaoPago("O pagamento ainda não caiu.");
+  const guardado = await env.LEADS?.get(chavePedido(id), "json").catch(() => null);
+  // Pix criado antes de o pedido ser guardado no KV: vale o do navegador, conferido pela referência.
+  const pedido = guardado?.pedido || body;
+  if (o.external_reference !== await referencia(pedido)) throw new PixInvalido("Esse pagamento é de outro roteiro.");
+  return pedido;
+}
+
+// Antes de cada roteiro novo (fora do cache) do Detalhado: conta uma geração do pagamento ou recusa.
+export const contarGeracao = (id, env) => async () => {
+  if (!env?.LEADS) return;
+  const chave = chaveDireitos(id);
+  const d = (await env.LEADS.get(chave, "json").catch(() => null)) || { usados: 0, limite: GERACOES_POR_PAGAMENTO };
+  if (d.usados >= d.limite) throw new SemGeracoes("Esse pedido já gerou o Roteiro Detalhado. Se ele não apareceu, escreva para contato@vaidarviagem.com.br com o número do pedido.");
+  await env.LEADS.put(chave, JSON.stringify({ ...d, usados: d.usados + 1 }), { expirationTtl: GUARDA_DIAS * 86400 });
+};
+
 // Confere que a order foi paga e é deste roteiro. Devolve a referência.
 export async function conferirPagamento(id, body, env, fetchFn = globalThis.fetch) {
   const o = await lerOrder(id, env, fetchFn);

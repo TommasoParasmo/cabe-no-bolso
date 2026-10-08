@@ -78,3 +78,20 @@ export async function registrarUso(uso, { tipo, resultado }, env, agora = new Da
   } catch (e) { console.error("uso: não somou no KV", e?.message); }
   return linha;
 }
+
+// ---- Teto de gasto do dia (roteiro grátis) ----
+// Antes de chamar a IA para um roteiro grátis, lê a soma do dia (uso:AAAA-MM-DD) e para se passou do teto.
+// O limite por IP sozinho é fácil de furar (rajada, troca de IP); o teto segura o prejuízo de qualquer jeito.
+// TETO_USD_DIA na Cloudflare muda o valor sem mexer no código.
+export const TETO_USD_DIA = 15;
+export class TetoAtingido extends Error {}
+export const tetoDoDia = (env, agora = () => new Date()) => async () => {
+  if (!env?.LEADS) return;
+  const teto = Number(env.TETO_USD_DIA) > 0 ? Number(env.TETO_USD_DIA) : TETO_USD_DIA;
+  const dia = new Date(agora().getTime() - 3 * 3600e3).toISOString().slice(0, 10);
+  const t = await env.LEADS.get(`uso:${dia}`, "json").catch(() => null);
+  if ((t?.usd || 0) >= teto) {
+    console.error(`uso: teto do dia atingido (US$ ${t.usd} de ${teto}), roteiro grátis pausado`);
+    throw new TetoAtingido("Muita gente montando roteiro hoje. Os roteiros novos voltam amanhã; os já prontos continuam abrindo.");
+  }
+};
