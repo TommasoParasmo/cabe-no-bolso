@@ -1,4 +1,5 @@
 import { ORIGENS, DESTINOS, ESTILOS } from "../lib/dados.js";
+import { NOITES_MIN_SUGESTAO } from "../lib/custo.js";
 
 const brl = v => (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 const $ = id => document.getElementById(id);
@@ -465,7 +466,7 @@ function render(fresh) {
     : quase(c)
     ? (c.noitesCabem ? `Ou vá com ${c.noitesCabem} ${c.noitesCabem > 1 ? "noites" : "noite"} em vez de ${f.noites} e fica dentro dos ${brl(f.orcamento)}.` : "Ou tente menos noites ou menos pessoas para caber no valor.")
     : state.modo === "destino" && c.estado === "nao_cabe"
-    ? (state.noitesMax ? `Com ${state.noitesMax} noites em vez de ${f.noites}, ${esc(c.destino.n)} cabe no orçamento.` : `Mesmo com menos noites, ${esc(c.destino.n)} não cabe nesse valor.`) : "";
+    ? (state.noitesMax ? `Com ${state.noitesMax} ${state.noitesMax > 1 ? "noites" : "noite"} em vez de ${f.noites}, ${esc(c.destino.n)} cabe no orçamento.` : f.noites > NOITES_MIN_SUGESTAO ? `Nem com ${NOITES_MIN_SUGESTAO} noites ${esc(c.destino.n)} cabe nesse valor.` : `${esc(c.destino.n)} não cabe nesse valor.`) : "";
   const mostrarOpcoes = state.modo === "destino" ? state.opcoes.length > 0 : state.opcoes.length > 1;
   const r = $("result");
   r.className = "result" + (fresh ? " fresh" : "");
