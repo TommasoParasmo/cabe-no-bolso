@@ -332,7 +332,8 @@ let pedido = null;
 // Eventos do Pixel da Meta, para medir o funil nos anúncios (sem pixel, como no app de celular, não faz nada).
 const evento = (nome, dados) => window.fbq?.("trackCustom", nome, dados);
 
-async function calcular() {
+// auto: o veredito veio do link do anúncio, sem clique. Vira outro evento, para não inflar o VerSeVaiDar.
+async function calcular(auto = false) {
   pedido?.abort();
   const meu = pedido = new AbortController();
   $("go").disabled = $("sugerir").disabled = true;
@@ -340,7 +341,7 @@ async function calcular() {
   const parar = voando($("go"), FRASES_CALCULO);
   try {
     const form = lerForm();
-    evento("VerSeVaiDar", { tipo: form.destinos.length ? "destino" : "sugestao", orcamento: form.orcamento });
+    evento(auto ? "VerSeVaiDarAuto" : "VerSeVaiDar", { tipo: form.destinos.length ? "destino" : "sugestao", orcamento: form.orcamento });
     const r = await postar("/api/veredito", form, meu.signal);
     // O foco (ex.: "Pokémon") não volta do servidor: guarda o que foi pedido para o roteiro.
     state = { ...r, foco: form.foco, roteiro: null };
@@ -994,7 +995,7 @@ async function montarCompleto(ro) {
 }
 
 function setStatus(msg, err) { $("status").textContent = msg; $("status").className = "status" + (err ? " err" : ""); }
-const calcularEMostrar = () => calcular().then(() => state && $("result").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }));
+const calcularEMostrar = (auto = false) => calcular(auto).then(() => state && $("result").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }));
 $("form").addEventListener("submit", e => {
   e.preventDefault();
   // Sem destino, as sugestões só vêm pelo botão "me sugira destinos".
@@ -1099,7 +1100,7 @@ $("rec-form").addEventListener("submit", async ev => {
   finally { parar(); botao.disabled = false; }
 });
 
-// ---- Formulário preenchido pelo link (anúncios): ?destino=Maceió&orcamento=2000&pessoas=1&estilo=economico ----
+// ---- Formulário preenchido pelo link (anúncios): ?destino=Maceió&orcamento=2000&pessoas=1&estilo=economico&noites=4&ida=2026-11-20 ----
 // destino aceita vários separados por vírgula; estilo aceita 0/1/2 ou economico/equilibrado/conforto; origem é a cidade de saída.
 // Com destino e orçamento no link, o resultado já aparece, sem a pessoa precisar rolar até o botão.
 (function preencherPeloLink() {
@@ -1114,9 +1115,22 @@ $("rec-form").addEventListener("submit", async ev => {
   if (estilo !== undefined) document.querySelector(`input[name="estilo"][value="${estilo}"]`).checked = true;
   const origem = ORIGENS.find(o => norm(o.n) === norm(q.get("origem") || ""));
   if (origem) $("origem").value = origem.n;
-  const destinos = (q.get("destino") || "").split(",").map(d => d.trim()).filter(Boolean).slice(0, 8);
+  // noites (1 a 15) e ida (AAAA-MM-DD, a partir de amanhã): a volta é a ida mais as noites. Sem ida, fica a ida padrão.
+  const noites = Number(q.get("noites"));
+  const amanha = new Date(); amanha.setDate(amanha.getDate() + 1);
+  const minIda = `${amanha.getFullYear()}-${String(amanha.getMonth() + 1).padStart(2, "0")}-${String(amanha.getDate()).padStart(2, "0")}`;
+  const ida = /^\d{4}-\d{2}-\d{2}$/.test(q.get("ida") || "") && q.get("ida") >= minIda ? q.get("ida") : null;
+  if (ida || (Number.isInteger(noites) && noites >= 1 && noites <= 15)) {
+    if (ida) $("ida").value = ida;
+    const n = Number.isInteger(noites) && noites >= 1 && noites <= 15 ? noites : Math.round((new Date($("volta").value) - new Date($("ida").value)) / 864e5) || 5;
+    const volta = new Date($("ida").value + "T12:00:00"); volta.setDate(volta.getDate() + n);
+    $("volta").value = `${volta.getFullYear()}-${String(volta.getMonth() + 1).padStart(2, "0")}-${String(volta.getDate()).padStart(2, "0")}`;
+    $("noites").value = String(n);
+  }
+  // Só destinos que o app conhece: um nome errado no link não vira chip nem veredito sem mensagem.
+  const destinos = (q.get("destino") || "").split(",").map(d => OPCOES.find(o => norm(o.v) === norm(d))?.v).filter(Boolean).slice(0, 8);
   destinos.forEach(addDestino);
-  if (destinos.length && orc >= 100) calcularEMostrar();
+  if (destinos.length && orc >= 100) calcularEMostrar(true);
 })();
 
 // ---- Baixar o roteiro: na primeira vez pede o e-mail (lead), depois baixa direto ----
