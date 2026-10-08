@@ -670,7 +670,7 @@ test("roteiro completo aproveita o simples do cache: mantém os lugares, acresce
   const pedidos = [];
   const client = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: respostas[pedidos.length - 1] }; } } };
   await gerarRoteiro(pedido, {}, client);
-  const g = geminiFalso([{ content: { parts: [{ text: JSON.stringify({ apresentacao: "Ana, Salvador vai te encantar!", dias: [1, 2].map(n => ({ dia: n, sobreRegiao: `Centro histórico ${n}`, atividades: cheio(n), almoco: hora("12:00–13:00", "Peça o prato do dia"), jantar: hora("19:00–20:30", "Reserve") })),
+  const g = geminiFalso([{ content: { parts: [{ text: JSON.stringify({ apresentacao: "Ana, Salvador vai te encantar!", dias: [1, 2].map(n => ({ dia: n, sobreRegiao: `Centro histórico ${n}`, seguranca: n === 1 ? 4 : 9, segurancaNota: "Cheio de dia; à noite, carro de aplicativo", atividades: cheio(n), almoco: hora("12:00–13:00", "Peça o prato do dia"), jantar: hora("19:00–20:30", "Reserve") })),
     dicas: Array.from({ length: 8 }, (_, i) => `dica ${i}`) }) }] }, finishReason: "STOP" }]);
   // Gemini responde certo de primeira.
   const r = await gerarRoteiro(pedido, { GEMINI_API_KEY: "k" }, client, null, g.fetchFn, { completo: true, fotosFetch: semFotos });
@@ -685,6 +685,11 @@ test("roteiro completo aproveita o simples do cache: mantém os lugares, acresce
   assert.equal(r.dias[0].jantar.nome, "Bar 1");
   assert.equal(r.totalPasseios, 80);
   assert.equal(r.dicas.length, 8);
+  // Nota de segurança de 1 a 5; fora disso, o dia fica sem nota.
+  assert.equal(r.dias[0].seguranca, 4);
+  assert.equal(r.dias[0].segurancaNota, "Cheio de dia; à noite, carro de aplicativo");
+  assert.equal(r.dias[1].seguranca, undefined);
+  assert.match(g.pedidos[0].corpo.contents[0].parts[0].text, /"seguranca": nota de 1 a 5/);
   assert.equal((await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true, fotosFetch: semFotos })).cache, true);  // Só com o Claude, a resposta com os dias trocados é recusada e o completo é montado do zero.
   const pedido2 = { ...pedido, pessoas: 7 };
   pedidos.length = 0;

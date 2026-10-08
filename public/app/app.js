@@ -549,7 +549,7 @@ function renderRoteiro() {
       ${ro.apresentacao ? `<p class="apresentacao">${esc(ro.apresentacao)}</p>` : ""}
       ${ro.resumido ? `<p class="hint">Sua viagem tem ${esc(ro.resumido.viagem)} dias; o roteiro vai até ${esc(ro.resumido.dias)} dias${new Set(ro.dias.map(d => d.cidade)).size > 1 ? ", divididos entre as cidades" : ", os primeiros da viagem"}.</p>` : ""}
       <div class="days">${ro.dias.map(d => `
-        <div class="day"><span class="n">DIA ${esc(d.dia)}</span><div><h4>${esc(d.titulo)}</h4>${regiaoDoDia(d) ? `<small class="hint">${esc(regiaoDoDia(d))}</small>` : ""}${fotoDoDia(d)}${d.sobreRegiao ? `<p class="sobre">${esc(d.sobreRegiao)}</p>` : ""}<ul>${itensDoDia(d).map(a => `<li${a.refeicao ? ' class="ref"' : ""}><span class="p">${esc(a.horario || String(a.periodo).toLowerCase())}</span><a class="lugar" href="${a.maps ? esc(a.maps) : mapa(a.nome, d.cidade, a.bairro)}" target="_blank" rel="noopener">${esc(a.nome)} ↗</a><span class="c">${Number(a.custo) ? brl(a.custo) : "grátis"}</span>${a.descricao ? `<small class="desc">${esc(a.descricao)}</small>` : ""}${a.comoChegar ? `<small class="dica">Como chegar: ${esc(a.comoChegar)}</small>` : ""}${a.dica ? `<small class="dica">${a.descricao ? "Dica: " : ""}${esc(a.dica)}</small>` : ""}</li>`).join("")}</ul>${ro.completo ? `<p class="hint gasto">Gasto previsto no dia: ${brl(gastoDoDia(d))} para o grupo</p>` : ""}</div></div>`).join("")}
+        <div class="day"><span class="n">DIA ${esc(d.dia)}</span><div><h4>${esc(d.titulo)}</h4>${regiaoDoDia(d) ? `<small class="hint">${esc(regiaoDoDia(d))}</small>` : ""}${ro.completoAVenda && !ro.completo ? `<a class="seg-trava nao-imprimir" href="#completo-box">${ICONE_CADEADO} Segurança desta área, de 1 a 5 estrelas, no Roteiro Detalhado</a>` : ""}${fotoDoDia(d)}${d.sobreRegiao ? `<p class="sobre">${esc(d.sobreRegiao)}</p>` : ""}<ul>${itensDoDia(d).map(a => `<li${a.refeicao ? ' class="ref"' : ""}><span class="p">${esc(a.horario || String(a.periodo).toLowerCase())}</span><a class="lugar" href="${a.maps ? esc(a.maps) : mapa(a.nome, d.cidade, a.bairro)}" target="_blank" rel="noopener">${esc(a.nome)} ↗</a><span class="c">${Number(a.custo) ? brl(a.custo) : "grátis"}</span>${a.descricao ? `<small class="desc">${esc(a.descricao)}</small>` : ""}${a.comoChegar ? `<small class="dica">Como chegar: ${esc(a.comoChegar)}</small>` : ""}${a.dica ? `<small class="dica">${a.descricao ? "Dica: " : ""}${esc(a.dica)}</small>` : ""}</li>`).join("")}</ul>${ro.completo ? `<p class="hint gasto">Gasto previsto no dia: ${brl(gastoDoDia(d))} para o grupo</p>` : ""}</div></div>`).join("")}
       </div>
       ${(ro.fontes || []).length ? `<details class="fontes"><summary class="hint">Fontes: Google Maps (${ro.fontes.length} ${ro.fontes.length > 1 ? "lugares" : "lugar"})</summary><ul class="hint">${ro.fontes.map(f => `<li><a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.nome)}</a> · Google Maps</li>`).join("")}</ul></details>` : ""}
       ${ro.totalPasseios != null ? `<p class="hint">Passeios: ${brl(ro.totalPasseios)} de ${brl(ro.verba)} de verba.${ro.totalRefeicoes ? ` Almoços e jantares sugeridos: cerca de ${brl(ro.totalRefeicoes)} (já contam na alimentação).` : ""}</p>` : ""}
@@ -617,6 +617,10 @@ function periodoLongo(ida, volta) {
 const ESTRELA = '<span class="top-estrela" aria-hidden="true">✦</span>';
 const ICONE_PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12Z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
 const ICONE_ROTA = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="19" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="5" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+// Segurança da região (1 a 5, mais estrelas = mais tranquila).
+const estrelas = n => `<span class="estrelas" role="img" aria-label="Segurança ${n} de 5">${"★".repeat(n)}<span class="apagadas">${"★".repeat(5 - n)}</span></span>`;
+const ICONE_CADEADO = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+const ICONE_ESCUDO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 4.4 3.4 8.3 8 9 4.6-.7 8-4.6 8-9V6l-8-3Z" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
 const ICONE_AVIAO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15.5v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0v5l-8 5v2l8-2.5V18l-2 1.5V21l3.5-1 3.5 1v-1.5L13 18v-5Z" fill="currentColor"/></svg>';
 
 function roteiroTop(ro) {
@@ -664,6 +668,7 @@ function roteiroTop(ro) {
       ${ro.apresentacao ? `<p class="top-texto">${esc(ro.apresentacao)}</p>` : ""}
       ${ro.resumido ? `<p class="top-texto suave">Sua viagem tem ${esc(ro.resumido.viagem)} dias; este roteiro detalha ${esc(ro.resumido.dias)} deles${new Set(ro.dias.map(d => d.cidade)).size > 1 ? ", divididos entre as cidades" : ", os primeiros da viagem"}.</p>` : ""}
       <p class="top-texto suave">Cada dia tem horário, como chegar de um lugar ao outro e uma dica de quem conhece. Os nomes dos lugares abrem no Google Maps.</p>
+      ${ro.dias.some(d => d.seguranca) ? `<p class="top-texto suave">As estrelas de segurança (de 1 a 5, quanto mais, mais tranquila a área) são uma estimativa feita a partir de informações públicas. Vale confirmar com o hotel ao chegar.</p>` : ""}
       <p class="top-assina">Boa viagem,<br>equipe Vai Dar Viagem</p>
       <div class="top-numeros">
         <div><b>${n}</b><small>dias em ${esc(cidade)}</small></div>
@@ -680,7 +685,7 @@ function roteiroTop(ro) {
       <p class="top-kicker">${ESTRELA} Roteiro Detalhado</p>
       <h2>Seus ${n} dias</h2>
       <ol class="top-lista">${ro.dias.map(d => { const a = destaqueComFoto(d); return `
-        <li><span class="top-num">${esc(d.dia)}</span><div><b>${esc(d.titulo)}</b><small>${esc(regiaoDoDia(d))}</small></div><div class="top-valor"><b>${brl(gastoDoDia(d))}</b><small>previsto</small></div>${a ? imgFoto(a, "top-mini") : `<span class="top-mini vazio">${ICONE_PIN}</span>`}</li>`; }).join("")}
+        <li><span class="top-num">${esc(d.dia)}</span><div><b>${esc(d.titulo)}</b><small>${esc(regiaoDoDia(d))}</small>${d.seguranca ? `<small class="top-seg-mini">Segurança ${estrelas(d.seguranca)}</small>` : ""}</div><div class="top-valor"><b>${brl(gastoDoDia(d))}</b><small>previsto</small></div>${a ? imgFoto(a, "top-mini") : `<span class="top-mini vazio">${ICONE_PIN}</span>`}</li>`; }).join("")}
       </ol>
       <div class="top-total"><span>Passeios e comida, para ${pessoas} ${pessoas > 1 ? "pessoas" : "pessoa"}</span><b>${brl(gastoTotal)}</b></div>
       ${ro.acimaDaVerba ? `<div class="warn-box">Este roteiro passou da verba de passeios. Troque alguma atividade paga por uma grátis.</div>` : ""}
@@ -694,7 +699,10 @@ function roteiroTop(ro) {
     <section class="pg top-dia">
       ${a ? `<header class="top-dia-foto">${imgFoto(a, "top-dia-img")}${cab(true)}<div>${topo}<small class="top-credito">${credito(a)}</small></div></header>` : `${cab()}<header class="top-dia-sem">${topo}</header>`}
       <div class="top-dia-info">
+        <div>
         ${d.sobreRegiao ? `<div class="top-bairro"><p class="top-rotulo">${ICONE_PIN} O bairro${d.regiao ? `: ${esc(d.regiao)}` : ""}</p><p>${esc(d.sobreRegiao)}</p></div>` : ""}
+        ${d.seguranca ? `<div class="top-seg"><p class="top-rotulo">${ICONE_ESCUDO} Segurança da área ${estrelas(d.seguranca)}</p>${d.segurancaNota ? `<p>${esc(d.segurancaNota)}</p>` : ""}</div>` : ""}
+        </div>
         <div class="top-gasto"><small>Gasto previsto</small><b>${brl(gastoDoDia(d))}</b><small>para ${pessoas} ${pessoas > 1 ? "pessoas" : "pessoa"}</small></div>
       </div>
       <ol class="top-linha">${itensDoDia(d).map(x => `
@@ -813,6 +821,7 @@ function cartaoCompleto() {
     <div class="completo nao-imprimir" id="completo-box">
       <h3>Quer o Roteiro Detalhado? ${reais(PRECO_COMPLETO)}</h3>
       <ul class="hint vantagens">
+        <li>Nota de segurança de cada região, de 1 a 5 estrelas, com o cuidado principal de cada lugar</li>
         <li>Horário de cada passeio, almoço e jantar, de acordo com o funcionamento de cada lugar</li>
         <li>Uma dica prática para cada lugar: melhor hora, o que pedir, se precisa reservar</li>
         ${ordem ? "<li>Você escolhe a ordem das cidades</li>" : ""}
