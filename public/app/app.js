@@ -558,6 +558,7 @@ function renderRoteiro() {
       <h3>Quer o roteiro dia a dia?</h3>
       <p class="hint" style="margin:0">Montamos passeios, almoço e jantar de cada dia dentro da verba acima.</p>
       <div class="actions"><button type="button" class="primary" id="gerar" ${busy ? "disabled" : ""}>Montar roteiro</button>${busy ? '<button type="button" id="parar">Parar</button>' : ""}</div>
+      ${busy ? `<p class="hint" style="margin:0">Pode levar cerca de 1 minuto. Fique nesta tela, o roteiro aparece aqui.</p>` : ""}
       ${ro?.erro ? `<div class="warn-box">${esc(ro.erro)}</div>` : ""}
     </div>`;
   if (busy) pararRoteiro = voando($("gerar"), FRASES_ROTEIRO);
