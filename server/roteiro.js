@@ -24,6 +24,25 @@ export const limiteDia = env => {
 
 export class LimiteAtingido extends Error {}
 
+// A Cloudflare corta a resposta perto de 100 s (erro 524, sem JSON, e o app só mostra "Algo falhou").
+// O roteiro tem esse prazo para sair: o Gemini usa até a metade e o Claude, de reserva, o resto.
+export const PRAZO_MS = 90_000;
+const PRAZO_GEMINI_MS = 45_000;
+// Menos que isso de sobra: não começa outra tentativa, fica com a melhor que já veio.
+const MIN_TENTATIVA_MS = 25_000;
+// Com o Claude de reserva, o Gemini nunca come os últimos 40 s; e com menos de 15 s nem começa.
+const RESERVA_CLAUDE_MS = 40_000;
+const MIN_GEMINI_MS = 15_000;
+// Atalho do Roteiro Detalhado (completar o simples do cache): até 30 s, para sobrar tempo de montar do zero.
+const PRAZO_ATALHO_MS = 30_000;
+export class Demorou extends Error {}
+const demorou = () => new Demorou("O roteiro demorou mais que o normal para ficar pronto. Tente de novo.");
+const resta = ate => ate - Date.now();
+// Chamadas ao Gemini (fetch) param sozinhas no prazo.
+const comPrazo = (fetchFn, ate) => (url, init = {}) => fetchFn(url, { ...init, signal: AbortSignal.timeout(Math.max(1, resta(ate))) });
+// Claude: sem novas tentativas automáticas do SDK, que passariam do prazo.
+const opcoesClaude = ate => ({ timeout: Math.max(1000, resta(ate)), maxRetries: 0 });
+
 const Roteiro = z.object({
   dias: z.array(z.object({
     dia: z.number().int(),
@@ -192,9 +211,10 @@ const somaCustos = dias => dias.reduce((t, d) => t + d.atividades.reduce((s, a) 
 // e, se falhar, ela tenta de novo com o aviso. `pedir(avisos)` devolve o roteiro da IA ou null (resposta cortada
 // ou fora do formato, que conta como tentativa falha). `conferir(dias)` lista outros problemas que pedem
 // nova tentativa (no Gemini, restaurante que não veio do Google Maps). Devolve a melhor tentativa, ou null.
-async function tentar(p, pedir, conferir = () => []) {
+async function tentar(p, pedir, conferir = () => [], ate = Infinity) {
   let roteiro, avisos = "";
   for (let tentativa = 0; tentativa < 2; tentativa++) {
+    if (tentativa && resta(ate) < MIN_TENTATIVA_MS) break;
     const r = await pedir(avisos);
     if (!r?.dias?.length) continue;
     const inteiro = v => Math.max(0, Math.round(v) || 0);
@@ -222,7 +242,7 @@ async function tentar(p, pedir, conferir = () => []) {
 }
 
 // Claude Sonnet: conhece os lugares de memória, sem consultar mapa.
-function comClaude(p, anthropic) {
+function comClaude(p, anthropic, ate = Infinity) {
   return tentar(p, async avisos => {
     // Às vezes a resposta para no limite de tokens (stop_reason "max_tokens") e o JSON fica incompleto:
     // conta como tentativa falha. Erros da API (rede, limite, chave) sobem direto.
@@ -233,19 +253,19 @@ function comClaude(p, anthropic) {
         max_tokens: p.completo ? 20000 : 16000,
         messages: [{ role: "user", content: montarPrompt(p) + avisos }],
         output_config: { effort: "low", format: zodOutputFormat(p.completo ? RoteiroCompleto : Roteiro) }
-      });
+      }, opcoesClaude(ate));
       return resposta.stop_reason === "max_tokens" ? null : resposta.parsed_output;
     } catch (e) {
       if (e instanceof Anthropic.APIError) throw e;
       return null;
     }
-  });
+  }, undefined, ate);
 }
 
 // Atalho do completo: quando o roteiro simples do mesmo pedido já está pronto no cache (a pessoa acabou de vê-lo),
 // mantém os mesmos lugares e só pede horários e dicas, sem nova busca no Google Maps. Fica bem mais rápido.
 // Devolve null se a resposta não casar com o roteiro (aí monta o completo do zero).
-async function completarSimples(p, simples, env, client, fetchFn) {
+async function completarSimples(p, simples, env, client, fetchFn, ate = Infinity) {
   const base = simples.dias.map(d => ({ dia: d.dia, cidade: d.cidade, regiao: d.regiao,
     atividades: d.atividades.map(a => ({ periodo: a.periodo, nome: a.nome, bairro: a.bairro, custo: a.custo })),
     almoco: d.almoco && { nome: d.almoco.nome, bairro: d.almoco.bairro }, jantar: d.jantar && { nome: d.jantar.nome, bairro: d.jantar.bairro } }));
@@ -264,15 +284,18 @@ ${JSON.stringify(base)}`;
       simples.dias[i].atividades.every(a => d.atividades.some(b => norm(b.nome) === norm(a.nome)))) &&
     x.dias.reduce((t, d) => t + d.atividades.reduce((s2, a) => s2 + inteiro(a.custo), 0), 0) <= p.verba;
   const pedidos = [];
-  if (env.GEMINI_API_KEY) pedidos.push(() => montarComGemini(texto, ExtraCompleto, env.GEMINI_API_KEY, fetchFn, 60000));
+  // O atalho tem prazo curto: se falhar, ainda dá tempo de montar o completo do zero.
+  const ateAtalho = Math.min(ate, Date.now() + PRAZO_ATALHO_MS);
+  if (env.GEMINI_API_KEY) pedidos.push(() => montarComGemini(texto, ExtraCompleto, env.GEMINI_API_KEY, comPrazo(fetchFn, ateAtalho), 60000));
   if (client || env.ANTHROPIC_API_KEY) pedidos.push(async () => {
     const r = await (client || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })).messages.parse({
       model: MODELO, max_tokens: 20000, messages: [{ role: "user", content: texto }],
       output_config: { effort: "low", format: zodOutputFormat(ExtraCompleto) }
-    });
+    }, opcoesClaude(ateAtalho));
     return r.stop_reason === "max_tokens" ? null : r.parsed_output;
   });
   for (const pedir of pedidos) {
+    if (resta(ateAtalho) < MIN_TENTATIVA_MS) break;
     let extra = null;
     try { extra = await pedir(); } catch (e) { console.error("roteiro completo: atalho falhou:", e.message); }
     if (!casa(extra)) continue;
@@ -289,13 +312,13 @@ ${JSON.stringify(base)}`;
 }
 
 // Gemini: levanta lugares reais no Google Maps e monta o roteiro só com eles, cada um com o link do Maps.
-async function comGemini(p, chave, fetchFn) {
+async function comGemini(p, chave, fetchFn, ate = Infinity) {
   const { plano, lugares } = await buscarLugares(p, chave, fetchFn);
   const lista = `\nUse somente os lugares desta lista, levantada agora no Google Maps, com o nome exatamente como está nela e mantendo a região e o bairro de cada dia. Escreva título, região e dicas em português. Os preços da lista são por pessoa, em reais. Se precisar trocar algum lugar (verba ou região), troque por outro da própria lista.\nLista:\n${plano}\n`;
   // Almoço e jantar têm que ser restaurantes que vieram do Google Maps (decisão do Tom: conferir só restaurantes).
   const semMaps = dias => dias.flatMap(d => [d.almoco, d.jantar].filter(r => r?.nome && !achaNoMaps(r.nome, lugares))
     .map(r => `o restaurante ${r.nome} (dia ${d.dia}) não está na lista do Google Maps, troque por um restaurante da lista`));
-  const roteiro = await tentar(p, avisos => montarComGemini(montarPrompt(p) + lista + avisos, p.completo ? RoteiroCompleto : Roteiro, chave, fetchFn, p.completo ? 60000 : 32000), semMaps);
+  const roteiro = await tentar(p, avisos => montarComGemini(montarPrompt(p) + lista + avisos, p.completo ? RoteiroCompleto : Roteiro, chave, fetchFn, p.completo ? 60000 : 32000), semMaps, ate);
   if (!roteiro) throw new ErroGemini("Gemini sem roteiro válido");
   const falta = faltaNoRoteiro(p, roteiro.dias, roteiro.dicas);
   if (falta.length) throw new ErroGemini(`Gemini incompleto: ${falta.join("; ")}`);
@@ -311,7 +334,7 @@ async function comGemini(p, chave, fetchFn) {
 }
 
 // `completo`: o roteiro pago, com horários e mais dicas (quem confere o pagamento é functions/api/roteiro.js).
-export async function gerarRoteiro(body, env = {}, client = null, ip = null, fetchFn = globalThis.fetch, { completo = false, fotosFetch = globalThis.fetch } = {}) {
+export async function gerarRoteiro(body, env = {}, client = null, ip = null, fetchFn = globalThis.fetch, { completo = false, fotosFetch = globalThis.fetch, prazoMs = PRAZO_MS } = {}) {
   // O nome só entra no completo (e na chave do cache dele): o roteiro grátis não pede nome.
   const p = { ...validarPedido(body), completo, nome: completo ? lerNome(body) : "" };
   const chaveDe = extra => `https://cache.cabenobolso/roteiro/v12?${new URLSearchParams({
@@ -321,9 +344,10 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null, fet
   const chave = chaveDe(completo ? { k: "top2", nm: norm(p.nome) } : {});
   const guardado = await lerCache(chave);
   if (guardado) return { ...guardado, cache: true };
+  const ate = Date.now() + prazoMs;
   if (completo) {
     const simples = await lerCache(chaveDe({}));
-    const feito = simples?.dias?.length && await completarSimples(p, simples, env, client, fetchFn);
+    const feito = simples?.dias?.length && await completarSimples(p, simples, env, client, fetchFn, ate);
     if (feito) {
       console.log("roteiro: completo feito a partir do simples do cache");
       const pronto = await comFotos({ ...feito, dias: umDestaque(feito.dias) }, fotosFetch);
@@ -339,17 +363,31 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null, fet
   if (!(await dentroDoLimite(ip, limite))) throw new LimiteAtingido(`Você já montou ${limite} roteiros novos hoje. Volte amanhã para montar mais.`);
 
   let roteiro = null, erroGemini = null;
+  const temClaude = Boolean(client || env.ANTHROPIC_API_KEY);
   if (usarGemini) {
-    try {
-      roteiro = await comGemini(p, env.GEMINI_API_KEY, fetchFn);
+    // Com o Claude de reserva, o Gemini tem até 45 s e deixa 40 s para o Claude; sozinho, o prazo todo.
+    const ateGemini = temClaude ? Math.min(Date.now() + PRAZO_GEMINI_MS, ate - RESERVA_CLAUDE_MS) : ate;
+    const t0 = Date.now();
+    if (temClaude && resta(ateGemini) < MIN_GEMINI_MS) console.error("roteiro: sem tempo para o Gemini, usando o Claude");
+    else try {
+      roteiro = await comGemini(p, env.GEMINI_API_KEY, comPrazo(fetchFn, ateGemini), ateGemini);
     } catch (e) {
-      if (!env.ANTHROPIC_API_KEY) throw e;
+      const passou = e?.name === "TimeoutError" || e?.name === "AbortError";
+      console.error(`roteiro: Gemini ${passou ? "passou do prazo" : "falhou"} em ${Math.round((Date.now() - t0) / 1000)} s${temClaude ? ", usando o Claude" : ""}:`, e?.message);
+      if (!temClaude) throw passou ? demorou() : e;
       erroGemini = e;
-      console.error("roteiro: Gemini falhou, usando o Claude:", e.message);
     }
   }
   if (!roteiro) {
-    roteiro = await comClaude(p, client || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }));
+    if (resta(ate) < MIN_TENTATIVA_MS) throw demorou();
+    const t0 = Date.now();
+    try {
+      roteiro = await comClaude(p, client || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }), ate);
+    } catch (e) {
+      console.error(`roteiro: Claude falhou em ${Math.round((Date.now() - t0) / 1000)} s:`, e?.message);
+      if (e instanceof Anthropic.APIConnectionTimeoutError) throw demorou();
+      throw e;
+    }
     if (roteiro) roteiro.fonte = "claude";
   }
   if (!roteiro) throw erroGemini || new Error("Resposta da IA sem roteiro");

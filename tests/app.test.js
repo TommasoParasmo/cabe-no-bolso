@@ -417,6 +417,25 @@ test("roteiro cai para o Claude quando o Gemini falha", async () => {
   await assert.rejects(gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 4, verbaPasseios: 300 }, { GEMINI_API_KEY: "k" }, null, null, geminiFalso([{ status: 500 }]).fetchFn), /Gemini 500/);
 });
 
+test("roteiro responde antes do corte da Cloudflare: Gemini parado vira erro claro, Claude tem prazo", async () => {
+  const { Demorou, PRAZO_MS } = await import("../server/roteiro.js");
+  // Gemini que nunca responde: só termina quando o prazo aborta o fetch.
+  // (O timer do AbortSignal.timeout não segura o Node aberto: o setTimeout segura até o abort.)
+  const parado = (url, init) => new Promise((_, nao) => {
+    const segura = setTimeout(() => {}, 5000);
+    init.signal.addEventListener("abort", () => { clearTimeout(segura); nao(init.signal.reason); });
+  });
+  const t0 = Date.now();
+  await assert.rejects(gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 6, verbaPasseios: 300 }, { GEMINI_API_KEY: "k" }, null, null, parado, { prazoMs: 200 }), Demorou);
+  assert.ok(Date.now() - t0 < 2000, "não espera além do prazo");
+  // O Claude recebe o tempo que resta (nunca mais que o prazo) e nenhuma nova tentativa automática do SDK.
+  let opcoes;
+  const client = { messages: { parse: async (req, o) => { opcoes = o; return { parsed_output: { dias: diasDe(diaGemini, 3), dicas: [] } }; } } };
+  await gerarRoteiro({ destino: "Salvador", noites: 2, pessoas: 7, verbaPasseios: 300 }, {}, client);
+  assert.equal(opcoes.maxRetries, 0);
+  assert.ok(opcoes.timeout > 0 && opcoes.timeout <= PRAZO_MS);
+});
+
 test("roteiro do Gemini cortado ou fora do formato tenta de novo uma vez", async () => {
   const cortado = { content: { parts: [{ text: "{\"dias\": [" }] }, finishReason: "MAX_TOKENS" };
   const { pedidos, fetchFn } = geminiFalso([mapsOk, cortado, jsonOk]);
