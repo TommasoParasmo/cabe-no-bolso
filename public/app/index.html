@@ -357,7 +357,7 @@ button.voando .frase { display: inline-block; animation: frase 2.4s ease both; }
   body.so-roteiro .day { break-inside: avoid; }
   /* Roteiro Top: cada bloco é uma página A4, com cabeçalho e rodapé de nome. */
   body.so-roteiro:has(.top) { background: #F7F8F6 !important; }
-  body.so-roteiro:has(.top) .wrap, body.so-roteiro:has(.top) #result, body.so-roteiro:has(.top) #roteiro-card { background: transparent !important; box-shadow: none !important; margin: 0 !important; padding: 0 !important; }
+  body.so-roteiro:has(.top) .wrap, body.so-roteiro:has(.top) #result, body.so-roteiro:has(.top) #roteiro-card { background: transparent !important; box-shadow: none !important; margin: 0 !important; padding: 0 !important; max-width: none !important; width: auto !important; }
   body.so-roteiro .brand:has(~ #result .top) { display: none !important; }
   @page { size: A4; margin: 0; }
   .top { display: block; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -378,6 +378,7 @@ button.voando .frase { display: inline-block; animation: frase 2.4s ease both; }
   .top-dia-sem { padding: 16mm 18mm 0; }
   .top-dia-sem .pg-cab { margin-bottom: 8mm; }
   .top-dia-foto { min-height: 70mm; padding: 10mm 18mm; }
+  .top-dia-foto .pg-cab { position: absolute; top: 10mm; left: 18mm; right: 18mm; z-index: 1; margin: 0; color: rgba(255,255,255,.85); }
   .top-dia .top-linha li { padding: 8px 0; }
   .top-fim { min-height: 297mm; }
   .top-fim h2 { font-size: 44pt; }

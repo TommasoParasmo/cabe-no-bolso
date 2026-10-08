@@ -629,6 +629,8 @@ function roteiroTop(ro) {
   const gastoTotal = ro.dias.reduce((t, d) => t + gastoDoDia(d), 0);
   const lugares = ro.dias.reduce((t, d) => t + itensDoDia(d).length, 0);
   const capaFoto = ro.dias.map(destaqueComFoto).find(Boolean);
+  // Bilhete: primeira cidade na ordem escolhida no Pix (a pessoa pode ter trocado a ordem do cálculo).
+  const chegada = (ro.ordem && c.paradas?.find(p => p.n === ro.ordem[0])) || c.paradas?.[0] || c.destino;
   const imgFoto = (a, cls) => `<img class="${cls}" src="${esc(a.foto.url)}" alt="${esc(a.nome)}">`;
   const credito = a => `<a href="${esc(a.foto.pagina)}" target="_blank" rel="noopener">Foto: ${esc(a.foto.autor)}, ${esc(a.foto.licenca)}, via Wikimedia Commons</a>`;
   const cab = () => `<div class="pg-cab"><span>Roteiro ${esc(de || "Top")}, ${esc(cidade)}</span><span>Vai Dar Viagem</span></div>`;
@@ -644,7 +646,7 @@ function roteiroTop(ro) {
         <h2>${titulo}</h2>
         <p class="top-sub">${esc(periodoLongo(f.ida, f.volta))}${f.ida ? ", " : ""}para ${pessoas} ${pessoas > 1 ? "pessoas" : "pessoa"}</p>
         <div class="top-bilhete">
-          <div class="top-trecho"><div><small>${esc(c.origem?.n || "")}</small><b>${esc(c.origem?.ap || c.origem?.iata || "")}</b></div><span class="top-voo">${ICONE_AVIAO}</span><div class="dir"><small>${esc(c.destino.n)}</small><b>${esc(c.destino.ap || c.destino.iata || "")}</b></div></div>
+          <div class="top-trecho"><div><small>${esc(c.origem?.n || "")}</small><b>${esc(c.origem?.ap || c.origem?.iata || "")}</b></div><span class="top-voo">${ICONE_AVIAO}</span><div class="dir"><small>${esc(chegada.n)}</small><b>${esc(chegada.ap || chegada.iata || "")}</b></div></div>
           <div class="top-bilhete-info"><div><small>Ida</small><b>${esc(dataBilhete(f.ida))}</b></div><div><small>Volta</small><b>${esc(dataBilhete(f.volta))}</b></div><div><small>Pessoas</small><b>${pessoas}</b></div><div><small>Previsto</small><b>${brl(c.total)}</b></div></div>
         </div>
         <div class="top-capa-rod"><span>Feito ${nome ? `para ${esc(nome)} ` : ""}em ${esc(periodoLongo(hoje))}</span><span>vaidarviagem.com.br</span></div>
@@ -657,6 +659,7 @@ function roteiroTop(ro) {
       <p class="top-kicker">${ESTRELA} Roteiro Top</p>
       <h2 class="top-oi">${nome ? `Oi, ${esc(nome)}` : "Oi!"}</h2>
       ${ro.apresentacao ? `<p class="top-texto">${esc(ro.apresentacao)}</p>` : ""}
+      ${ro.resumido ? `<p class="top-texto suave">Sua viagem tem ${esc(ro.resumido.viagem)} dias; este roteiro detalha ${esc(ro.resumido.dias)} deles${new Set(ro.dias.map(d => d.cidade)).size > 1 ? ", divididos entre as cidades" : ", os primeiros da viagem"}.</p>` : ""}
       <p class="top-texto suave">Cada dia tem horário, como chegar de um lugar ao outro e uma dica de quem conhece. Os nomes dos lugares abrem no Google Maps.</p>
       <p class="top-assina">Boa viagem,<br>equipe Vai Dar Viagem</p>
       <div class="top-numeros">
@@ -686,7 +689,7 @@ function roteiroTop(ro) {
     const topo = `<p class="top-kicker">Dia ${esc(d.dia)} de ${n}</p><h3>${esc(d.titulo)}</h3>`;
     return `
     <section class="pg top-dia">
-      ${a ? `<header class="top-dia-foto">${imgFoto(a, "top-dia-img")}<div>${topo}<small class="top-credito">${credito(a)}</small></div></header>` : `${cab()}<header class="top-dia-sem">${topo}</header>`}
+      ${a ? `<header class="top-dia-foto">${imgFoto(a, "top-dia-img")}${cab()}<div>${topo}<small class="top-credito">${credito(a)}</small></div></header>` : `${cab()}<header class="top-dia-sem">${topo}</header>`}
       <div class="top-dia-info">
         ${d.sobreRegiao ? `<div class="top-bairro"><p class="top-rotulo">${ICONE_PIN} O bairro${d.regiao ? `: ${esc(d.regiao)}` : ""}</p><p>${esc(d.sobreRegiao)}</p></div>` : ""}
         <div class="top-gasto"><small>Gasto previsto</small><b>${brl(gastoDoDia(d))}</b><small>para ${pessoas} ${pessoas > 1 ? "pessoas" : "pessoa"}</small></div>
@@ -906,7 +909,7 @@ async function montarCompleto(ro) {
     fetch(`${API}/api/lead`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: v.email, novidades: false, destino: state.atual.destino.n }) })
       .then(x => x.ok && x.json()).then(x => { if (x?.guardado) try { localStorage.setItem(LEAD, "1"); } catch {} }).catch(() => {});
     guardarPendente(idViagem());
-    state.roteiro = { ...r, completo: true, nome: v.nome, ordem: v.ordem?.map(p => p.n) };
+    state.roteiro = { ...r, completo: true, nome: v.nome || v.pedido?.nome, ordem: v.ordem?.map(p => p.n) };
     evento("RoteiroCompleto", { destino: state.atual.destino?.n });
     renderRoteiro();
     if (salvas.some(x => x.id === idViagem())) salvarViagem();
