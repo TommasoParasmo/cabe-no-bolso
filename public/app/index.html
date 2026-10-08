@@ -58,8 +58,20 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; le
 .side li { display: flex; gap: 10px; align-items: center; }
 .side li::before { content: "✓"; color: var(--deep); background: var(--gold); width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 800; flex: none; }
 @media (max-width: 900px) { .sim { grid-template-columns: minmax(0, 1fr); } .side { display: none; } }
+/* No celular a coluna da foto some: uma frase diz o que o app faz, e o botão fica sempre à vista. */
+.intro-celular { display: none; margin: 0; padding: 20px 20px 16px; font-size: 17px; font-weight: 600; line-height: 1.35; }
+@media (max-width: 900px) {
+  .intro-celular { display: block; }
+  #form .actions { position: sticky; bottom: 10px; z-index: 5; }
+  #form .actions .primary { box-shadow: 0 8px 24px rgba(13,53,50,.35); }
+}
+.mais { display: grid; gap: 14px; }
+.mais > summary { cursor: pointer; font-weight: 600; color: var(--accent); list-style: none; }
+.mais > summary::-webkit-details-marker { display: none; }
+.mais > summary::before { content: "+ "; }
+.mais[open] > summary::before { content: "− "; }
 
-.ticket { background: var(--surface); border-radius: 28px; overflow: hidden; box-shadow: 0 20px 50px rgba(13,53,50,.1); display: grid; }
+.ticket { background: var(--surface); border-radius: 28px; overflow: hidden; overflow: clip; /* clip: o botão fixo (sticky) do celular continua funcionando */ box-shadow: 0 20px 50px rgba(13,53,50,.1); display: grid; }
 .money { background: var(--deep); color: #fff; padding: 32px 36px 28px; display: grid; gap: 12px; }
 .money label { font-weight: 600; opacity: .85; }
 .money-input { display: flex; align-items: baseline; gap: 10px; border-bottom: 2px solid var(--gold); padding-bottom: 8px; }
@@ -489,6 +501,7 @@ if (window.fbq) { fbq('init', '1648295673479841'); fbq('track', 'PageView'); }
     </div>
   </aside>
   <form class="ticket" id="form" autocomplete="off">
+    <p class="intro-celular">Diga quanto quer gastar e para onde. A gente calcula passagem, hotel, comida e passeios e diz se dá.</p>
     <div class="money">
       <label for="orcamento">Quanto você quer gastar no total?</label>
       <div class="money-input"><span>R$</span><input id="orcamento" inputmode="numeric" value="7.000" aria-describedby="orc-hint"></div>
@@ -543,6 +556,9 @@ if (window.fbq) { fbq('init', '1648295673479841'); fbq('track', 'PageView'); }
           <option value="4">4 pessoas</option>
           <option value="5">5 pessoas</option>
           <option value="6">6 pessoas</option>
+          <option value="7">7 pessoas</option>
+          <option value="8">8 pessoas</option>
+          <option value="9">9 pessoas</option>
         </select>
       </div>
       <div class="field">
@@ -553,11 +569,13 @@ if (window.fbq) { fbq('init', '1648295673479841'); fbq('track', 'PageView'); }
           <label><input type="radio" name="estilo" id="estilo-conf" value="2"><span>Conforto</span></label>
         </div>
       </div>
+      <details class="field full mais" id="mais-opcoes">
+      <summary>Mais opções: o que vocês curtem e algo específico</summary>
       <div class="field full">
         <span class="rotulo" id="curtem">O que vocês curtem</span>
         <div id="interesses" role="group" aria-labelledby="curtem">
           <div class="chips">
-          <label class="chip foto" style="--foto:url(/img/pisc.jpg)"><input type="checkbox" id="i-praia" value="praia" checked><span>Praia</span></label>
+          <label class="chip foto" style="--foto:url(/img/pisc.jpg)"><input type="checkbox" id="i-praia" value="praia"><span>Praia</span></label>
           <label class="chip foto" style="--foto:url(/img/comida.jpg)"><input type="checkbox" id="i-gastro" value="gastronomia"><span>Gastronomia</span></label>
           <label class="chip foto" style="--foto:url(/img/feira.jpg)"><input type="checkbox" id="i-cultura" value="cultura"><span>Cultura</span></label>
           <label class="chip foto" style="--foto:url(/img/janela.jpg)"><input type="checkbox" id="i-natureza" value="natureza"><span>Natureza</span></label>
@@ -573,6 +591,7 @@ if (window.fbq) { fbq('init', '1648295673479841'); fbq('track', 'PageView'); }
         <label for="foco">Algo específico que vocês querem ver? <span style="font-weight:400">(opcional)</span></label>
         <input id="foco" maxlength="120" placeholder="Ex.: museus, trilhas, vida noturna">
       </div>
+      </details>
     </div>
     <div class="actions">
       <button type="submit" class="primary" id="go">Ver se vai dar</button>
