@@ -14,9 +14,9 @@ export async function onRequestPost({ request, env }) {
   }
   try {
     if (!(await podeRecuperar(request.headers.get("CF-Connecting-IP")))) return json({ erro: "Muitas tentativas hoje. Tente amanhã ou escreva para contato@vaidarviagem.com.br." }, 429);
-    const { pedido, viagem } = await recuperarPedido(body, env);
+    const { pedido, viagem, valor } = await recuperarPedido(body, env);
     const roteiro = await gerarRoteiro(pedido, env, null, null, globalThis.fetch, { completo: true });
-    return json({ id: String(body.id).trim().toUpperCase(), pedido, viagem, roteiro });
+    return json({ id: String(body.id).trim().toUpperCase(), pedido, viagem, roteiro, valor });
   } catch (e) {
     if (e instanceof PixInvalido || e instanceof EntradaInvalida) return json({ erro: e.message }, 400);
     if (e instanceof PixNaoPago) return json({ erro: e.message }, 402);

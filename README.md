@@ -18,7 +18,7 @@ Diga quanto quer gastar. A gente monta a viagem e diz se dá.
    - `TRAVELPAYOUTS_TOKEN`: token de API do Travelpayouts (perfil → API token).
    - `TRAVELPAYOUTS_MARKER`: seu marker (ID de parceiro) do Travelpayouts.
    - `ANTHROPIC_API_KEY`: chave da API da Anthropic (console.anthropic.com).
-   - `MP_ACCESS_TOKEN`: Access Token **de produção** do Mercado Pago (Suas integrações → aplicação → Credenciais de produção). Liga a venda do roteiro completo no Pix (R$ 9,90): horário de cada lugar, uma dica por lugar, a ordem das cidades escolhida pela pessoa e 8 dicas da viagem. O roteiro simples continua grátis. O token de teste gera um Pix que banco nenhum paga, então em produção use só o de produção. Sem a variável, o app não oferece o roteiro completo.
+   - `MP_ACCESS_TOKEN`: Access Token **de produção** do Mercado Pago (Suas integrações → aplicação → Credenciais de produção). Liga a venda do roteiro completo no Pix (R$ 14,90): horário de cada lugar, uma dica por lugar, a ordem das cidades escolhida pela pessoa e 8 dicas da viagem. O roteiro simples continua grátis. O token de teste gera um Pix que banco nenhum paga, então em produção use só o de produção. Sem a variável, o app não oferece o roteiro completo.
 4. Faça um novo deploy para as variáveis valerem.
 5. Em console.anthropic.com → **Settings → Limits**, defina um limite de gasto mensal. O app já limita a 5 roteiros novos por pessoa (IP) por dia, mas esse contador é aproximado; o limite da Anthropic é o teto de verdade.
 
