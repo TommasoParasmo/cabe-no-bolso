@@ -667,7 +667,7 @@ function cartaoCompleto() {
   }
   const v = ro.venda;
   const ordem = v.ordem;
-  if (v.gerando) return `<div class="completo nao-imprimir" id="completo-box"><h3>Roteiro completo</h3><button type="button" class="primary" id="completo-gerando" disabled></button><p class="hint" style="margin:0">Pagamento recebido. Pode levar cerca de 1 minuto, fique nesta tela.</p></div>`;
+  if (v.gerando) return `<div class="completo nao-imprimir" id="completo-box"><h3>Roteiro completo</h3><button type="button" class="primary" id="completo-gerando" disabled></button><p class="hint" style="margin:0">Pagamento recebido. O roteiro completo pode levar até 3 minutos, porque está sendo feito personalizado com as suas escolhas. Fique nesta tela, ele aparece aqui.</p></div>`;
   return `
     <div class="completo nao-imprimir" id="completo-box">
       <h3>Quer o roteiro completo? ${reais(PRECO_COMPLETO)}</h3>
