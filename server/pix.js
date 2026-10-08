@@ -47,7 +47,8 @@ export async function criarPix({ pedido, email }, env, fetchFn = globalThis.fetc
     })
   });
   const order = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(`Mercado Pago ${r.status}: ${JSON.stringify(order).slice(0, 300)}`);
+  // Só o status e o código do erro: o corpo da resposta pode trazer o e-mail de quem paga.
+  if (!r.ok) throw new Error(`Mercado Pago ${r.status}${order?.errors?.[0]?.code ? ` (${order.errors[0].code})` : ""}`);
   const pag = order.transactions?.payments?.[0] || {};
   const pm = pag.payment_method || {};
   if (!pm.qr_code) throw new Error("Mercado Pago sem QR Code do Pix");
@@ -59,7 +60,8 @@ export async function criarPix({ pedido, email }, env, fetchFn = globalThis.fetc
 async function lerOrder(id, env, fetchFn) {
   if (!/^ORD[0-9A-Z]{6,40}$/i.test(String(id))) throw new PixInvalido("Pagamento não encontrado.");
   const r = await fetchFn(`${API}/${id}`, { headers: cabecalho(env.MP_ACCESS_TOKEN) });
-  if (r.status === 404) throw new PixInvalido("Pagamento não encontrado.");
+  // Número que não existe: o Mercado Pago responde 404 ou 400. Os dois são "não encontrado", não falha nossa.
+  if (r.status === 404 || r.status === 400) throw new PixInvalido("Pagamento não encontrado.");
   if (!r.ok) throw new Error(`Mercado Pago ${r.status}`);
   return r.json();
 }
@@ -94,7 +96,9 @@ export async function conferirPagamento(id, body, env, fetchFn = globalThis.fetc
 // Quem pagou e perdeu o roteiro (trocou de aparelho, limpou o navegador) recupera com o número do
 // pedido e o e-mail do Pix, conferidos no Mercado Pago. Só o e-mail nunca basta: mostraria a viagem de outra pessoa.
 export const GUARDA_DIAS = 30;
-const MAX_GUARDADO = 100_000;
+const MAX_GUARDADO = 30_000;
+// Pix novos por IP por hora: um robô não enche o Mercado Pago de cobranças nem o KV de pedidos.
+const PIX_IP_HORA = 5;
 const RECUPERAR_IP_DIA = 20;
 const chavePedido = id => `pedido:${String(id).toUpperCase()}`;
 
@@ -115,6 +119,15 @@ export async function guardarPedido(id, { pedido, viagem, email }, env) {
   // Tela grande demais (não deveria acontecer) não entra; o pedido sozinho ainda refaz o roteiro.
   if (valor.length > MAX_GUARDADO) valor = JSON.stringify({ ...base, viagem: null });
   await env.LEADS.put(chavePedido(id), valor, { expirationTtl: GUARDA_DIAS * 86400 });
+  return true;
+}
+
+export async function podeCriarPix(ip) {
+  if (!ip) return true;
+  const chave = `https://cache.cabenobolso/pix-limite?${new URLSearchParams({ ip, h: new Date().toISOString().slice(0, 13) })}`;
+  const n = (await lerCache(chave))?.n || 0;
+  if (n >= PIX_IP_HORA) return false;
+  await gravarCache(chave, { n: n + 1 }, 3600);
   return true;
 }
 
