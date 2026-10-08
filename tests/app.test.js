@@ -1023,3 +1023,16 @@ test("refeicoesRuins pega sorveteria como refeição e o mesmo lugar no almoço 
   assert.ok(!avisos.some(a => a.includes("dia 1")));
   assert.deepEqual(refeicoesRuins([{ dia: 1, almoco: r("Mosteiro de São Bento Café"), jantar: r("Rancho da Barra") }]), []);
 });
+
+test("roteiro do cache com sorveteria no almoço é refeito, não servido de novo", () => comCache(async () => {
+  const cliente = almoco => ({ messages: { parse: async () => ({ parsed_output: { dicas: [], dias: [1, 2, 3, 4].map(dia => ({ dia, cidade: "Salvador", regiao: "Centro", titulo: "Centro",
+    atividades: [{ periodo: "manhã", nome: `Museu ${dia}`, bairro: "Centro", custo: 0 }],
+    almoco: { nome: `${almoco} ${dia}`, bairro: "Centro", custo: 40 }, jantar: { nome: `Cantina ${dia}`, bairro: "Centro", custo: 50 } })) } }) } });
+  const pedido = { destino: "Salvador", noites: 3, verbaPasseios: 700 };
+  const ruim = await gerarRoteiro(pedido, {}, cliente("Sorveteria"));
+  assert.match(ruim.dias[0].almoco.nome, /Sorveteria/);
+  const novo = await gerarRoteiro(pedido, {}, cliente("Restaurante"));
+  assert.equal(novo.cache, false);
+  assert.match(novo.dias[0].almoco.nome, /Restaurante/);
+  assert.equal((await gerarRoteiro(pedido, {}, cliente("Restaurante"))).cache, true);
+}));

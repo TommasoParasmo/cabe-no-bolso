@@ -220,6 +220,9 @@ export function refeicoesRuins(dias) {
   });
 }
 
+// Roteiro do cache feito antes da regra das refeições: se tiver sorveteria ou almoço repetido no jantar, é refeito.
+const semRefeicaoRuim = r => r && !(r.dias && refeicoesRuins(r.dias).length) ? r : null;
+
 const somaCustos = dias => dias.reduce((t, d) => t + d.atividades.reduce((s, a) => s + a.custo, 0), 0);
 
 // Pede o roteiro até duas vezes. A IA às vezes erra a conta ou mistura regiões num dia: isso é conferido aqui
@@ -357,7 +360,7 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null, fet
     ...extra
   })}`;
   const chave = chaveDe(completo ? { k: "top2", nm: norm(p.nome) } : {});
-  const guardado = await lerCache(chave);
+  const guardado = semRefeicaoRuim(await lerCache(chave));
   if (guardado) return { ...guardado, cache: true };
   // Roteiro novo vai gastar IA: quem chamou pode barrar antes (ex.: gerações por pagamento do Detalhado).
   if (antesDeGerar) await antesDeGerar();
@@ -404,7 +407,7 @@ async function gerarNovo(p, chave, chaveDe, env, client, ip, fetchFn, { fotosFet
   const completo = p.completo;
   const ate = Date.now() + prazoMs;
   if (completo) {
-    const simples = await lerCache(chaveDe({}));
+    const simples = semRefeicaoRuim(await lerCache(chaveDe({})));
     const feito = simples?.dias?.length && await completarSimples(p, simples, env, client, fetchFn, ate);
     if (feito) {
       console.log("roteiro: completo feito a partir do simples do cache");
