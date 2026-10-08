@@ -121,6 +121,7 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; le
 .seg span { display: grid; place-items: center; padding: 8px 4px; border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--muted); text-align: center; }
 .seg input:checked + span { background: var(--deep); color: #fff; font-weight: 700; }
 .seg input:focus-visible + span { outline: 3px solid var(--gold); }
+.estilo-desc { margin: 6px 2px 0; min-height: 2.6em; }
 /* O que vocês curtem: os quatro principais com foto, o resto em botões */
 .chips { display: flex; flex-wrap: wrap; gap: 10px; }
 .chip { position: relative; }
@@ -556,11 +557,12 @@ button.voando .frase { display: inline-block; animation: frase 2.4s ease both; }
       </div>
       <div class="field">
         <span class="rotulo">Estilo</span>
-        <div class="seg" role="radiogroup" aria-label="Estilo da viagem">
+        <div class="seg" role="radiogroup" aria-label="Estilo da viagem" aria-describedby="estilo-desc">
           <label><input type="radio" name="estilo" id="estilo-eco" value="0"><span>Econômico</span></label>
           <label><input type="radio" name="estilo" id="estilo-eq" value="1" checked><span>Equilibrado</span></label>
           <label><input type="radio" name="estilo" id="estilo-conf" value="2"><span>Conforto</span></label>
         </div>
+        <p class="hint estilo-desc" id="estilo-desc" aria-live="polite">Hotéis de preço médio, bons restaurantes e as principais atrações pagas.</p>
       </div>
       <details class="field full mais" id="mais-opcoes">
       <summary>Mais opções: o que vocês curtem e algo específico</summary>

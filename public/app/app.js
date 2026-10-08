@@ -1126,6 +1126,18 @@ $("rec-form").addEventListener("submit", async ev => {
 });
 
 // ---- Formulário preenchido pelo link (anúncios): ?destino=Maceió&orcamento=2000&pessoas=1&estilo=economico&noites=4&ida=2026-11-20 ----
+// O que cada estilo quer dizer, do jeito que o custo.js calcula: hotel (dados.js), comida e passeios por dia.
+const ESTILO_DESC = [
+  "Pousadas e hotéis simples bem avaliados, refeições práticas e passeios grátis ou baratos.",
+  "Hotéis de preço médio, bons restaurantes e as principais atrações pagas.",
+  "Hotéis entre os melhores da cidade, restaurantes melhores e mais verba para passeios pagos."
+];
+function mostrarEstilo() {
+  const v = Number(document.querySelector('input[name="estilo"]:checked')?.value ?? 1);
+  $("estilo-desc").textContent = ESTILO_DESC[v] || "";
+}
+document.querySelectorAll('input[name="estilo"]').forEach(r => r.addEventListener("change", mostrarEstilo));
+
 // destino aceita vários separados por vírgula; estilo aceita 0/1/2 ou economico/equilibrado/conforto; origem é a cidade de saída.
 // Com destino e orçamento no link, o resultado já aparece, sem a pessoa precisar rolar até o botão.
 (function preencherPeloLink() {
@@ -1138,6 +1150,7 @@ $("rec-form").addEventListener("submit", async ev => {
   const chaveEstilo = norm(q.get("estilo") || "");
   const estilo = Object.hasOwn(ESTILO_LINK, chaveEstilo) ? ESTILO_LINK[chaveEstilo] : undefined;
   if (estilo !== undefined) document.querySelector(`input[name="estilo"][value="${estilo}"]`).checked = true;
+  mostrarEstilo();
   const origem = ORIGENS.find(o => norm(o.n) === norm(q.get("origem") || ""));
   if (origem) $("origem").value = origem.n;
   // noites (1 a 15) e ida (AAAA-MM-DD, a partir de amanhã): a volta é a ida mais as noites. Sem ida, fica a ida padrão.
