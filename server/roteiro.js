@@ -30,6 +30,11 @@ export const PRAZO_MS = 90_000;
 const PRAZO_GEMINI_MS = 45_000;
 // Menos que isso de sobra: não começa outra tentativa, fica com a melhor que já veio.
 const MIN_TENTATIVA_MS = 25_000;
+// Com o Claude de reserva, o Gemini nunca come os últimos 40 s; e com menos de 15 s nem começa.
+const RESERVA_CLAUDE_MS = 40_000;
+const MIN_GEMINI_MS = 15_000;
+// Atalho do Roteiro Detalhado (completar o simples do cache): até 30 s, para sobrar tempo de montar do zero.
+const PRAZO_ATALHO_MS = 30_000;
 export class Demorou extends Error {}
 const demorou = () => new Demorou("O roteiro demorou mais que o normal para ficar pronto. Tente de novo.");
 const resta = ate => ate - Date.now();
@@ -279,8 +284,8 @@ ${JSON.stringify(base)}`;
       simples.dias[i].atividades.every(a => d.atividades.some(b => norm(b.nome) === norm(a.nome)))) &&
     x.dias.reduce((t, d) => t + d.atividades.reduce((s2, a) => s2 + inteiro(a.custo), 0), 0) <= p.verba;
   const pedidos = [];
-  // O atalho fica com até a metade do prazo: se falhar, ainda dá tempo de montar o completo do zero.
-  const ateAtalho = Math.min(ate, Date.now() + PRAZO_GEMINI_MS);
+  // O atalho tem prazo curto: se falhar, ainda dá tempo de montar o completo do zero.
+  const ateAtalho = Math.min(ate, Date.now() + PRAZO_ATALHO_MS);
   if (env.GEMINI_API_KEY) pedidos.push(() => montarComGemini(texto, ExtraCompleto, env.GEMINI_API_KEY, comPrazo(fetchFn, ateAtalho), 60000));
   if (client || env.ANTHROPIC_API_KEY) pedidos.push(async () => {
     const r = await (client || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })).messages.parse({
@@ -360,10 +365,11 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null, fet
   let roteiro = null, erroGemini = null;
   const temClaude = Boolean(client || env.ANTHROPIC_API_KEY);
   if (usarGemini) {
-    // Com o Claude de reserva, o Gemini tem até a metade do prazo; sozinho, o prazo todo.
-    const ateGemini = temClaude ? Math.min(ate, Date.now() + PRAZO_GEMINI_MS) : ate;
+    // Com o Claude de reserva, o Gemini tem até 45 s e deixa 40 s para o Claude; sozinho, o prazo todo.
+    const ateGemini = temClaude ? Math.min(Date.now() + PRAZO_GEMINI_MS, ate - RESERVA_CLAUDE_MS) : ate;
     const t0 = Date.now();
-    try {
+    if (temClaude && resta(ateGemini) < MIN_GEMINI_MS) console.error("roteiro: sem tempo para o Gemini, usando o Claude");
+    else try {
       roteiro = await comGemini(p, env.GEMINI_API_KEY, comPrazo(fetchFn, ateGemini), ateGemini);
     } catch (e) {
       const passou = e?.name === "TimeoutError" || e?.name === "AbortError";
