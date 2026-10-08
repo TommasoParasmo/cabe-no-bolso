@@ -225,7 +225,7 @@ ${JSON.stringify(base)}`;
   const inteiro = v => Math.max(0, Math.round(v) || 0);
   // Casa com o simples: mesmos dias, todas as atividades de antes mantidas, mais cheio, dentro da verba e com as 8 dicas.
   const casa = x => x?.dias?.length === simples.dias.length && x.dicas?.length >= DICAS_COMPLETO &&
-    x.dias.every((d, i) => d.atividades.length >= Math.max(4, simples.dias[i].atividades.length) &&
+    x.dias.every((d, i) => d.dia === simples.dias[i].dia && d.atividades.length >= Math.max(4, simples.dias[i].atividades.length) &&
       simples.dias[i].atividades.every(a => d.atividades.some(b => norm(b.nome) === norm(a.nome)))) &&
     x.dias.reduce((t, d) => t + d.atividades.reduce((s2, a) => s2 + inteiro(a.custo), 0), 0) <= p.verba;
   const pedidos = [];

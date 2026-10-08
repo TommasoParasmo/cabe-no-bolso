@@ -661,8 +661,8 @@ test("roteiro completo aproveita o simples do cache: mantém os lugares, acresce
     ativ(`Praça ${n}`, "tarde", "16:00–17:00"), ativ(`Mirante ${n}`, "noite", "21:00–22:00")];
   const respostas = [
     { dias: [dia(1), dia(2)], dicas: ["a", "b", "c"] },
-    // 1ª tentativa do atalho: tirou o Museu 2, não serve.
-    { dias: [1, 2].map(n => ({ dia: n, atividades: cheio(n).slice(n - 1), almoco: hora("12:00–13:00", "x"), jantar: hora("19:00–20:30", "x") })), dicas: Array(8).fill("d") }
+    // Atalho no Claude: dias trocados de lugar, não serve.
+    { dias: [2, 1].map(n => ({ dia: n, atividades: cheio(n), almoco: hora("12:00–13:00", "x"), jantar: hora("19:00–20:30", "x") })), dicas: Array(8).fill("d") }
   ];
   const pedidos = [];
   const client = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: respostas[pedidos.length - 1] }; } } };
@@ -682,7 +682,14 @@ test("roteiro completo aproveita o simples do cache: mantém os lugares, acresce
   assert.equal(r.dias[0].jantar.nome, "Bar 1");
   assert.equal(r.totalPasseios, 80);
   assert.equal(r.dicas.length, 8);
-  assert.equal((await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true })).cache, true);
+  assert.equal((await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true })).cache, true);  // Só com o Claude, a resposta com os dias trocados é recusada e o completo é montado do zero.
+  const pedido2 = { ...pedido, pessoas: 7 };
+  pedidos.length = 0;
+  const so = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: pedidos.length === 2 ? respostas[1] : respostas[0] }; } } };
+  await gerarRoteiro(pedido2, {}, so);
+  await gerarRoteiro(pedido2, {}, so, null, globalThis.fetch, { completo: true }).catch(() => {});
+  assert.match(pedidos[1], /Mantenha todas as atividades/);
+  assert.match(pedidos[2], /Este é o roteiro completo, com horários/);
 }));
 
 test("roteiro completo monta do zero quando a resposta do atalho não casa com o simples", () => comCache(async () => {
