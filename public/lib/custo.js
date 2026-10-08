@@ -41,10 +41,11 @@ export function estimarVoo(origem, dest, ida, hoje = new Date()) {
 
 // Ônibus só ida por pessoa: distância por estrada ≈ 1,3 × linha reta, a ~70 km/h.
 // Preço por km: convencional, executivo, leito. null = internacional ou longe demais (mais de ~16 h).
+// Exceção: duas cidades vizinhas do mesmo país lá fora (Jerusalém e Tel Aviv dividem o aeroporto TLV) vão por terra.
 const ONIBUS_KM = [0.25, 0.32, 0.48];
 const MAX_HORAS = [12, 8, 5]; // até quantas horas de ônibus cada estilo topa, quando há avião
 export function estimarOnibus(de, para, data, estilo = 1) {
-  if (de.int || para.int) return null;
+  if ((de.int || para.int) && !(de.p === para.p && km(de, para) < 150)) return null;
   const estrada = km(de, para) * 1.3;
   if (estrada > 1100) return null;
   const porPessoa = Math.max(40, estrada * ONIBUS_KM[estilo]) * (altaTemporada(data, para) ? 1.15 : 1);
