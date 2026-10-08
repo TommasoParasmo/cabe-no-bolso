@@ -33,7 +33,7 @@ export async function criarPix({ pedido, email }, env, fetchFn = globalThis.fetc
     headers: { ...cabecalho(env.MP_ACCESS_TOKEN), "X-Idempotency-Key": crypto.randomUUID() },
     body: JSON.stringify({
       type: "online", processing_mode: "automatic", total_amount: PRECO, external_reference: ref,
-      description: "Roteiro completo Vai Dar Viagem",
+      description: "Roteiro Detalhado Vai Dar Viagem",
       transactions: { payments: [{ amount: PRECO, payment_method: { id: "pix", type: "bank_transfer" } }] },
       payer: { email }
     })

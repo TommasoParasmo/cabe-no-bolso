@@ -545,7 +545,7 @@ function renderRoteiro() {
   }
   if (ro?.dias) {
     card.innerHTML = `
-      <h3>${ro.completo ? "Roteiro completo" : "Roteiro dia a dia"} em ${esc(ro.ordem?.join(" + ") || state.atual.destino.n)}</h3>
+      <h3>${ro.completo ? "Roteiro Detalhado" : "Roteiro dia a dia"} em ${esc(ro.ordem?.join(" + ") || state.atual.destino.n)}</h3>
       ${ro.apresentacao ? `<p class="apresentacao">${esc(ro.apresentacao)}</p>` : ""}
       ${ro.resumido ? `<p class="hint">Sua viagem tem ${esc(ro.resumido.viagem)} dias; o roteiro vai até ${esc(ro.resumido.dias)} dias${new Set(ro.dias.map(d => d.cidade)).size > 1 ? ", divididos entre as cidades" : ", os primeiros da viagem"}.</p>` : ""}
       <div class="days">${ro.dias.map(d => `
@@ -633,8 +633,8 @@ function roteiroTop(ro) {
   const chegada = (ro.ordem && c.paradas?.find(p => p.n === ro.ordem[0])) || c.paradas?.[0] || c.destino;
   const imgFoto = (a, cls) => `<img class="${cls}" src="${esc(a.foto.url)}" alt="${esc(a.nome)}">`;
   const credito = a => `<a href="${esc(a.foto.pagina)}" target="_blank" rel="noopener">Foto: ${esc(a.foto.autor)}, ${esc(a.foto.licenca)}, via Wikimedia Commons</a>`;
-  const cab = () => `<div class="pg-cab"><span>Roteiro ${esc(de || "Top")}, ${esc(cidade)}</span><span>Vai Dar Viagem</span></div>`;
-  const rod = `<div class="pg-rod"><span>${ESTRELA} Roteiro Top${nome ? `, feito para ${esc(nome)}` : ""}</span><span>vaidarviagem.com.br</span></div>`;
+  const cab = () => `<div class="pg-cab"><span>Roteiro ${esc(de || "Detalhado")}, ${esc(cidade)}</span><span>Vai Dar Viagem</span></div>`;
+  const rod = `<div class="pg-rod"><span>${ESTRELA} Roteiro Detalhado${nome ? `, feito para ${esc(nome)}` : ""}</span><span>vaidarviagem.com.br</span></div>`;
   const titulo = nome ? `${esc(nome)}, sua ${esc(cidade)} em ${n} dias` : `Sua ${esc(cidade)} em ${n} dias`;
   const hoje = new Date().toISOString().slice(0, 10);
 
@@ -642,7 +642,7 @@ function roteiroTop(ro) {
     <section class="pg top-capa">
       ${capaFoto ? imgFoto(capaFoto, "top-capa-img") : ""}
       <div class="top-capa-txt">
-        <p class="top-kicker">${ESTRELA} Roteiro Top, Vai Dar Viagem</p>
+        <p class="top-kicker">${ESTRELA} Roteiro Detalhado, Vai Dar Viagem</p>
         <h2>${titulo}</h2>
         <p class="top-sub">${esc(periodoLongo(f.ida, f.volta))}${f.ida ? ", " : ""}para ${pessoas} ${pessoas > 1 ? "pessoas" : "pessoa"}</p>
         <div class="top-bilhete">
@@ -656,7 +656,7 @@ function roteiroTop(ro) {
   const carta = `
     <section class="pg top-carta">
       ${cab()}
-      <p class="top-kicker">${ESTRELA} Roteiro Top</p>
+      <p class="top-kicker">${ESTRELA} Roteiro Detalhado</p>
       <h2 class="top-oi">${nome ? `Oi, ${esc(nome)}` : "Oi!"}</h2>
       ${ro.apresentacao ? `<p class="top-texto">${esc(ro.apresentacao)}</p>` : ""}
       ${ro.resumido ? `<p class="top-texto suave">Sua viagem tem ${esc(ro.resumido.viagem)} dias; este roteiro detalha ${esc(ro.resumido.dias)} deles${new Set(ro.dias.map(d => d.cidade)).size > 1 ? ", divididos entre as cidades" : ", os primeiros da viagem"}.</p>` : ""}
@@ -674,7 +674,7 @@ function roteiroTop(ro) {
   const resumo = `
     <section class="pg top-resumo">
       ${cab()}
-      <p class="top-kicker">${ESTRELA} Roteiro Top</p>
+      <p class="top-kicker">${ESTRELA} Roteiro Detalhado</p>
       <h2>Seus ${n} dias</h2>
       <ol class="top-lista">${ro.dias.map(d => { const a = destaqueComFoto(d); return `
         <li><span class="top-num">${esc(d.dia)}</span><div><b>${esc(d.titulo)}</b><small>${esc(regiaoDoDia(d))}</small></div><div class="top-valor"><b>${brl(gastoDoDia(d))}</b><small>previsto</small></div>${a ? imgFoto(a, "top-mini") : `<span class="top-mini vazio">${ICONE_PIN}</span>`}</li>`; }).join("")}
@@ -712,7 +712,7 @@ function roteiroTop(ro) {
   const dicas = (ro.dicas || []).length ? `
     <section class="pg top-dicas">
       ${cab()}
-      <p class="top-kicker">${ESTRELA} Roteiro Top</p>
+      <p class="top-kicker">${ESTRELA} Roteiro Detalhado</p>
       <h2>${ro.dicas.length} dicas para a sua viagem${nome ? `, ${esc(nome)}` : ""}</h2>
       <ol>${ro.dicas.map((t, i) => `<li><b>${String(i + 1).padStart(2, "0")}</b><p>${esc(t)}</p></li>`).join("")}</ol>
       ${rod}
@@ -805,10 +805,10 @@ function cartaoCompleto() {
   }
   const v = ro.venda;
   const ordem = v.ordem;
-  if (v.gerando) return `<div class="completo nao-imprimir" id="completo-box"><h3>Roteiro completo</h3><button type="button" class="primary" id="completo-gerando" disabled></button><p class="hint" style="margin:0">Pagamento recebido. O roteiro completo pode levar até 3 minutos, porque está sendo feito personalizado com as suas escolhas. Fique nesta tela, ele aparece aqui.</p></div>`;
+  if (v.gerando) return `<div class="completo nao-imprimir" id="completo-box"><h3>Roteiro Detalhado</h3><button type="button" class="primary" id="completo-gerando" disabled></button><p class="hint" style="margin:0">Pagamento recebido. O Roteiro Detalhado pode levar até 3 minutos, porque está sendo feito personalizado com as suas escolhas. Fique nesta tela, ele aparece aqui.</p></div>`;
   return `
     <div class="completo nao-imprimir" id="completo-box">
-      <h3>Quer o roteiro completo? ${reais(PRECO_COMPLETO)}</h3>
+      <h3>Quer o Roteiro Detalhado? ${reais(PRECO_COMPLETO)}</h3>
       <ul class="hint vantagens">
         <li>Horário de cada passeio, almoço e jantar, de acordo com o funcionamento de cada lugar</li>
         <li>Uma dica prática para cada lugar: melhor hora, o que pedir, se precisa reservar</li>
@@ -819,7 +819,7 @@ function cartaoCompleto() {
       ${v.pix ? `
         ${v.pix.qrCode ? `<img class="qr" src="data:image/png;base64,${esc(v.pix.qrCode)}" alt="QR Code do Pix" width="200" height="200">` : ""}
         <div class="actions"><button type="button" class="primary" id="pix-copiar">Copiar código Pix</button><button type="button" id="pix-conferir">Já paguei</button></div>
-        <p class="hint" style="margin:0">Abra o app do seu banco, escolha Pix copia e cola (ou leia o QR Code) e pague. O roteiro completo aparece aqui sozinho.</p>` : `
+        <p class="hint" style="margin:0">Abra o app do seu banco, escolha Pix copia e cola (ou leia o QR Code) e pague. O Roteiro Detalhado aparece aqui sozinho.</p>` : `
         <form class="lead" id="pix-form" novalidate>
           <label for="pix-nome">Seu primeiro nome (o roteiro vem personalizado para você)</label>
           <input id="pix-nome" type="text" required autocomplete="given-name" maxlength="40" placeholder="Ana" value="${esc(v.nome || "")}">
@@ -889,7 +889,7 @@ function ligarCompleto() {
         v.aviso = "O Pix expirou. Gere outro para pagar."; v.erro = true;
         return renderRoteiro();
       }
-      if (manual) aviso("Ainda não recebemos o pagamento. Assim que cair, o roteiro completo aparece aqui.");
+      if (manual) aviso("Ainda não recebemos o pagamento. Assim que cair, o Roteiro Detalhado aparece aqui.");
     } catch (e) { if (manual) aviso(e.message, true); }
     finally { conferindo = false; }
   };
@@ -916,7 +916,7 @@ async function montarCompleto(ro) {
   } catch (e) {
     if (state.roteiro !== ro) return;
     v.gerando = false;
-    v.aviso = `Pagamento recebido, mas o roteiro completo não carregou (${e.message}). Toque em "Já paguei" para tentar de novo.`; v.erro = true;
+    v.aviso = `Pagamento recebido, mas o Roteiro Detalhado não carregou (${e.message}). Toque em "Já paguei" para tentar de novo.`; v.erro = true;
     renderRoteiro();
   }
 }

@@ -15,7 +15,7 @@ export async function onRequestPost({ request, env }) {
     // Roteiro completo: só depois do Pix pago, e do mesmo pedido que foi pago. Não conta no limite do dia
     // (ip null), porque a pessoa já pagou; se a IA falhar, ela tenta de novo com o mesmo pagamento.
     if (body?.completo) {
-      if (!pixLigado(env)) return json({ erro: "O roteiro completo ainda não está à venda." }, 503);
+      if (!pixLigado(env)) return json({ erro: "O Roteiro Detalhado ainda não está à venda." }, 503);
       await conferirPagamento(body.pagamento, body, env);
       // O conteúdo do roteiro completo (horários, dicas) é do thread do app; aqui só o pagamento libera.
       return json(await gerarRoteiro(body, env, null, null, globalThis.fetch, { completo: true }));
