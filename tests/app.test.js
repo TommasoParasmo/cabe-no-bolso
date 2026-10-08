@@ -611,7 +611,7 @@ test("roteiro completo pede horários, uma dica por lugar e mais dicas, com cach
   const pedidos = [];
   const lugar = (nome, horario) => ({ nome, bairro: "Centro", custo: 0, horario, dica: `Dica de ${nome}` });
   const client = { messages: { parse: async req => { pedidos.push(req); return { parsed_output: {
-    dias: [1, 2].map(dia => ({ dia, cidade: "Salvador", regiao: "Centro", titulo: "Centro", atividades: [{ periodo: "Manhã", ...lugar(`Pelourinho ${dia}`, "09:00–11:30") }], almoco: lugar(`Restô ${dia}`, "12:00–13:30"), jantar: lugar(`Bar ${dia}`, "19:30–21:00") })),
+    dias: [1, 2].map(dia => ({ dia, cidade: "Salvador", regiao: "Centro", seguranca: 3, titulo: "Centro", atividades: [{ periodo: "Manhã", ...lugar(`Pelourinho ${dia}`, "09:00–11:30") }], almoco: lugar(`Restô ${dia}`, "12:00–13:30"), jantar: lugar(`Bar ${dia}`, "19:30–21:00") })),
     dicas: Array.from({ length: 10 }, (_, i) => `dica ${i}`) } }; } } };
   const pedido = { destino: "Salvador", noites: 1, pessoas: 2, estilo: 1, verbaPasseios: 500 };
   const r = await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true, fotosFetch: semFotos });
@@ -633,7 +633,7 @@ test("roteiro completo com menos de 8 dicas pede de novo e não vai para o cache
   const pedidos = [];
   const lugar = nome => ({ nome, bairro: "Centro", custo: 0, horario: "09:00–10:00", dica: "x" });
   const client = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: {
-    dias: [1, 2].map(dia => ({ dia, cidade: "Salvador", regiao: "Centro", titulo: "Centro", atividades: [{ periodo: "Manhã", ...lugar(`P${dia}`) }], almoco: lugar(`A${dia}`), jantar: lugar(`J${dia}`) })),
+    dias: [1, 2].map(dia => ({ dia, cidade: "Salvador", regiao: "Centro", seguranca: 3, titulo: "Centro", atividades: [{ periodo: "Manhã", ...lugar(`P${dia}`) }], almoco: lugar(`A${dia}`), jantar: lugar(`J${dia}`) })),
     dicas: ["só uma"] } }; } } };
   const pedido = { destino: "Salvador", noites: 1, pessoas: 3, estilo: 1, verbaPasseios: 500 };
   const r = await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true, fotosFetch: semFotos });
@@ -670,7 +670,7 @@ test("roteiro completo aproveita o simples do cache: mantém os lugares, acresce
   const pedidos = [];
   const client = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: respostas[pedidos.length - 1] }; } } };
   await gerarRoteiro(pedido, {}, client);
-  const g = geminiFalso([{ content: { parts: [{ text: JSON.stringify({ apresentacao: "Ana, Salvador vai te encantar!", dias: [1, 2].map(n => ({ dia: n, sobreRegiao: `Centro histórico ${n}`, atividades: cheio(n), almoco: hora("12:00–13:00", "Peça o prato do dia"), jantar: hora("19:00–20:30", "Reserve") })),
+  const g = geminiFalso([{ content: { parts: [{ text: JSON.stringify({ apresentacao: "Ana, Salvador vai te encantar!", dias: [1, 2].map(n => ({ dia: n, sobreRegiao: `Centro histórico ${n}`, seguranca: n === 1 ? 4 : 2, segurancaNota: "Cheio de dia; à noite, carro de aplicativo", atividades: cheio(n), almoco: hora("12:00–13:00", "Peça o prato do dia"), jantar: hora("19:00–20:30", "Reserve") })),
     dicas: Array.from({ length: 8 }, (_, i) => `dica ${i}`) }) }] }, finishReason: "STOP" }]);
   // Gemini responde certo de primeira.
   const r = await gerarRoteiro(pedido, { GEMINI_API_KEY: "k" }, client, null, g.fetchFn, { completo: true, fotosFetch: semFotos });
@@ -685,6 +685,15 @@ test("roteiro completo aproveita o simples do cache: mantém os lugares, acresce
   assert.equal(r.dias[0].jantar.nome, "Bar 1");
   assert.equal(r.totalPasseios, 80);
   assert.equal(r.dicas.length, 8);
+  // Nota de segurança de 1 a 5 em cada dia; fora disso (ou sem nota), o completo conta como incompleto e é pedido de novo.
+  assert.equal(r.dias[0].seguranca, 4);
+  assert.equal(r.dias[0].segurancaNota, "Cheio de dia; à noite, carro de aplicativo");
+  assert.equal(r.dias[1].seguranca, 2);
+  const pc = { dias: 2, paradas: [{ dest: { n: "Salvador" } }], completo: true };
+  const { faltaNoRoteiro } = await import("../server/roteiro.js");
+  assert.match(faltaNoRoteiro(pc, [{ dia: 1, seguranca: 4 }, { dia: 2, seguranca: 9 }]).join(), /"seguranca".*dias 2/);
+  assert.deepEqual(faltaNoRoteiro(pc, [{ dia: 1, seguranca: 4 }, { dia: 2, seguranca: 1 }]), []);
+  assert.match(g.pedidos[0].corpo.contents[0].parts[0].text, /"seguranca": nota de 1 a 5/);
   assert.equal((await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true, fotosFetch: semFotos })).cache, true);  // Só com o Claude, a resposta com os dias trocados é recusada e o completo é montado do zero.
   const pedido2 = { ...pedido, pessoas: 7 };
   pedidos.length = 0;
@@ -698,7 +707,7 @@ test("roteiro completo aproveita o simples do cache: mantém os lugares, acresce
 test("roteiro completo monta do zero quando a resposta do atalho não casa com o simples", () => comCache(async () => {
   const pedido = { destino: "Salvador", noites: 1, pessoas: 5, estilo: 1, verbaPasseios: 500 };
   const lugar = (nome, horario) => ({ nome, bairro: "Centro", custo: 0, horario, dica: "x" });
-  const completo = { dias: [1, 2].map(dia => ({ dia, cidade: "Salvador", regiao: "Centro", titulo: "Centro", atividades: [{ periodo: "Manhã", ...lugar(`P${dia}`, "09:00–10:00") }], almoco: lugar(`A${dia}`, "12:00–13:00"), jantar: lugar(`J${dia}`, "19:00–20:00") })),
+  const completo = { dias: [1, 2].map(dia => ({ dia, cidade: "Salvador", regiao: "Centro", seguranca: 3, titulo: "Centro", atividades: [{ periodo: "Manhã", ...lugar(`P${dia}`, "09:00–10:00") }], almoco: lugar(`A${dia}`, "12:00–13:00"), jantar: lugar(`J${dia}`, "19:00–20:00") })),
     dicas: Array.from({ length: 8 }, (_, i) => `d${i}`) };
   const respostas = [completo, { dias: [], dicas: [] }, completo];
   const pedidos = [];
@@ -745,7 +754,7 @@ test("roteiro completo leva o nome da pessoa, um destaque por dia com foto e cac
   const pedidos = [];
   const client = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: {
     apresentacao: "Ana, prepare-se!",
-    dias: [1, 2].map(dia => ({ dia, cidade: "Salvador", regiao: "Comércio", titulo: "Centro", sobreRegiao: "Bairro antigo",
+    dias: [1, 2].map(dia => ({ dia, cidade: "Salvador", regiao: "Comércio", seguranca: 3, titulo: "Centro", sobreRegiao: "Bairro antigo",
       atividades: [lugar(`Mercado Modelo ${dia}`, "09:00–10:00", true), lugar(`Elevador Lacerda ${dia}`, "10:30–11:00", true)],
       almoco: lugar(`Restô ${dia}`, "12:00–13:00"), jantar: lugar(`Bar ${dia}`, "19:00–20:00") })),
     dicas: Array.from({ length: 8 }, (_, i) => `d${i}`) } }; } } };

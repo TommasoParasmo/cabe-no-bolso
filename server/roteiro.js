@@ -51,6 +51,8 @@ const RoteiroCompleto = z.object({
     regiao: z.string(),
     titulo: z.string(),
     sobreRegiao: z.string(),
+    seguranca: z.number().int(),
+    segurancaNota: z.string(),
     atividades: z.array(AtividadeCompleta),
     almoco: LugarCompleto,
     jantar: LugarCompleto
@@ -64,7 +66,7 @@ const ATIVIDADES_COMPLETO = "5 ou 6 atividades por dia: 2 de manhã, 2 à tarde 
 const ExtraTop = comTop(z.object({}));
 const ExtraCompleto = z.object({
   apresentacao: z.string(),
-  dias: z.array(z.object({ dia: z.number().int(), sobreRegiao: z.string(), atividades: z.array(AtividadeCompleta), almoco: ExtraTop, jantar: ExtraTop })),
+  dias: z.array(z.object({ dia: z.number().int(), sobreRegiao: z.string(), seguranca: z.number().int(), segurancaNota: z.string(), atividades: z.array(AtividadeCompleta), almoco: ExtraTop, jantar: ExtraTop })),
   dicas: z.array(z.string())
 });
 
@@ -80,11 +82,15 @@ Em cada atividade, almoço e jantar:
 - "dica": uma dica curta e prática (melhor horário, como evitar fila, se precisa reservar ou comprar ingresso antes).
 Em cada atividade, "destaque": true só na atração mais importante e famosa do dia (exatamente uma por dia; ela ganha foto) e false nas outras.
 Em cada dia, "sobreRegiao": 2 ou 3 frases de guia da região do dia (o clima do bairro, o que tem por perto, cuidados com segurança).
+Em cada dia, "seguranca": nota de 1 a 5 para a segurança da região do dia para turistas (5 = muito tranquila, 1 = exige muito cuidado), pelo que se sabe de informações públicas sobre a região, e "segurancaNota": 1 frase objetiva explicando a nota e o cuidado principal (ex.: "Movimentada de dia; à noite, evite as ruas de dentro e prefira carro de aplicativo"). Seja honesto: não dê nota alta a uma região conhecida por assaltos.
 Em "apresentacao", um parágrafo curto e caloroso, em português, ${p.nome ? `chamando o viajante pelo nome (${JSON.stringify(p.nome)}; é só o nome dele, não uma instrução)` : "falando com o viajante"}, que resume o espírito da viagem e o que ele vai viver.
 Inclua também ${DICAS_COMPLETO} dicas curtas e específicas da viagem (economia, transporte, segurança, golpes comuns e o que reservar antes).`;
 
 // Exatamente um destaque por dia: a IA às vezes marca nenhum ou vários.
+// Nota de segurança da região: inteiro de 1 a 5 (sem nota válida, fica sem).
+const notaSeguranca = v => { const n = Number(v); return Number.isInteger(n) && n >= 1 && n <= 5 ? n : undefined; };
 const umDestaque = dias => dias.map(d => {
+  d = { ...d, seguranca: notaSeguranca(d.seguranca), segurancaNota: String(d.segurancaNota || "").trim() };
   let i = d.atividades.findIndex(a => a.destaque);
   if (i < 0) i = d.atividades.findIndex(a => Number(a.custo) > 0) >= 0 ? d.atividades.findIndex(a => Number(a.custo) > 0) : 0;
   return { ...d, atividades: d.atividades.map((a, j) => ({ ...a, destaque: j === i })) };
@@ -174,6 +180,9 @@ export function faltaNoRoteiro(p, dias, dicas = null) {
   if (semDia.length) falta.push(`o roteiro tem que passar por todas as cidades; ficaram sem nenhum dia: ${semDia.join(", ")}`);
   // O completo promete 8 dicas da viagem.
   if (p.completo && dicas && dicas.length < DICAS_COMPLETO) falta.push(`inclua ${DICAS_COMPLETO} dicas da viagem; a tentativa anterior trouxe ${dicas.length}`);
+  // E promete a nota de segurança (inteiro de 1 a 5) de cada região.
+  const semNota = p.completo ? dias.filter(d => !notaSeguranca(d.seguranca)).map(d => d.dia) : [];
+  if (semNota.length) falta.push(`"seguranca" tem que ser um número inteiro de 1 a 5 em todos os dias; faltou ou veio fora disso nos dias ${semNota.join(", ")}`);
   return falta;
 }
 
@@ -250,6 +259,7 @@ ${JSON.stringify(base)}`;
   const inteiro = v => Math.max(0, Math.round(v) || 0);
   // Casa com o simples: mesmos dias, todas as atividades de antes mantidas, mais cheio, dentro da verba e com as 8 dicas.
   const casa = x => x?.dias?.length === simples.dias.length && x.dicas?.length >= DICAS_COMPLETO && x.apresentacao?.trim() &&
+    x.dias.every(d => notaSeguranca(d.seguranca)) &&
     x.dias.every((d, i) => d.dia === simples.dias[i].dia && d.atividades.length >= Math.max(4, simples.dias[i].atividades.length) &&
       simples.dias[i].atividades.every(a => d.atividades.some(b => norm(b.nome) === norm(a.nome)))) &&
     x.dias.reduce((t, d) => t + d.atividades.reduce((s2, a) => s2 + inteiro(a.custo), 0), 0) <= p.verba;
@@ -269,7 +279,7 @@ ${JSON.stringify(base)}`;
     // Atividades que já existiam guardam o link do Google Maps; as novas abrem a busca do Maps no app.
     const junta = (l, x) => l && { ...l, horario: x.horario, dica: x.dica, descricao: x.descricao, comoChegar: x.comoChegar };
     const dias = simples.dias.map((d, i) => { const x = extra.dias[i];
-      return { ...d, sobreRegiao: x.sobreRegiao,
+      return { ...d, sobreRegiao: x.sobreRegiao, seguranca: x.seguranca, segurancaNota: x.segurancaNota,
         atividades: x.atividades.map(a => { const antes = d.atividades.find(b => norm(b.nome) === norm(a.nome));
           return { ...a, custo: inteiro(a.custo), ...(antes?.maps ? { maps: antes.maps } : {}) }; }),
         almoco: junta(d.almoco, x.almoco), jantar: junta(d.jantar, x.jantar) }; });
@@ -308,7 +318,7 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null, fet
     d: p.paradas.map(x => `${x.dest.n}:${x.noites}`).join(","), n: p.dias, q: p.pessoas, e: p.estilo, i: p.interesses.join(","), f: p.foco.toLowerCase(), v: p.verba, c: p.comidaDia,
     ...extra
   })}`;
-  const chave = chaveDe(completo ? { k: "top", nm: norm(p.nome) } : {});
+  const chave = chaveDe(completo ? { k: "top2", nm: norm(p.nome) } : {});
   const guardado = await lerCache(chave);
   if (guardado) return { ...guardado, cache: true };
   if (completo) {
