@@ -664,6 +664,32 @@ test("pix: só libera order paga, do valor certo e do mesmo roteiro", async () =
   assert.equal(pedidos.length, 0, "id estranho não vira URL");
 });
 
+test("recuperar o roteiro pago: pedido guardado 30 dias, liberado só com número, e-mail e pagamento", async () => {
+  const { guardarPedido, recuperarPedido, referencia, GUARDA_DIAS, PixInvalido, PixNaoPago, PedidoNaoGuardado } = await import("../server/pix.js");
+  const kv = new Map(); let ttl;
+  const LEADS = { get: async (k, tipo) => (kv.has(k) ? JSON.parse(kv.get(k)) : null), put: async (k, v, o) => { kv.set(k, v); ttl = o.expirationTtl; } };
+  const env = { MP_ACCESS_TOKEN: "tok", LEADS };
+  const viagem = { entrada: { orcamento: 5000 }, atual: { destino: { n: "Rio de Janeiro" } }, modo: "destino" };
+  assert.equal(await guardarPedido("ORD01ABC123", { pedido: pedidoRio, viagem, email: "Ana@Email.com" }, env), true);
+  assert.equal(ttl, GUARDA_DIAS * 86400);
+  assert.ok(!/ana|email\.com/i.test(kv.get("pedido:ORD01ABC123")), "o e-mail não fica no KV, só um código");
+  // A consulta da order no Mercado Pago não traz o payer: a conferência é pelo código guardado.
+  const paga = { id: "ORD01ABC123", status: "processed", total_amount: "9.90", external_reference: await referencia(pedidoRio) };
+  const r = await recuperarPedido({ id: " ord01abc123 ", email: "ana@email.com " }, env, mercadoPago(paga).fetchFn);
+  assert.deepEqual(r.viagem, viagem);
+  assert.equal(r.pedido.destino, pedidoRio.destino);
+  // E-mail diferente e pedido inexistente dão a mesma resposta (não revela se o número existe).
+  await assert.rejects(recuperarPedido({ id: "ORD01ABC123", email: "outra@email.com" }, env, mercadoPago(paga).fetchFn), PixInvalido);
+  await assert.rejects(recuperarPedido({ id: "ORD01ABC123", email: "ana@email.com" }, env, mercadoPago({}, 404).fetchFn), PixInvalido);
+  await assert.rejects(recuperarPedido({ id: "ORD01ABC123", email: "" }, env, mercadoPago(paga).fetchFn), PixInvalido);
+  await assert.rejects(recuperarPedido({ id: "ORD01ABC123", email: "ana@email.com" }, env, mercadoPago({ ...paga, status: "action_required" }).fetchFn), PixNaoPago);
+  // Se o Mercado Pago trouxer o e-mail, ele também precisa bater.
+  await assert.rejects(recuperarPedido({ id: "ORD01ABC123", email: "ana@email.com" }, env, mercadoPago({ ...paga, payer: { email: "outra@email.com" } }).fetchFn), PixInvalido);
+  // Pedido que não está guardado: mesma resposta de e-mail errado; guardado de outro roteiro: avisa.
+  await assert.rejects(recuperarPedido({ id: "ORD01ZZZ999", email: "ana@email.com" }, env, mercadoPago({ ...paga, id: "ORD01ZZZ999" }).fetchFn), PixInvalido);
+  await assert.rejects(recuperarPedido({ id: "ORD01ABC123", email: "ana@email.com" }, env, mercadoPago({ ...paga, external_reference: "outra" }).fetchFn), PedidoNaoGuardado);
+});
+
 test("roteiro completo pede horários, uma dica por lugar e mais dicas, com cache separado do simples", () => comCache(async () => {
   const pedidos = [];
   const lugar = (nome, horario) => ({ nome, bairro: "Centro", custo: 0, horario, dica: `Dica de ${nome}` });
