@@ -31,7 +31,7 @@ export const DESTINOS = [
   { n: "Natal", p: "Brasil", lat: -5.77, lon: -35.37, ap: "NAT", iata: "NAT", int: false, hotel: [100, 270, 410], idx: 0.85, tags: ["praia", "natureza", "criancas"] },
   { n: "Maceió", p: "Brasil", lat: -9.51, lon: -35.79, ap: "MCZ", iata: "MCZ", int: false, hotel: [130, 370, 520], idx: 0.95, tags: ["praia", "criancas"] },
   { n: "Florianópolis", p: "Brasil", lat: -27.67, lon: -48.55, ap: "FLN", iata: "FLN", int: false, hotel: [140, 430, 770], idx: 1.05, tags: ["praia", "natureza", "noite", "gastronomia"] },
-  { n: "Gramado", p: "Brasil", lat: -29.38, lon: -50.87, ap: "POA", iata: "POA", int: false, hotel: [250, 450, 700], alta: [6, 7, 8, 11, 12, 1], idx: 1.25, extra: 120, tags: ["gastronomia", "criancas", "compras"] },
+  { n: "Gramado", p: "Brasil", lat: -29.38, lon: -50.87, ap: "POA", iata: "POA", int: false, hotel: [200, 360, 560], alta: [6, 7, 8, 11, 12, 1], idx: 1.25, extra: 120, tags: ["gastronomia", "criancas", "compras"] },
   { n: "Foz do Iguaçu", p: "Brasil", lat: -25.60, lon: -54.49, ap: "IGU", iata: "IGU", int: false, hotel: [130, 310, 630], idx: 0.95, pf: 1.4, tags: ["natureza", "criancas", "compras"] },
   { n: "Bonito", p: "Brasil", lat: -20.47, lon: -54.67, ap: "CGR", iata: "CGR", int: false, hotel: [140, 390, 590], idx: 1.1, pf: 1.9, extra: 300, tags: ["natureza", "criancas"] },
   { n: "Jericoacoara", p: "Brasil", lat: -2.90, lon: -40.36, ap: "JJD", iata: "JJD", int: false, hotel: [140, 540, 760], idx: 1.15, extra: 150, tags: ["praia", "natureza"] },
