@@ -109,6 +109,9 @@ export const DESTINOS = [
   { n: "Capadócia", p: "Turquia", lat: 38.64, lon: 34.83, ap: "NAV", iata: "NAV", int: true, hotel: [310, 740, 1110], idx: 1.6, extra: 60, tags: ["natureza", "cultura"] },
   { n: "Dubai", p: "Emirados Árabes", lat: 25.20, lon: 55.27, ap: "DXB", iata: "DXB", int: true, hotel: [400, 910, 1450], idx: 2.5, tags: ["compras", "praia", "criancas"] },
   { n: "Cairo", p: "Egito", lat: 30.04, lon: 31.24, ap: "CAI", iata: "CAI", int: true, hotel: [200, 460, 720], idx: 1.1, tags: ["cultura"] },
+  // Jerusalém (out/2026, sem coleta no Booking): diárias = médias do Kayak (budgetyourtrip) × a razão app/Kayak de Roma, Madri e Paris;
+  // idx pelo custo diário (budgetyourtrip) na mesma razão de Roma e Madri; extra = trem do aeroporto ida e volta (~₪ 47).
+  { n: "Jerusalém", p: "Israel", lat: 31.78, lon: 35.22, ap: "TLV", iata: "TLV", int: true, hotel: [450, 1090, 1600], idx: 1.7, extra: 70, tags: ["cultura"] },
   { n: "Marrakech", p: "Marrocos", lat: 31.63, lon: -8.01, ap: "RAK", iata: "RAK", int: true, hotel: [200, 480, 770], idx: 1.1, tags: ["cultura", "compras", "gastronomia"] },
   { n: "Cidade do Cabo", p: "África do Sul", lat: -33.92, lon: 18.42, ap: "CPT", iata: "CPT", int: true, hotel: [270, 630, 940], idx: 1.4, tags: ["natureza", "praia", "gastronomia"] },
   { n: "Las Vegas", p: "Estados Unidos", lat: 36.17, lon: -115.14, ap: "LAS", iata: "LAS", int: true, hotel: [460, 1110, 2040], idx: 2.4, tags: ["noite", "compras"] },

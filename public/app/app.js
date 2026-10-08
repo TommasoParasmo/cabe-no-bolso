@@ -151,6 +151,7 @@ const EXEMPLOS = {
   "Capadócia": "passeio de balão, Göreme, cidade subterrânea",
   "Dubai": "Burj Khalifa, Dubai Mall, safári no deserto",
   "Cairo": "Pirâmides de Gizé, Museu Egípcio, Khan el-Khalili",
+  "Jerusalém": "Muro das Lamentações, Santo Sepulcro, Monte das Oliveiras",
   "Marrakech": "Praça Jemaa el-Fna, Jardim Majorelle, souks",
   "Cidade do Cabo": "Table Mountain, Cabo da Boa Esperança, pinguins de Boulders",
   "Las Vegas": "Strip, show do Cirque du Soleil, Fremont Street",
