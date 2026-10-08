@@ -569,6 +569,21 @@ test("roteiro completo pede horários, uma dica por lugar e mais dicas, com cach
   assert.doesNotMatch(pedidos.at(-1).messages[0].content, /horario/);
 }));
 
+test("roteiro completo com menos de 8 dicas pede de novo e não vai para o cache", () => comCache(async () => {
+  const pedidos = [];
+  const lugar = nome => ({ nome, bairro: "Centro", custo: 0, horario: "09:00–10:00", dica: "x" });
+  const client = { messages: { parse: async req => { pedidos.push(req.messages[0].content); return { parsed_output: {
+    dias: [1, 2].map(dia => ({ dia, cidade: "Salvador", regiao: "Centro", titulo: "Centro", atividades: [{ periodo: "Manhã", ...lugar(`P${dia}`) }], almoco: lugar(`A${dia}`), jantar: lugar(`J${dia}`) })),
+    dicas: ["só uma"] } }; } } };
+  const pedido = { destino: "Salvador", noites: 1, pessoas: 3, estilo: 1, verbaPasseios: 500 };
+  const r = await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true });
+  assert.equal(pedidos.length, 2);
+  assert.match(pedidos[1], /inclua 8 dicas da viagem; a tentativa anterior trouxe 1/);
+  assert.equal(r.dicas.length, 1);
+  await gerarRoteiro(pedido, {}, client, null, globalThis.fetch, { completo: true });
+  assert.equal(pedidos.length, 4);
+}));
+
 test("roteiro completo pede ao Google Maps o horário de funcionamento e segue a ordem de cidades escolhida", async () => {
   const { promptMaps } = await import("../server/gemini.js");
   const p = { ...validarPedido({ paradas: [{ destino: "Seul", noites: 3 }, { destino: "Bangkok", noites: 4 }] }), completo: true };

@@ -133,11 +133,13 @@ export function foraDaRegiao(dias) {
 // alguma cidade sem nenhum dia. O nome pode vir em outra grafia ("Seoul" para "Seul"): compara também as consoantes.
 const consoantes = s => norm(s).replace(/[^a-z]|[aeiouy]/g, "");
 const mesmaCidade = (a, b) => { const x = norm(a), y = norm(b); return Boolean(x && y) && (x.includes(y) || y.includes(x) || consoantes(x) === consoantes(y)); };
-export function faltaNoRoteiro(p, dias) {
+export function faltaNoRoteiro(p, dias, dicas = null) {
   const falta = [];
   if (dias.length < p.dias) falta.push(`o roteiro tem que ter exatamente ${p.dias} dias, do dia 1 ao dia ${p.dias}; a tentativa anterior parou no dia ${dias.length}`);
   const semDia = p.paradas.length > 1 ? p.paradas.filter(x => !dias.some(d => mesmaCidade(d.cidade, x.dest.n))).map(x => x.dest.n) : [];
   if (semDia.length) falta.push(`o roteiro tem que passar por todas as cidades; ficaram sem nenhum dia: ${semDia.join(", ")}`);
+  // O completo promete 8 dicas da viagem.
+  if (p.completo && dicas && dicas.length < DICAS_COMPLETO) falta.push(`inclua ${DICAS_COMPLETO} dicas da viagem; a tentativa anterior trouxe ${dicas.length}`);
   return falta;
 }
 
@@ -163,9 +165,9 @@ async function tentar(p, pedir, conferir = () => []) {
       totalRefeicoes: dias.reduce((t, d) => t + (d.almoco?.custo || 0) + (d.jantar?.custo || 0), 0) };
     const fora = foraDaRegiao(dias);
     const outros = conferir(dias);
-    const faltam = faltaNoRoteiro(p, dias);
+    const faltam = faltaNoRoteiro(p, dias, novo.dicas);
     // Fica com a melhor tentativa: a viagem toda (dias e cidades) vale mais; depois, dentro da verba; depois, menos lugares fora da região.
-    const nota = x => (p.dias - x.dias.length) * 10000 + faltaNoRoteiro(p, x.dias).length * 10000 + (x.totalPasseios <= p.verba ? 0 : 1000) + foraDaRegiao(x.dias).length + conferir(x.dias).length;
+    const nota = x => (p.dias - x.dias.length) * 10000 + faltaNoRoteiro(p, x.dias, x.dicas).length * 10000 + (x.totalPasseios <= p.verba ? 0 : 1000) + foraDaRegiao(x.dias).length + conferir(x.dias).length;
     if (!roteiro || nota(novo) < nota(roteiro)) roteiro = novo;
     if (!faltam.length && novo.totalPasseios <= p.verba && !fora.length && !outros.length) break;
     avisos = faltam.map(f => `\nAtenção: ${f}.`).join("") +
@@ -206,7 +208,7 @@ async function comGemini(p, chave, fetchFn) {
     .map(r => `o restaurante ${r.nome} (dia ${d.dia}) não está na lista do Google Maps, troque por um restaurante da lista`));
   const roteiro = await tentar(p, avisos => montarComGemini(montarPrompt(p) + lista + avisos, p.completo ? RoteiroCompleto : Roteiro, chave, fetchFn), semMaps);
   if (!roteiro) throw new ErroGemini("Gemini sem roteiro válido");
-  const falta = faltaNoRoteiro(p, roteiro.dias);
+  const falta = faltaNoRoteiro(p, roteiro.dias, roteiro.dicas);
   if (falta.length) throw new ErroGemini(`Gemini incompleto: ${falta.join("; ")}`);
   // Se mesmo refeito ficou restaurante fora do Maps, mostra (com link de busca) mas não guarda no cache,
   // para o próximo pedido tentar de novo em vez de repetir o restaurante não conferido por 7 dias.
@@ -251,7 +253,7 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null, fet
   }
   if (!roteiro) throw erroGemini || new Error("Resposta da IA sem roteiro");
   // Roteiro sem algum dia ou cidade (a IA parou antes) aparece, mas não vai para o cache.
-  const incompleto = faltaNoRoteiro(p, roteiro.dias).length > 0;
+  const incompleto = faltaNoRoteiro(p, roteiro.dias, roteiro.dicas).length > 0;
   if (p.diasDaViagem > p.dias) roteiro.resumido = { dias: p.dias, viagem: p.diasDaViagem };
   // Aparece no log em tempo real da Cloudflare: qual IA montou e quantas fontes do Maps vieram.
   const { semConferir, ...guardar } = roteiro;
