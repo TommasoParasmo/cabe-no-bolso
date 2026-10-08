@@ -984,6 +984,7 @@ $("form").addEventListener("submit", e => {
   e.preventDefault();
   // Sem destino, as sugestões só vêm pelo botão "me sugira destinos".
   if (!lerForm().destinos.length) {
+    evento("TentouSemDestino", { orcamento: lerForm().orcamento });
     return setStatus("Escolha um destino ou toque em “me sugira destinos”.", true);
   }
   calcularEMostrar();
@@ -1055,6 +1056,24 @@ async function compartilhar() {
   } catch {}
 }
 lerSalvas();
+
+// ---- Formulário preenchido pelo link (anúncios): ?destino=Maceió&orcamento=2000&pessoas=1&estilo=economico ----
+// destino aceita vários separados por vírgula; estilo aceita 0/1/2 ou economico/equilibrado/conforto; origem é a cidade de saída.
+// Com destino e orçamento no link, o resultado já aparece, sem a pessoa precisar rolar até o botão.
+(function preencherPeloLink() {
+  const q = new URLSearchParams(location.search);
+  const orc = Number(String(q.get("orcamento") || "").replace(/\D/g, ""));
+  if (orc >= 100) { $("orcamento").value = orc.toLocaleString("pt-BR"); marcarFaixa(); }
+  const pessoas = Number(q.get("pessoas"));
+  if (Number.isInteger(pessoas) && pessoas >= 1 && pessoas <= 9) $("pessoas").value = String(pessoas);
+  const estilo = { "0": 0, "1": 1, "2": 2, economico: 0, equilibrado: 1, conforto: 2 }[norm(q.get("estilo") || "")];
+  if (estilo !== undefined) document.querySelector(`input[name="estilo"][value="${estilo}"]`).checked = true;
+  const origem = ORIGENS.find(o => norm(o.n) === norm(q.get("origem") || ""));
+  if (origem) $("origem").value = origem.n;
+  const destinos = (q.get("destino") || "").split(",").map(d => d.trim()).filter(Boolean).slice(0, 8);
+  destinos.forEach(addDestino);
+  if (destinos.length && orc >= 100) calcularEMostrar();
+})();
 
 // ---- Baixar o roteiro: na primeira vez pede o e-mail (lead), depois baixa direto ----
 const LEAD = "lead-ok";
