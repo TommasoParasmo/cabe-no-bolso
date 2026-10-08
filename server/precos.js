@@ -10,13 +10,14 @@ const SEIS_HORAS = 6 * 3600;
  * Devolve { porPessoa, fonte: "aviasales", link } ou null quando não há preço
  * (sem token, rota sem buscas recentes ou erro da API). Quem chama usa a estimativa no lugar.
  */
-export async function precoVoo({ origem, destino, ida, volta, token, marker, fetchImpl = fetch }) {
+export async function precoVoo({ origem, destino, ida, volta, token, marker, soExato = false, fetchImpl = fetch }) {
   if (!token || !ida) return null;
   const soIda = !volta;
   if (origem.iata === destino.iata) return { porPessoa: 0, fonte: "aviasales", link: null };
 
   // Primeiro as datas exatas; se ninguém buscou essa combinação, o mais barato do mês.
-  const tentativas = soIda ? [[ida], [ida.slice(0, 7)]] : [[ida, volta], [ida.slice(0, 7), volta.slice(0, 7)]];
+  // soExato: o preço do mês pode ser de outra duração de viagem, então não serve.
+  const tentativas = (soIda ? [[ida], [ida.slice(0, 7)]] : [[ida, volta], [ida.slice(0, 7), volta.slice(0, 7)]]).slice(0, soExato ? 1 : 2);
   for (const [dep, ret] of tentativas) {
     const params = new URLSearchParams({
       origin: origem.iata, destination: destino.iata, departure_at: dep,
@@ -58,7 +59,12 @@ function linkAfiliado(caminho, marker) {
 
 const dia = s => String(s || "").slice(0, 10);
 const somarDias = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * 864e5).toISOString().slice(0, 10);
-const mesSeguinte = mes => { const [a, m] = mes.split("-").map(Number); return m === 12 ? `${a + 1}-01` : `${a}-${String(m + 1).padStart(2, "0")}`; };
+// Meses em que a volta pode cair, saindo em qualquer dia do mês (30 noites podem passar de dois meses).
+const mesesDaVolta = (mes, noites) => {
+  const meses = new Set();
+  for (let d = `${mes}-01`; d.startsWith(mes); d = somarDias(d, 1)) meses.add(somarDias(d, noites).slice(0, 7));
+  return [...meses];
+};
 
 /**
  * Datas flexíveis: as datas de ida e volta mais baratas do mês, com o número de noites pedido.
@@ -68,7 +74,7 @@ const mesSeguinte = mes => { const [a, m] = mes.split("-").map(Number); return m
 export async function datasMaisBaratas({ origem, destino, mes, noites, hoje = new Date().toISOString().slice(0, 10), token, marker, fetchImpl = fetch }) {
   if (!token || !/^\d{4}-\d{2}$/.test(mes || "") || !(noites >= 1)) return null;
   if (origem.iata === destino.iata) return null;
-  const listas = await Promise.all([mes, mesSeguinte(mes)].map(async ret => {
+  const listas = await Promise.all(mesesDaVolta(mes, noites).map(async ret => {
     const params = new URLSearchParams({
       origin: origem.iata, destination: destino.iata, departure_at: mes, return_at: ret,
       one_way: "false", currency: "brl", market: "br", sorting: "price", limit: "300"

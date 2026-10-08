@@ -808,6 +808,9 @@ test("datas flexíveis: acha os dias mais baratos com as noites pedidas, inclusi
   assert.deepEqual([v.porPessoa, v.ida, v.volta], [700, "2027-03-29", "2027-04-03"]);
   assert.match(v.link, /marker=786422/);
   assert.equal(urls.length, 2);
+  const longa = voosDoMes([]);
+  await datasMaisBaratas({ origem: { iata: "SAO" }, destino: { iata: "RIO" }, mes: "2027-01", noites: 30, hoje: "2026-12-01", token: "tok", fetchImpl: longa.fetchImpl });
+  assert.deepEqual(longa.urls.map(u => new URL(u).searchParams.get("return_at")), ["2027-01", "2027-02", "2027-03"], "31/01 + 30 noites volta em março");
   assert.ok(urls.every(u => u.includes("departure_at=2027-03&") && u.includes("one_way=false")));
   assert.equal(await datasMaisBaratas({ origem: { iata: "SAO" }, destino: { iata: "RIO" }, mes: "2027-03", noites: 5, hoje: "2027-03-30", token: "tok", fetchImpl }), null, "não sugere data que já passou");
   assert.equal(await datasMaisBaratas({ origem: { iata: "SAO" }, destino: { iata: "RIO" }, mes: "2027-03", noites: 5, fetchImpl }), null, "sem token não busca");
@@ -823,6 +826,12 @@ test("veredito com datas flexíveis usa os dias mais baratos do destino e cai pa
   const sem = await montarVeredito(pedido, {}, fetchImpl);
   assert.equal(sem.atual.ida, undefined);
   assert.deepEqual([sem.entrada.ida, sem.entrada.volta], ["2027-05-15", "2027-05-20"]);
+  // Sem voo com 3 noites: não usa o preço do mês, que é de outra duração.
+  const urls = [];
+  const outro = await montarVeredito({ ...pedido, flexivel: { mes: "2027-05", noites: 3 } }, { TRAVELPAYOUTS_TOKEN: "tok" }, async u => { urls.push(u); return fetchImpl(u); });
+  assert.equal(outro.atual.ida, undefined);
+  assert.ok(!urls.some(u => /departure_at=2027-05&return_at=2027-05&one_way=false&currency=brl&market=br&sorting=price&limit=1$/.test(u)), "não busca o mais barato do mês");
+  assert.ok(urls.some(u => u.includes("departure_at=2027-05-15&")), "tenta as datas de exemplo");
   await assert.rejects(montarVeredito({ ...pedido, flexivel: { mes: "2020-01", noites: 5 } }), /daqui para a frente/);
   await assert.rejects(montarVeredito({ ...pedido, flexivel: { mes: "2027-05", noites: 0 } }), /quantas noites/);
 });

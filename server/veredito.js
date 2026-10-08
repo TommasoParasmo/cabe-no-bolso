@@ -66,7 +66,7 @@ export async function montarVeredito(body, env = {}, fetchImpl = fetch) {
   // Datas flexíveis: cada destino ganha as datas mais baratas dele; sem preço com essas noites, fica o padrão.
   const buscar = async dest => dest.terrestre ? null
     : (f.flexivel && await datasMaisBaratas({ origem, destino: dest, mes: f.mes, noites: f.noites, ...api }))
-      || precoVoo({ origem, destino: dest, ida: f.ida, volta: f.volta, ...api });
+      || precoVoo({ origem, destino: dest, ida: f.ida, volta: f.volta, soExato: f.flexivel, ...api });
   // Com datas achadas, o custo (alta temporada, ônibus) e os links usam essas datas.
   const fDe = voo => voo?.ida ? { ...f, ida: voo.ida, volta: voo.volta } : f;
   const custoDe = (d, voo) => {
