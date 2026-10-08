@@ -547,3 +547,68 @@ test("cadastro de e-mail guarda no KV só o necessário e vale a última escolha
   // Sem o KV ligado, o download segue liberado, mas o app pede o e-mail de novo depois.
   assert.deepEqual(await guardarLead({ email: "b@email.com" }, {}), { ok: true, guardado: false });
 });
+
+// ---- Pix do roteiro completo (Mercado Pago) ----
+const pedidoRio = { destino: "Rio de Janeiro", noites: 3, pessoas: 2, estilo: 1, interesses: ["praia"], verbaPasseios: 800, verbaAlimentacao: 1200 };
+// fetch falso do Mercado Pago: guarda os pedidos e responde com a order dada.
+function mercadoPago(order, status = 200) {
+  const pedidos = [];
+  const fetchFn = async (url, opts = {}) => {
+    pedidos.push({ url, ...opts, corpo: opts.body && JSON.parse(opts.body) });
+    return new Response(JSON.stringify(order), { status });
+  };
+  return { fetchFn, pedidos };
+}
+
+test("pix: prévia mostra só o dia 1 e guarda o roteiro inteiro para quem pagar", () => comCache(async () => {
+  const { previa, roteiroGuardado, referencia } = await import("../server/pix.js");
+  const roteiro = { dias: [1, 2, 3].map(n => ({ dia: n, titulo: `Dia ${n}`, cidade: "Rio de Janeiro", atividades: [] })), dicas: ["a", "b"], totalPasseios: 100 };
+  const ref = await referencia(pedidoRio);
+  assert.match(ref, /^[0-9a-f]{40}$/);
+  assert.equal(ref, await referencia({ ...pedidoRio }), "mesmo pedido, mesma referência");
+  assert.notEqual(ref, await referencia({ ...pedidoRio, noites: 4 }));
+  const p = await previa(roteiro, ref);
+  assert.equal(p.dias.length, 1);
+  assert.deepEqual(p.dicas, []);
+  assert.deepEqual(p.bloqueado.dias.map(d => d.titulo), ["Dia 2", "Dia 3"]);
+  assert.equal(p.bloqueado.preco, 9.9);
+  assert.equal((await roteiroGuardado(ref)).dias.length, 3);
+}));
+
+test("pix: cria a order de R$ 9,90 com a referência do roteiro e devolve o copia e cola", async () => {
+  const { criarPix, PixInvalido } = await import("../server/pix.js");
+  const { fetchFn, pedidos } = mercadoPago({ id: "ORD01ABC123", status: "action_required",
+    transactions: { payments: [{ payment_method: { qr_code: "00020126580014br.gov.bcb.pix", qr_code_base64: "iVBOR", ticket_url: "https://mp/t" } }] } });
+  const ref = "a".repeat(40);
+  const r = await criarPix({ ref, email: " Voce@Email.com " }, { MP_ACCESS_TOKEN: "tok" }, fetchFn);
+  assert.deepEqual(r, { id: "ORD01ABC123", copiaECola: "00020126580014br.gov.bcb.pix", qrCode: "iVBOR", link: "https://mp/t", preco: 9.9 });
+  const [p] = pedidos;
+  assert.equal(p.url, "https://api.mercadopago.com/v1/orders");
+  assert.equal(p.headers.Authorization, "Bearer tok");
+  assert.ok(p.headers["X-Idempotency-Key"]);
+  assert.equal(p.corpo.total_amount, "9.90");
+  assert.equal(p.corpo.external_reference, ref);
+  assert.deepEqual(p.corpo.transactions.payments[0].payment_method, { id: "pix", type: "bank_transfer" });
+  assert.equal(p.corpo.payer.email, "voce@email.com");
+  await assert.rejects(criarPix({ ref, email: "x" }, { MP_ACCESS_TOKEN: "tok" }, fetchFn), PixInvalido);
+  await assert.rejects(criarPix({ ref: "abc", email: "a@b.com" }, { MP_ACCESS_TOKEN: "tok" }, fetchFn), PixInvalido);
+  assert.equal(pedidos.length, 1, "entrada inválida não chama o Mercado Pago");
+});
+
+test("pix: só libera order paga, do valor certo e do mesmo roteiro", async () => {
+  const { conferirPagamento, situacaoPix, referencia, PixInvalido, PixNaoPago } = await import("../server/pix.js");
+  const env = { MP_ACCESS_TOKEN: "tok" };
+  const ref = await referencia(pedidoRio);
+  const paga = { id: "ORD01ABC123", status: "processed", status_detail: "accredited", total_amount: "9.90", external_reference: ref };
+  assert.equal(await conferirPagamento("ORD01ABC123", pedidoRio, env, mercadoPago(paga).fetchFn), ref);
+  assert.deepEqual(await situacaoPix("ORD01ABC123", env, mercadoPago(paga).fetchFn), { status: "pago" });
+  await assert.rejects(conferirPagamento("ORD01ABC123", { ...pedidoRio, noites: 5 }, env, mercadoPago(paga).fetchFn), PixInvalido);
+  await assert.rejects(conferirPagamento("ORD01ABC123", pedidoRio, env, mercadoPago({ ...paga, total_amount: "1.00" }).fetchFn), PixNaoPago);
+  const esperando = { ...paga, status: "action_required", status_detail: "waiting_transfer" };
+  await assert.rejects(conferirPagamento("ORD01ABC123", pedidoRio, env, mercadoPago(esperando).fetchFn), PixNaoPago);
+  assert.deepEqual(await situacaoPix("ORD01ABC123", env, mercadoPago(esperando).fetchFn), { status: "esperando" });
+  assert.deepEqual(await situacaoPix("ORD01ABC123", env, mercadoPago({ ...paga, status: "expired" }).fetchFn), { status: "expirado" });
+  const { fetchFn, pedidos } = mercadoPago(paga);
+  await assert.rejects(situacaoPix("../payments", env, fetchFn), PixInvalido);
+  assert.equal(pedidos.length, 0, "id estranho não vira URL");
+});

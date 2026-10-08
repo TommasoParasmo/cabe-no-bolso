@@ -537,6 +537,7 @@ function renderRoteiro() {
   const card = $("roteiro-card");
   if (!card) return;
   const ro = state.roteiro;
+  pararPix();
   if (ro?.dias) {
     card.innerHTML = `
       <h3>Roteiro dia a dia em ${esc(state.atual.destino.n)}</h3>
@@ -547,8 +548,10 @@ function renderRoteiro() {
       ${(ro.fontes || []).length ? `<details class="fontes"><summary class="hint">Fontes: Google Maps (${ro.fontes.length} ${ro.fontes.length > 1 ? "lugares" : "lugar"})</summary><ul class="hint">${ro.fontes.map(f => `<li><a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.nome)}</a> · Google Maps</li>`).join("")}</ul></details>` : ""}
       ${ro.totalPasseios != null ? `<p class="hint">Passeios: ${brl(ro.totalPasseios)} de ${brl(ro.verba)} de verba.${ro.totalRefeicoes ? ` Almoços e jantares sugeridos: cerca de ${brl(ro.totalRefeicoes)} (já contam na alimentação).` : ""}</p>` : ""}
       ${ro.acimaDaVerba ? `<div class="warn-box">Este roteiro passou da verba de passeios. Troque alguma atividade paga por uma grátis.</div>` : ""}
+      ${ro.bloqueado ? cartaoBloqueado(ro) : `
       ${(ro.dicas || []).length ? `<h3>Como economizar</h3><ul class="tips">${ro.dicas.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
-      <div class="baixar nao-imprimir" id="baixar-box"><button type="button" class="primary" id="baixar">Baixar roteiro em PDF</button></div>`;
+      <div class="baixar nao-imprimir" id="baixar-box"><button type="button" class="primary" id="baixar">Baixar roteiro em PDF</button></div>`}`;
+    if (ro.bloqueado) return ligarPix();
     $("baixar").onclick = () => leadOk() ? baixarRoteiro() : pedirEmail();
     return;
   }
@@ -585,20 +588,26 @@ function mapa(nome, cidade, bairro) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
-async function gerarRoteiro() {
+// O mesmo pedido monta a prévia e, depois do Pix, libera o roteiro completo.
+function pedidoRoteiro() {
   const { entrada: f, atual: c } = state;
+  return {
+    destino: c.paradas ? c.paradas[0].n : c.destino.n, noites: f.noites,
+    paradas: c.paradas?.map(p => ({ destino: p.n, noites: p.noites })), pessoas: f.pessoas, estilo: f.estilo, interesses: f.interesses, foco: state.foco,
+    verbaPasseios: c.itens.find(i => i.categoria === "Passeios").valor,
+    verbaAlimentacao: c.itens.find(i => i.categoria === "Alimentação").valor
+  };
+}
+
+async function gerarRoteiro() {
+  const c = state.atual;
   const alvo = c;
   ctlRoteiro = new AbortController();
   evento("MontarRoteiro", { destino: c.destino?.n, veredito: c.estado });
   state.roteiro = { loading: true };
   renderRoteiro();
   try {
-    const r = await postar("/api/roteiro", {
-      destino: c.paradas ? c.paradas[0].n : c.destino.n, noites: f.noites,
-      paradas: c.paradas?.map(p => ({ destino: p.n, noites: p.noites })), pessoas: f.pessoas, estilo: f.estilo, interesses: f.interesses, foco: state.foco,
-      verbaPasseios: c.itens.find(i => i.categoria === "Passeios").valor,
-      verbaAlimentacao: c.itens.find(i => i.categoria === "Alimentação").valor
-    }, ctlRoteiro.signal);
+    const r = await postar("/api/roteiro", pedidoRoteiro(), ctlRoteiro.signal);
     if (state.atual !== alvo) return;
     state.roteiro = r;
     evento("RoteiroPronto", { destino: c.destino?.n });
@@ -608,6 +617,92 @@ async function gerarRoteiro() {
     state.roteiro = e.name === "AbortError" ? null : { erro: e.message };
   }
   renderRoteiro();
+}
+
+// ---- Roteiro completo no Pix: o dia 1 é grátis, o resto libera depois do pagamento ----
+let timerPix = null;
+const pararPix = () => { clearInterval(timerPix); timerPix = null; };
+
+// brl() arredonda para reais inteiros; o preço precisa dos centavos (R$ 9,90).
+const reais = v => Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+function cartaoBloqueado(ro) {
+  const b = ro.bloqueado, pix = ro.pix;
+  return `
+    <div class="bloqueado">
+      ${b.dias.length ? `<ul class="dias-travados">${b.dias.map(d => `<li><span class="n">DIA ${esc(d.dia)}</span> ${esc(d.titulo)} <span aria-label="bloqueado">🔒</span></li>`).join("")}</ul>` : ""}
+      <div class="pix nao-imprimir" id="pix-box">
+        <h3>Roteiro completo por ${reais(b.preco)}</h3>
+        <p class="hint" style="margin:0">Libera ${b.dias.length ? `os outros ${b.dias.length} ${b.dias.length > 1 ? "dias" : "dia"}, ` : ""}as dicas de economia e o PDF. Pagamento único no Pix.</p>
+        ${pix ? `
+          ${pix.qrCode ? `<img class="qr" src="data:image/png;base64,${esc(pix.qrCode)}" alt="QR Code do Pix" width="200" height="200">` : ""}
+          <div class="actions"><button type="button" class="primary" id="pix-copiar">Copiar código Pix</button><button type="button" id="pix-conferir">Já paguei</button></div>
+          <p class="hint" style="margin:0">Abra o app do seu banco, escolha Pix copia e cola (ou leia o QR Code) e pague. O roteiro aparece aqui sozinho.</p>` : `
+          <form class="lead" id="pix-form" novalidate>
+            <label for="pix-email">Seu e-mail (vai no comprovante)</label>
+            <input id="pix-email" type="email" required autocomplete="email" inputmode="email" maxlength="254" placeholder="voce@email.com">
+            <button type="submit" class="primary">Pagar ${reais(b.preco)} no Pix</button>
+          </form>`}
+        <div class="status" id="pix-status" role="status" aria-live="polite">${pix?.aviso ? esc(pix.aviso) : ""}</div>
+      </div>
+    </div>`;
+}
+
+function ligarPix() {
+  const ro = state.roteiro, alvo = ro;
+  const st = $("pix-status");
+  const aviso = (msg, err) => { st.className = "status" + (err ? " err" : ""); st.textContent = msg; };
+  $("pix-form")?.addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const email = $("pix-email").value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return aviso("Confira o e-mail.", true);
+    aviso("Gerando o Pix…");
+    try {
+      const pix = await postar("/api/pix", { ref: ro.bloqueado.ref, email });
+      if (state.roteiro !== alvo) return;
+      ro.pix = pix; ro.email = email;
+      evento("GerouPix", { destino: state.atual.destino?.n });
+      renderRoteiro();
+    } catch (e) { aviso(e.message, true); }
+  });
+  if (!ro.pix) return;
+  $("pix-copiar").onclick = async () => {
+    try { await navigator.clipboard.writeText(ro.pix.copiaECola); aviso("Código copiado. Cole no app do banco, em Pix copia e cola."); }
+    catch { prompt("Copie o código Pix:", ro.pix.copiaECola); }
+  };
+  let conferindo = false;
+  const conferir = async manual => {
+    if (conferindo) return;
+    conferindo = true;
+    try {
+      const { status } = await postar("/api/pix", { id: ro.pix.id });
+      if (state.roteiro !== alvo) return;
+      if (status === "pago") return liberar(alvo);
+      if (status === "expirado") { pararPix(); ro.pix = null; renderRoteiro(); return aviso("O Pix expirou. Gere outro para pagar.", true); }
+      if (manual) aviso("Ainda não recebemos o pagamento. Assim que cair, o roteiro aparece aqui.");
+    } catch (e) { if (manual) aviso(e.message, true); }
+    finally { conferindo = false; }
+  };
+  $("pix-conferir").onclick = () => conferir(true);
+  timerPix = setInterval(() => document.hidden || conferir(false), 4000);
+}
+
+async function liberar(alvo) {
+  pararPix();
+  const ro = state.roteiro;
+  try {
+    const r = await postar("/api/roteiro", { ...pedidoRoteiro(), pagamento: ro.pix.id });
+    if (state.roteiro !== alvo) return;
+    window.fbq?.("track", "Purchase", { value: ro.bloqueado.preco, currency: "BRL" });
+    // O e-mail do Pix também libera o PDF, sem pedir de novo.
+    fetch(`${API}/api/lead`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: ro.email, novidades: false, destino: state.atual.destino.n }) })
+      .then(x => x.ok && x.json()).then(x => { if (x?.guardado) try { localStorage.setItem(LEAD, "1"); } catch {} }).catch(() => {});
+    state.roteiro = r;
+    renderRoteiro();
+    if (salvas.some(v => v.id === idViagem())) salvarViagem();
+  } catch (e) {
+    ro.pix.aviso = `Pagamento recebido, mas o roteiro não carregou (${e.message}). Toque em "Já paguei" para tentar de novo.`;
+    renderRoteiro();
+  }
 }
 
 function setStatus(msg, err) { $("status").textContent = msg; $("status").className = "status" + (err ? " err" : ""); }
