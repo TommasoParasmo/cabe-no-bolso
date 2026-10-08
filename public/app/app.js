@@ -479,7 +479,7 @@ function render(fresh) {
       <h2>${manchete}</h2>
       ${e.flexivel ? `<p class="datas-achadas">${viagem ? `Datas de exemplo: ${dataCurta(f.ida)} a ${dataCurta(f.volta)}. Na viagem por várias cidades ainda não buscamos os dias mais baratos.` : c.ida ? `Dias mais baratos que achamos: ${dataCurta(c.ida)} a ${dataCurta(c.volta)}` : c.meio === "onibus" ? `De ônibus o preço quase não muda com a data. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.` : `Ainda não há preço de voo com ${f.noites} noites nesse mês. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.`}</p>` : ""}
       ${ajuste ? `<p>${ajuste}</p>` : c.estado === "apertado" ? "<p>Sobra pouco para imprevistos. Vale comprar a passagem logo, antes de o preço subir.</p>" : ""}
-      ${state.modo === "destino" && c.estado === "nao_cabe" && state.mudancas?.length ? `<ul class="mudancas">${state.mudancas.map(m => `<li>${esc(m.texto)}: ${brl(m.total)} · ${m.estado !== "nao_cabe" ? "<b>cabe</b>" : `ainda faltam ${brl(-m.diff)}`}</li>`).join("")}</ul>` : ""}
+      ${state.modo === "destino" && c.estado === "nao_cabe" && !c.perto && state.mudancas?.length ? `<ul class="mudancas">${state.mudancas.map(m => `<li>${esc(m.texto)}: ${brl(m.total)} · ${m.estado !== "nao_cabe" ? "<b>cabe</b>" : `ainda faltam ${brl(-m.diff)}`}</li>`).join("")}</ul>` : ""}
       <div class="nums">
         <div><span class="eyebrow">Seu orçamento</span><b>${brl(f.orcamento)}</b></div>
         <div><span class="eyebrow">Custo estimado</span><b>${brl(c.total)}</b></div>
