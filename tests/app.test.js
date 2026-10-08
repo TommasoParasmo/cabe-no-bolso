@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DESTINOS } from "../public/lib/dados.js";
 import { custo, acharDestino, noitesQueCabem } from "../public/lib/custo.js";
-import { precoVoo } from "../server/precos.js";
+import { precoVoo, datasMaisBaratas } from "../server/precos.js";
 import { montarVeredito, EntradaInvalida } from "../server/veredito.js";
 import { gerarRoteiro, validarPedido, LimiteAtingido, LIMITE_DIA, limiteDia, foraDaRegiao } from "../server/roteiro.js";
 
@@ -783,4 +783,46 @@ test("o nome não muda a referência do Pix", async () => {
   const { referencia } = await import("../server/pix.js");
   const pedido = { destino: "Salvador", noites: 2, pessoas: 2, verbaPasseios: 300 };
   assert.equal(await referencia({ ...pedido, nome: "Ana" }), await referencia(pedido));
+});
+
+// Aviasales falsa com voos de ida e volta em datas variadas.
+function voosDoMes(voos) {
+  const urls = [];
+  const fetchImpl = async url => {
+    urls.push(url);
+    const ret = new URL(url).searchParams.get("return_at");
+    const data = voos.filter(v => v.return_at.startsWith(ret)).map(v => ({ ...v, link: "/search/x" }));
+    return new Response(JSON.stringify({ success: true, data }), { status: 200 });
+  };
+  return { fetchImpl, urls };
+}
+
+test("datas flexíveis: acha os dias mais baratos com as noites pedidas, inclusive voltando no mês seguinte", async () => {
+  const { fetchImpl, urls } = voosDoMes([
+    { price: 400, departure_at: "2027-03-02T08:00:00-03:00", return_at: "2027-03-04T10:00:00-03:00" }, // 2 noites: não serve
+    { price: 900, departure_at: "2027-03-10T08:00:00-03:00", return_at: "2027-03-15T10:00:00-03:00" },
+    { price: 700, departure_at: "2027-03-29T08:00:00-03:00", return_at: "2027-04-03T10:00:00-03:00" },
+    { price: 300, departure_at: "2027-02-27T08:00:00-03:00", return_at: "2027-03-04T10:00:00-03:00" } // outro mês
+  ]);
+  const v = await datasMaisBaratas({ origem: { iata: "SAO" }, destino: { iata: "RIO" }, mes: "2027-03", noites: 5, hoje: "2027-01-01", token: "tok", marker: "786422", fetchImpl });
+  assert.deepEqual([v.porPessoa, v.ida, v.volta], [700, "2027-03-29", "2027-04-03"]);
+  assert.match(v.link, /marker=786422/);
+  assert.equal(urls.length, 2);
+  assert.ok(urls.every(u => u.includes("departure_at=2027-03&") && u.includes("one_way=false")));
+  assert.equal(await datasMaisBaratas({ origem: { iata: "SAO" }, destino: { iata: "RIO" }, mes: "2027-03", noites: 5, hoje: "2027-03-30", token: "tok", fetchImpl }), null, "não sugere data que já passou");
+  assert.equal(await datasMaisBaratas({ origem: { iata: "SAO" }, destino: { iata: "RIO" }, mes: "2027-03", noites: 5, fetchImpl }), null, "sem token não busca");
+});
+
+test("veredito com datas flexíveis usa os dias mais baratos do destino e cai para datas de exemplo sem preço", async () => {
+  const { fetchImpl } = voosDoMes([{ price: 650, departure_at: "2027-05-12T08:00:00-03:00", return_at: "2027-05-17T10:00:00-03:00" }]);
+  const pedido = { ...base, ida: "", volta: "", destino: "Salvador", flexivel: { mes: "2027-05", noites: 5 } };
+  const r = await montarVeredito(pedido, { TRAVELPAYOUTS_TOKEN: "tok" }, fetchImpl);
+  assert.equal(r.entrada.flexivel, true);
+  assert.equal(r.entrada.noites, 5);
+  assert.deepEqual([r.atual.ida, r.atual.volta], ["2027-05-12", "2027-05-17"]);
+  const sem = await montarVeredito(pedido, {}, fetchImpl);
+  assert.equal(sem.atual.ida, undefined);
+  assert.deepEqual([sem.entrada.ida, sem.entrada.volta], ["2027-05-15", "2027-05-20"]);
+  await assert.rejects(montarVeredito({ ...pedido, flexivel: { mes: "2020-01", noites: 5 } }), /daqui para a frente/);
+  await assert.rejects(montarVeredito({ ...pedido, flexivel: { mes: "2027-05", noites: 0 } }), /quantas noites/);
 });
