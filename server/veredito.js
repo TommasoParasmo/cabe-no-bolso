@@ -29,6 +29,8 @@ export function validar(b) {
   if (!DATA.test(ida || "") || !DATA.test(volta || "")) throw new EntradaInvalida("Informe as datas de ida e volta.");
   const noites = Math.round((new Date(volta) - new Date(ida)) / 864e5);
   if (!(noites >= 1)) throw new EntradaInvalida("A volta precisa ser depois da ida.");
+  // Ida a partir de amanhã, no horário de Brasília.
+  if (!flex && ida <= new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10)) throw new EntradaInvalida("A ida precisa ser a partir de amanhã.");
   if (noites > 30) throw new EntradaInvalida("Por enquanto o planejamento vai até 30 noites.");
   return {
     orcamento,
@@ -79,7 +81,8 @@ export async function montarVeredito(body, env = {}, fetchImpl = fetch) {
   // Ranqueia pela estimativa e busca preço real só dos melhores candidatos (poucas chamadas de API).
   // internacional: true/false limita ao grupo; null = todos.
   async function melhores(excluir, internacional = null) {
-    const est = ranking(f, { excluir }).filter(c => internacional === null || DESTINOS.find(d => d.n === c.destino.n).int === internacional);
+    // A cidade de onde a pessoa sai não entra nas sugestões.
+    const est = ranking(f, { excluir }).filter(c => norm(c.destino.n) !== norm(origem.n) && (internacional === null || DESTINOS.find(d => d.n === c.destino.n).int === internacional));
     let cand = est.filter(c => c.estado !== "nao_cabe").slice(0, 5);
     if (!cand.length) cand = [...est].sort((a, b) => a.total - b.total).slice(0, 3);
     const dests = cand.map(c => DESTINOS.find(d => d.n === c.destino.n));

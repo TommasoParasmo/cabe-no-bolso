@@ -8,11 +8,15 @@ const COLORS = ["var(--accent)", "var(--sun)", "#7A8FD6", "#D96C8A", "#6FB58C", 
 const ESTADO = { cabe: "Vai dar viagem", apertado: "Vai dar, no aperto", nao_cabe: "Não vai dar" };
 
 const iso = d => d.toISOString().slice(0, 10);
+const noitesTxt = n => `${n} ${n > 1 ? "noites" : "noite"}`;
 (function init() {
   $("origem").innerHTML = ORIGENS.map(o => `<option>${esc(o.n)}</option>`).join("");
   const a = new Date(); a.setDate(a.getDate() + 45);
   const b = new Date(a); b.setDate(b.getDate() + 5);
   $("ida").value = iso(a); $("volta").value = iso(b);
+  // Ida a partir de amanhã (a API também recusa data passada).
+  const amanha = new Date(); amanha.setDate(amanha.getDate() + 1);
+  $("ida").min = iso(amanha); $("volta").min = iso(amanha);
   // Datas flexíveis: os próximos 12 meses, começando pelo mês da ida padrão.
   const meses = Array.from({ length: 12 }, (_, i) => new Date(new Date().getFullYear(), new Date().getMonth() + i, 1));
   $("mes").innerHTML = meses.map(m => {
@@ -245,7 +249,9 @@ let visiveis = [], ativa = -1;
 function abrirLista() {
   const q = norm($("destino").value);
   visiveis = OPCOES.filter(o => !escolhidos.includes(o.v) && (!q || norm(o.v).includes(q) || norm(o.nota).includes(q)));
-  ativa = q && visiveis.length ? 0 : -1;
+  // Nome exato ("Porto") é o escolhido no Enter, não o primeiro que contém o texto ("Porto de Galinhas").
+  const exato = visiveis.findIndex(o => norm(o.v) === q);
+  ativa = q && visiveis.length ? Math.max(0, exato) : -1;
   let grupo = "";
   $("sugestoes").innerHTML = visiveis.length ? visiveis.map((o, i) => {
     const titulo = o.grupo !== grupo ? `<li class="grupo" role="presentation">${grupo = o.grupo}</li>` : "";
@@ -275,7 +281,8 @@ $("sugestoes").addEventListener("mousedown", e => {
   if (!li) return;
   e.preventDefault();
   addDestino(visiveis[Number(li.dataset.i)].v);
-  abrirLista();
+  // Fecha a lista: aberta, ela cobria "Comparar / Visitar todos" e "me sugira destinos".
+  fecharLista();
 });
 $("destino").addEventListener("keydown", e => {
   const aberta = !$("sugestoes").hidden;
@@ -290,7 +297,7 @@ $("destino").addEventListener("keydown", e => {
     if (!v) return;
     e.preventDefault();
     addDestino(v);
-    abrirLista();
+    fecharLista();
   } else if (e.key === "Escape") fecharLista();
 });
 
@@ -474,9 +481,9 @@ function render(fresh) {
   r.innerHTML = `
     <article class="verdict" data-state="${quase(c) ? "quase" : c.estado}">
       <span class="pill">${quase(c) ? "Com mais um pouquinho" : ESTADO[c.estado]}</span>
-      <div class="eyebrow">${viagem ? `Viagem por ${c.paradas.length} cidades · ${c.paradas.map(p => `${esc(p.n)} (${p.noites})`).join(" → ")}` : `${quase(c) ? "Mais perto do seu orçamento · " : state.modo === "sugestao" ? "Nossa sugestão · " : comparar ? "Melhor entre os escolhidos · " : ""}${esc(c.destino.n)}, ${esc(c.destino.p)}`} · ${f.noites} noites · ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} · ${ESTILOS[f.estilo]}</div>
+      <div class="eyebrow">${viagem ? `Viagem por ${c.paradas.length} cidades · ${c.paradas.map(p => `${esc(p.n)} (${p.noites})`).join(" → ")}` : `${quase(c) ? "Mais perto do seu orçamento · " : state.modo === "sugestao" ? "Nossa sugestão · " : comparar ? "Melhor entre os escolhidos · " : ""}${esc(c.destino.n)}, ${esc(c.destino.p)}`} · ${noitesTxt(f.noites)} · ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} · ${ESTILOS[f.estilo]}</div>
       <h2>${manchete}</h2>
-      ${e.flexivel ? `<p class="datas-achadas">${viagem ? `Datas de exemplo: ${dataCurta(f.ida)} a ${dataCurta(f.volta)}. Na viagem por várias cidades ainda não buscamos os dias mais baratos.` : c.ida ? `Dias mais baratos que achamos: ${dataCurta(c.ida)} a ${dataCurta(c.volta)}` : c.meio === "onibus" ? `De ônibus o preço quase não muda com a data. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.` : `Ainda não há preço de voo com ${f.noites} noites nesse mês. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.`}</p>` : ""}
+      ${e.flexivel ? `<p class="datas-achadas">${viagem ? `Datas de exemplo: ${dataCurta(f.ida)} a ${dataCurta(f.volta)}. Na viagem por várias cidades ainda não buscamos os dias mais baratos.` : c.ida ? `Dias mais baratos que achamos: ${dataCurta(c.ida)} a ${dataCurta(c.volta)}` : c.meio === "onibus" ? `De ônibus o preço quase não muda com a data. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.` : `Ainda não há preço de voo com ${noitesTxt(f.noites)} nesse mês. Usamos ${dataCurta(f.ida)} a ${dataCurta(f.volta)} como exemplo.`}</p>` : ""}
       ${ajuste ? `<p>${ajuste}</p>` : c.estado === "apertado" ? "<p>Sobra pouco para imprevistos. Vale comprar a passagem logo, antes de o preço subir.</p>" : ""}
       <div class="nums">
         <div><span class="eyebrow">Seu orçamento</span><b>${brl(f.orcamento)}</b></div>
@@ -1044,7 +1051,7 @@ function renderSalvas() {
 }
 async function compartilhar() {
   const { entrada: e, atual: c } = state; const f = comDatas(e, c);
-  const texto = `${c.destino.n}: ${quase(c) ? `com mais ${brl(-c.diff)} vai dar viagem` : ESTADO[c.estado]}. ${f.noites} noites para ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} por cerca de ${brl(c.total)}. Simule a sua viagem:`;
+  const texto = `${c.destino.n}: ${quase(c) ? `com mais ${brl(-c.diff)} vai dar viagem` : ESTADO[c.estado]}. ${noitesTxt(f.noites)} para ${f.pessoas} ${f.pessoas > 1 ? "pessoas" : "pessoa"} por cerca de ${brl(c.total)}. Simule a sua viagem:`;
   const url = "https://vaidarviagem.com.br/app/";
   try {
     const Share = plugin("Share");
