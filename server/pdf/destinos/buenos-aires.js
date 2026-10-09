@@ -380,7 +380,7 @@ export default {
       ["R$ 50 em pesos", "Menú ejecutivo no almoço"],
       ["R$ 50 em pesos", "Show sem jantar, ou só a milonga"],
       ["Cartão", "Colonia Express costuma custar menos"],
-      ["R$ 40 em pesos", "Passeio grátis: feira ou Bosques"]
+      ["R$ 40 em pesos", "Bosques de Palermo"]
     ],
     fora: "como o seguro viagem e o traslado do aeroporto na chegada e na volta",
     nota: "Dinheiro vivo por pessoa, em pesos, para gorjeta, feira e lugares sem cartão. Os valores em reais são de referência: os preços em pesos mudam rápido."
