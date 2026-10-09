@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { gerarRoteiro, LimiteAtingido, Demorou } from "../../server/roteiro.js";
-import { tetoDoDia, TetoAtingido } from "../../server/uso.js";
+import { tetoDoDia, TetoAtingido, lerOrigem } from "../../server/uso.js";
 import { conferirTurnstile, RoboSuspeito } from "../../server/turnstile.js";
 import { EntradaInvalida } from "../../server/veredito.js";
 import { pixLigado, liberarDetalhado, contarGeracao, PixInvalido, PixNaoPago, SemGeracoes } from "../../server/pix.js";
@@ -20,13 +20,13 @@ export async function onRequestPost({ request, env }) {
       if (!pixLigado(env)) return json({ erro: "O Roteiro Detalhado ainda não está à venda." }, FALHA);
       // O pedido é o guardado com o pagamento (não o do navegador), e cada pagamento tem gerações contadas.
       const pedido = await liberarDetalhado(body.pagamento, body, env);
-      return json(await gerarRoteiro(pedido, env, null, null, globalThis.fetch, { completo: true, antesDeGerar: contarGeracao(body.pagamento, env) }));
+      return json(await gerarRoteiro(pedido, env, null, null, globalThis.fetch, { completo: true, antesDeGerar: contarGeracao(body.pagamento, env), origem: lerOrigem(body) }));
     }
     // completoAVenda: o app só oferece o roteiro completo quando o Pix está ligado.
     const ip = request.headers.get("CF-Connecting-IP");
     // Turnstile: só liga quando existir o TURNSTILE_SECRET na Cloudflare.
     await conferirTurnstile(body?.turnstile, ip, env);
-    return json({ ...(await gerarRoteiro(body, env, null, ip, globalThis.fetch, { antesDeGerar: tetoDoDia(env) })), completoAVenda: pixLigado(env) });
+    return json({ ...(await gerarRoteiro(body, env, null, ip, globalThis.fetch, { antesDeGerar: tetoDoDia(env), origem: lerOrigem(body) })), completoAVenda: pixLigado(env) });
   } catch (e) {
     if (e instanceof EntradaInvalida || e instanceof PixInvalido) return json({ erro: e.message }, 400);
     if (e instanceof PixNaoPago) return json({ erro: e.message }, 402);

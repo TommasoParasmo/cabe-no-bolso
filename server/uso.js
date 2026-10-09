@@ -56,12 +56,43 @@ export function resumoUso(uso, env, agora = new Date()) {
   return { modelos, usd: Number(usd.toFixed(6)) };
 }
 
+// ---- Origem do roteiro (anúncio ou não) ----
+// O app guarda utm_source e utm_content da chegada e manda junto no pedido do roteiro (campo utm). Vira "meta:<anúncio>",
+// "meta" (sem anúncio), "outro" (outra utm_source) ou "direto". Só letras, números e hífen, até 40 caracteres;
+// no máximo MAX_ORIGENS nomes por tipo e dia, o resto soma em "outro", para ninguém encher o KV.
+const MAX_ORIGENS = 30;
+const limpo = v => (typeof v === "string" && /^[a-z0-9-]{1,40}$/.test(v.toLowerCase()) ? v.toLowerCase() : "");
+export function lerOrigem(body) {
+  const fonte = limpo(body?.utm?.fonte), anuncio = limpo(body?.utm?.anuncio);
+  if (!fonte) return "direto";
+  if (fonte !== "meta") return "outro";
+  return anuncio ? `meta:${anuncio}` : "meta";
+}
+const diaDe = agora => new Date(agora.getTime() - 3 * 3600e3).toISOString().slice(0, 10); // dia em Brasília
+
+// Soma numa chave própria (origem:AAAA-MM-DD), separada de uso:AAAA-MM-DD: assim um roteiro do cache que
+// grava ao mesmo tempo que um roteiro novo nunca desfaz a soma de gasto que o teto do dia lê.
+// Formato: { dia, gratis: { "meta:<anúncio>": n, direto: n }, detalhado: { ... } }. Conta também os do cache.
+export async function registrarOrigem({ tipo, origem }, env, agora = new Date()) {
+  if (!env?.LEADS || !origem) return;
+  try {
+    const dia = diaDe(agora), chave = `origem:${dia}`;
+    const t = (await env.LEADS.get(chave, "json")) || { dia };
+    const o = t[tipo] ||= {};
+    const nome = origem in o || Object.keys(o).length < MAX_ORIGENS ? origem : "outro";
+    o[nome] = (o[nome] || 0) + 1;
+    await env.LEADS.put(chave, JSON.stringify(t), { expirationTtl: VALIDADE_KV });
+  } catch (e) { console.error("uso: não somou a origem no KV", e?.message); }
+}
+
 // Grava a linha no log e soma no dia. Falha aqui nunca derruba o roteiro.
-export async function registrarUso(uso, { tipo, resultado }, env, agora = new Date()) {
+// `origem` (de lerOrigem) vai para registrarOrigem quando o roteiro saiu.
+export async function registrarUso(uso, { tipo, resultado, origem }, env, agora = new Date()) {
+  if (resultado === "ok") await registrarOrigem({ tipo, origem }, env, agora);
   if (!uso.chamadas.length) return null;
   const { modelos, usd } = resumoUso(uso, env, agora);
-  const dia = new Date(agora.getTime() - 3 * 3600e3).toISOString().slice(0, 10); // dia em Brasília
-  const linha = { quando: agora.toISOString(), tipo, resultado, modelos, usd };
+  const dia = diaDe(agora);
+  const linha = { quando: agora.toISOString(), tipo, resultado, modelos, usd, ...(origem ? { origem } : {}) };
   console.log("uso: " + JSON.stringify(linha));
   if (!env?.LEADS) return linha;
   try {

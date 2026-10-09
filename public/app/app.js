@@ -320,6 +320,9 @@ function lerForm() {
 
 // No app de celular as telas vêm de dentro do aparelho, então a API é chamada no endereço do site.
 const API = window.Capacitor?.isNativePlatform?.() ? "https://vaidarviagem.com.br" : "";
+// Origem guardada por /lib/origem.js (utm da chegada), mandada no pedido do roteiro.
+const origemDaVisita = () => { try { return JSON.parse(sessionStorage.getItem("vdv-origem")) || undefined; } catch { return undefined; } };
+
 async function postar(caminho, dados, signal) {
   const r = await fetch(API + caminho, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(dados), signal });
   const corpo = await r.json().catch(() => ({}));
@@ -853,7 +856,7 @@ async function gerarRoteiro() {
   state.roteiro = { loading: true };
   renderRoteiro();
   try {
-    const r = await postar("/api/roteiro", { ...pedidoRoteiro(), turnstile: await tokenTurnstile() }, ctlRoteiro.signal);
+    const r = await postar("/api/roteiro", { ...pedidoRoteiro(), utm: origemDaVisita(), turnstile: await tokenTurnstile() }, ctlRoteiro.signal);
     if (state.atual !== alvo) return;
     state.roteiro = r;
     evento("RoteiroPronto", { destino: c.destino?.n });
@@ -1025,7 +1028,7 @@ async function montarCompleto(ro) {
   v.gerando = true; v.aviso = "";
   renderRoteiro();
   try {
-    const r = await postar("/api/roteiro", { ...v.pedido, pagamento: v.pix.id });
+    const r = await postar("/api/roteiro", { ...v.pedido, pagamento: v.pix.id, utm: origemDaVisita() });
     if (state.roteiro !== ro) return;
     // O e-mail do Pix também libera o PDF, sem pedir de novo.
     fetch(`${API}/api/lead`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: v.email, novidades: false, destino: state.atual.destino.n }) })
