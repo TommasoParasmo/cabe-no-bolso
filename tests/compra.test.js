@@ -104,6 +104,23 @@ test("compra: libera só com a chave certa, order paga e da mesma compra; conta 
   assert.deepEqual(await situacaoCompra(id, chave, env, mercadoPago(pixCriado, vencido).fetchFn, Date.parse("2026-10-09T12:59:00Z")), { status: "esperando" });
 });
 
+test("compra: a venda paga soma no anúncio de onde a pessoa veio (origem:AAAA-MM-DD), uma vez só", async () => {
+  const env = { MP_ACCESS_TOKEN: "tok", LEADS: kv() };
+  const mp = mercadoPago(pixCriado, pago);
+  const { id, chave } = await criarCompra({ ...pedido, utm: { fonte: "meta", anuncio: "orlando-familia" } }, env, mp.fetchFn);
+  assert.equal(JSON.parse(env.LEADS.m.get("compra:ORD01PDF123")).origem, "meta:orlando-familia");
+  const dia = () => [...env.LEADS.m.keys()].find(k => k.startsWith("origem:"));
+  assert.equal(dia(), undefined, "Pix ainda não pago não conta");
+  await situacaoCompra(id, chave, env, mp.fetchFn);
+  await situacaoCompra(id, chave, env, mp.fetchFn);
+  assert.deepEqual(JSON.parse(env.LEADS.m.get(dia())).pdf, { "meta:orlando-familia": 1 });
+  // Sem utm (ou lixo no utm): conta como "direto".
+  const env2 = { MP_ACCESS_TOKEN: "tok", LEADS: kv() };
+  const c = await criarCompra({ ...pedido, utm: { fonte: "<script>" } }, env2, mp.fetchFn);
+  await situacaoCompra(c.id, c.chave, env2, mp.fetchFn);
+  assert.deepEqual(JSON.parse([...env2.LEADS.m.entries()].find(([k]) => k.startsWith("origem:"))[1]).pdf, { direto: 1 });
+});
+
 test("compra: preço configurado abaixo do da promoção libera a order paga nesse valor", async () => {
   const env = { MP_ACCESS_TOKEN: "tok", LEADS: kv(), OFERTA_PDF: '{"pix":"19.90"}' };
   const mp = mercadoPago(pixCriado, { ...pago, total_amount: "19.90" });
