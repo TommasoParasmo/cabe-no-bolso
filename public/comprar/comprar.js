@@ -121,8 +121,10 @@ function acompanhar() {
       if (status === "pago") return pronto(pendente);
       if (status === "expirado") {
         localStorage.removeItem("vdv:pix:" + slug);
+        localStorage.removeItem("vdv:cartao:" + slug);
+        $("brick").hidden = false;
         mostrar("dados");
-        return erro("erro-dados", "O Pix venceu antes do pagamento. Gere um novo.");
+        return erro("erro-dados", pendente.forma === "cartao" ? "O pagamento com cartão não foi aprovado. Tente outro cartão ou o Pix." : "O Pix venceu antes do pagamento. Gere um novo.");
       }
     } catch {}
     consulta = setTimeout(ver, 4000);
@@ -147,6 +149,7 @@ async function abrirCartao() {
   if (!chavePublica) throw new Error("O pagamento com cartão ainda não está ligado. Use o Pix.");
   erro("erro-cartao", "");
   mostrar("cartao");
+  $("brick").hidden = false;
   await carregarSdk();
   if (brickPronto) { await brickPronto.unmount?.(); brickPronto = null; }
   const mp = new window.MercadoPago(chavePublica, { locale: "pt-BR" });
@@ -166,9 +169,9 @@ async function abrirCartao() {
           const r = await postar({ acao: "criar", forma: "cartao", ...dados, turnstile: await tokenTurnstile(),
             cartao: { token: formData.token, payment_method_id: formData.payment_method_id } });
           if (r.status === "pago") return pronto(r);
-          pendente = r;
-          erro("erro-cartao", "O pagamento está em análise. Esta tela muda sozinha quando for aprovado.");
-          acompanhar();
+          pendente = { id: r.id, chave: r.chave, forma: "cartao" };
+          guardar("vdv:cartao:" + slug, pendente);
+          emAnalise();
         } catch (e) {
           erro("erro-cartao", e.message);
           throw e;
@@ -178,10 +181,19 @@ async function abrirCartao() {
   });
 }
 
+// Cartão em análise: guarda o pedido (para voltar a ele depois de recarregar) e mostra o número logo.
+function emAnalise() {
+  mostrar("cartao");
+  $("brick").hidden = true;
+  erro("erro-cartao", `O pagamento está em análise. Esta tela muda sozinha quando for aprovado. Número do pedido: ${pendente.id}`);
+  acompanhar();
+}
+
 // ---- Pronto: link do PDF ----
 function pronto({ id, chave }) {
   clearTimeout(consulta); clearTimeout(relogio);
   localStorage.removeItem("vdv:pix:" + slug);
+  localStorage.removeItem("vdv:cartao:" + slug);
   guardar("vdv:compra:" + slug, { id, chave });
   $("baixar").href = "/api/pdf?" + new URLSearchParams({ id, chave });
   $("num-pedido").textContent = id;
@@ -206,6 +218,7 @@ async function iniciar() {
   }
   document.title = `Roteiro de ${nomeDestino} · Vai Dar Viagem`;
   $("titulo").textContent = `${nomeDestino} em 7 dias`;
+  if (!Object.keys(valoresDaSimulacao()).length) $("item-orcamento").textContent = "Orçamento dia a dia, com onde economizar";
   const capa = slug === "chile" ? "neve" : "capa";
   $("foto").style.backgroundImage = `url(/roteiros/${slug}/${capa}.jpg)`;
 
@@ -243,6 +256,9 @@ async function iniciar() {
   // Pix gerado e ainda no prazo (a pessoa recarregou a página ou foi pagar no app do banco): volta para ele.
   const pix = ler("vdv:pix:" + slug);
   if (pix?.id && Date.parse(pix.expiraEm) > Date.now()) { pendente = pix; telaPix(); }
+  // Cartão que ficou em análise: volta a acompanhar o mesmo pedido.
+  const cartao = ler("vdv:cartao:" + slug);
+  if (cartao?.id) { pendente = cartao; emAnalise(); }
 }
 
 iniciar();

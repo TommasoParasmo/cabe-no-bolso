@@ -94,6 +94,18 @@ test("compra: libera só com a chave certa, order paga e da mesma compra; conta 
   const venceu = mercadoPago(pixCriado, { ...pago, external_reference: ref, status: "expired" });
   assert.deepEqual(await situacaoCompra(id, chave, env, venceu.fetchFn), { status: "expirado" });
   await assert.rejects(compraPaga(id, chave, env, mercadoPago(pixCriado, { ...pago, external_reference: ref, total_amount: "1.00" }).fetchFn), NaoPago);
+  // Pix pendente depois do prazo do pagamento: expirado, mesmo com a order ainda "action_required".
+  const vencido = { ...pago, external_reference: ref, status: "action_required", transactions: { payments: [{ date_of_expiration: "2026-10-09T13:00:00Z" }] } };
+  assert.deepEqual(await situacaoCompra(id, chave, env, mercadoPago(pixCriado, vencido).fetchFn, Date.parse("2026-10-09T13:00:01Z")), { status: "expirado" });
+  assert.deepEqual(await situacaoCompra(id, chave, env, mercadoPago(pixCriado, vencido).fetchFn, Date.parse("2026-10-09T12:59:00Z")), { status: "esperando" });
+});
+
+test("compra: preço configurado abaixo do da promoção libera a order paga nesse valor", async () => {
+  const env = { MP_ACCESS_TOKEN: "tok", LEADS: kv(), OFERTA_PDF: '{"pix":"19.90"}' };
+  const mp = mercadoPago(pixCriado, { ...pago, total_amount: "19.90" });
+  const { id, chave } = await criarCompra(pedido, env, mp.fetchFn);
+  assert.equal(mp.pedidos[0].corpo.total_amount, "19.90");
+  assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago" });
 });
 
 test("compra: recupera em outro aparelho com o número e o e-mail, e a chave antiga deixa de valer", async () => {

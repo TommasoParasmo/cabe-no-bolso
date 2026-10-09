@@ -12,8 +12,6 @@ export const DESTINOS_PDF = { jerusalem: "Jerusalém", orlando: "Orlando", chile
 // Preços em reais (texto com ponto, como o Mercado Pago pede). OFERTA_PDF na Cloudflare troca sem mexer no código,
 // no mesmo formato JSON (ex.: {"ate":"2026-11-01T00:00:00-03:00","pix":"29.90","cartao":"34.90","depois":{"pix":"39.90","cartao":"44.90"}}).
 export const OFERTA = { ate: "2026-11-01T00:00:00-03:00", pix: "29.90", cartao: "34.90", depois: { pix: "39.90", cartao: "44.90" } };
-// Menor valor aceito como pago: só o nosso servidor cria as orders, sempre com o preço da hora; o piso só barra valor estranho.
-const PISO = 24.9;
 export const VALIDADE_MIN = 60;
 const GUARDA_DIAS = 400;
 const EMAIL = /^[^\s@<>"',;]{1,64}@[^\s@<>"',;]+\.[a-z]{2,}$/i;
@@ -99,11 +97,11 @@ export async function criarCompra(body, env, fetchFn = globalThis.fetch) {
     throw new Error(`Mercado Pago ${r.status}${codigo ? ` (${codigo})` : ""}`);
   }
   await env.LEADS.put(chaveCompra(order.id), JSON.stringify({
-    slug, nome, valores, chave: await hash(chave), ref, forma, conferir: await hash(`${String(order.id).toUpperCase()}:${email}`), criado: new Date().toISOString()
+    slug, nome, valores, chave: await hash(chave), ref, forma, preco, conferir: await hash(`${String(order.id).toUpperCase()}:${email}`), criado: new Date().toISOString()
   }), { expirationTtl: GUARDA_DIAS * 86400 });
   const base = { id: order.id, chave, forma, preco: Number(preco) };
   if (forma === "cartao") {
-    if (pago(order)) return { ...base, status: "pago" };
+    if (pago(order, preco)) return { ...base, status: "pago" };
     if (["failed", "canceled"].includes(order.status)) throw new CompraInvalida(motivoRecusa(order.status_detail));
     return { ...base, status: "esperando" };
   }
@@ -127,7 +125,12 @@ export function motivoRecusa(det = "") {
   return "O cartão foi recusado. Tente outro cartão ou pague no Pix.";
 }
 
-const pago = o => o?.status === "processed" && Number(o.total_amount) >= PISO;
+// Paga e no valor com que a order foi criada (guardado na compra): o preço pode mudar depois sem travar quem já pagou.
+const pago = (o, preco) => o?.status === "processed" && Number(o.total_amount) >= Number(preco);
+
+// Pix sem pagamento passado do prazo: o Mercado Pago só marca a order como expirada dias depois,
+// então o prazo do próprio pagamento decide quando o checkout oferece um Pix novo (como em server/pix.js).
+const venceu = (o, agora) => Date.parse(o.transactions?.payments?.[0]?.date_of_expiration) < agora;
 
 async function lerOrder(id, env, fetchFn) {
   if (!/^ORD[0-9A-Z]{6,40}$/i.test(String(id))) throw new CompraInvalida("Pedido não encontrado.");
@@ -154,19 +157,19 @@ async function contarVenda(id, slug, env) {
 }
 
 // Confere no Mercado Pago que a order foi paga e é deste pedido. Devolve o pedido guardado.
-export async function compraPaga(id, chave, env, fetchFn = globalThis.fetch) {
+export async function compraPaga(id, chave, env, fetchFn = globalThis.fetch, agora = Date.now()) {
   const g = await compraGuardada(id, chave, env);
   const o = await lerOrder(id, env, fetchFn);
   if (o.external_reference !== g.ref) throw new CompraInvalida("Pedido não encontrado.");
-  if (!pago(o)) throw new NaoPago(["expired", "canceled", "failed"].includes(o.status) ? "expirado" : "esperando");
+  if (!pago(o, g.preco)) throw new NaoPago(["expired", "canceled", "failed"].includes(o.status) || venceu(o, agora) ? "expirado" : "esperando");
   await contarVenda(id, g.slug, env).catch(e => console.error("compra: venda não contada", e?.message));
   return g;
 }
 
 // Situação para o checkout: "pago", "esperando" ou "expirado".
-export async function situacaoCompra(id, chave, env, fetchFn = globalThis.fetch) {
+export async function situacaoCompra(id, chave, env, fetchFn = globalThis.fetch, agora = Date.now()) {
   try {
-    await compraPaga(id, chave, env, fetchFn);
+    await compraPaga(id, chave, env, fetchFn, agora);
     return { status: "pago" };
   } catch (e) {
     if (e instanceof NaoPago) return { status: e.message };
@@ -184,7 +187,7 @@ export async function recuperarCompra(body, env, fetchFn = globalThis.fetch) {
   if (!g || g.conferir !== await hash(`${id}:${email}`)) throw naoAchou();
   const o = await lerOrder(id, env, fetchFn);
   if (o.external_reference !== g.ref) throw naoAchou();
-  if (!pago(o)) throw new NaoPago("Esse pedido ainda não foi pago. Se você acabou de pagar, espere um minuto e tente de novo.");
+  if (!pago(o, g.preco)) throw new NaoPago("Esse pedido ainda não foi pago. Se você acabou de pagar, espere um minuto e tente de novo.");
   const chave = aleatorio();
   await env.LEADS.put(chaveCompra(id), JSON.stringify({ ...g, chave: await hash(chave) }), { expirationTtl: GUARDA_DIAS * 86400 });
   return { id, chave, destino: g.slug };
