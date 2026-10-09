@@ -262,7 +262,7 @@ export default {
       tip: ["Feira de domingo", "Aos domingos tem feira em volta do lago, das 10h às 16h."],
       semana: { dias: [0], senao: ["Para economizar", "Cadastre-se no site do outlet e pegue o cupom de desconto."] } },
 
-    { img: "lago", d: "Último dia · de carro", t: "Magic Kingdom e volta para casa", gasto: "R$ 1.050", seg: 5, bairro: "Walt Disney World",
+    { img: "magic", d: "Último dia · de carro", t: "Magic Kingdom e volta para casa", gasto: "R$ 1.050", seg: 5, bairro: "Walt Disney World",
       destaque: ["Último parque", "Da abertura às 15h, com as malas no carro. Depois, aeroporto."],
       stops: [
         ["07:30", "Check-out e malas no carro", "Tudo no porta-malas, fora de vista.", ["Carro"]],
@@ -288,7 +288,7 @@ export default {
         passos: [["Abertura", "Gringotts ou Minions, as maiores filas. Fila de quem vai sozinho (single rider) anda mais rápido."], ["DreamWorks Land", "para menores de 6 anos, com Shrek, Trolls e área de água."], ["Diagon Alley", "entre pela fachada de Londres e espere o dragão soltar fogo no alto do banco."], ["Hogwarts Express", "da estação King's Cross até Hogsmeade, só com ingresso park-to-park."], ["Múmia e Men in Black", "no fim da tarde, quando as filas caem."]],
         foto: "A família no globo da Universal, na entrada, logo cedo.",
         saber: "Na troca de pais (Child Swap), um adulto espera com a criança e depois entra sem pegar a fila de novo." },
-      { img: "lago", t: "Magic Kingdom", dia: 7, tempo: "da abertura às 15h", kickHist: "O parque em poucas linhas",
+      { img: "magic", t: "Magic Kingdom", dia: 7, tempo: "da abertura às 15h", kickHist: "O parque em poucas linhas",
         hist: "Primeiro parque da Disney na Flórida, aberto em 1971, e o mais visitado do mundo. O Castelo da Cinderela, no fim da Main Street, é o centro de seis áreas temáticas, de Fantasyland a Tomorrowland. É o melhor parque para crianças de 2 a 10 anos: quase todos os brinquedos de Fantasyland não têm altura mínima. Para chegar, você estaciona no Transportation and Ticket Center e atravessa o lago de barco ou de monotrilho.",
         passos: [["Seven Dwarfs Mine Train", "a fila mais longa do parque. Vá primeiro, logo na abertura (a partir de 97 cm)."], ["Fantasyland", "Peter Pan's Flight, Dumbo e It's a Small World antes das 11h."], ["Tomorrowland", "Space Mountain a partir de 112 cm. Buzz Lightyear para todos."], ["Adventureland e Frontierland", "Piratas do Caribe e Big Thunder no começo da tarde."], ["Lightning Lane", "se a verba deixar, compre para os 2 ou 3 brinquedos de fila mais longa."]],
         foto: "O castelo visto da Main Street, logo na abertura, com a rua ainda vazia.",
@@ -476,5 +476,5 @@ export default {
     ]
   },
 
-  creditos: "\"Orlando Eye\"; \"Kennedy Space Center, Rocket Garden, Power of Apollo\" (CC BY-SA 4.0); \"Lake Eola and Orlando Skyline seen in 2024\" (CC BY 4.0); \"A view of Universal Orlando Resort in May 2023\" e \"Cocoa Beach Pier from the beach 2023-05-19\" (CC0)."
+  creditos: "\"Orlando Eye\"; \"Kennedy Space Center, Rocket Garden, Power of Apollo\" (CC BY-SA 4.0); \"Lake Eola and Orlando Skyline seen in 2024\" (CC BY 4.0); \"A view of Universal Orlando Resort in May 2023\"; \"Cocoa Beach Pier from the beach 2023-05-19\" (CC0); \"Cinderella Castle January 2021\", Backattaxk251 (CC BY-SA 4.0)."
 };
