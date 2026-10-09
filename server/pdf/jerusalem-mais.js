@@ -53,7 +53,7 @@ export const CSS_MAIS = `
 .diario>div{border-bottom:1px solid var(--line);padding-bottom:2mm;display:grid;grid-template-columns:18mm 1fr;gap:3mm}
 .diario b{font:800 11pt var(--display);color:var(--acc)}
 .diario p{font-size:8.5pt;color:var(--mut)}
-.diario .ln{height:24mm;background:repeating-linear-gradient(transparent 0 5.2mm,var(--line) 5.2mm 5.5mm)}
+.diario .ln{height:20mm;background:repeating-linear-gradient(transparent 0 5.2mm,var(--line) 5.2mm 5.5mm)}
 .sumario{columns:2;column-gap:8mm}
 .sumario a{break-inside:avoid;display:flex;gap:3mm;align-items:baseline;padding:1.6mm 0;border-bottom:1px solid var(--line);color:var(--ink);text-decoration:none;font-size:9pt}
 .sumario a span{flex:1}
@@ -61,7 +61,12 @@ export const CSS_MAIS = `
 .sumario a b{font:800 10pt var(--display);color:var(--acc);min-width:9mm;text-align:right}
 .sumario h3{break-after:avoid;font-size:8.5pt;text-transform:uppercase;letter-spacing:.12em;color:var(--mut);margin:4mm 0 1mm}
 .maps{color:var(--acc);text-decoration:none;border-bottom:1px solid currentColor}
-#emergencia .phr td{padding:1.2mm 3mm;font-size:9pt}
+.stop{grid-template-columns:16mm 1fr 15mm}
+.qr{display:block;width:15mm;height:15mm;align-self:start}
+.qr svg{width:100%;height:100%;display:block}
+#emergencia .phr td{padding:.8mm 3mm;font-size:8.6pt}
+#emergencia .in{gap:4mm}
+#horarios .tb td{padding:1.5mm 2mm}
 `;
 
 const ficha = [
@@ -195,9 +200,9 @@ const LEITURAS = [
   ["Salmo 121", "Mateus 28:16-20", "O que você leva de volta para casa?"]
 ];
 
-const CARIMBOS = ["Muro das Lamentações", "Santo Sepulcro", "Via Dolorosa", "Torre de Davi", "Monte das Oliveiras", "Dominus Flevit",
+const CARIMBOS = ["Muro das Lamentações", "Santo Sepulcro", "Via Dolorosa", "Gruta do Leite", "Monte das Oliveiras", "Dominus Flevit",
   "Getsêmani", "Cenáculo", "Monte das Bem-Aventuranças", "Tabgha", "Cafarnaum", "Yardenit", "Basílica da Natividade",
-  "Campo dos Pastores", "Jardim do Túmulo", "Mahane Yehuda"];
+  "Campo dos Pastores", "Jardim do Túmulo", "Igreja de Santa Catarina"];
 
 // Gasto em dinheiro vivo sugerido por dia (por pessoa) e onde economizar.
 const DINHEIRO = [
@@ -242,6 +247,8 @@ export function paginasMais({ head, foot, ic, cl, V, brl, gastoDia, DAYS, B }) {
     '<table class="tb"><thead><tr><th>Dia</th><th>Previsto ' + porQuem + '</th><th>Gasto real</th><th>Dinheiro vivo</th><th>Onde economizar</th></tr></thead><tbody>' +
     DAYS.map((d, i) => "<tr><td><b>Dia " + (i + 1) + "</b><small>" + d.t + "</small></td><td>" + d.gasto + '</td><td class="vazio"></td><td>' + DINHEIRO[i][0] + "</td><td>" + DINHEIRO[i][1] + "</td></tr>").join("") +
     "<tr><td><b>Total</b></td><td><b>" + (somaDias !== null ? brl(somaDias) : "R$ 1.585") + '</b></td><td class="vazio"></td><td></td><td></td></tr></tbody></table>' +
+    (somaDias !== null && V.comidaPasseios !== null && V.transporte !== null && V.comidaPasseios + V.transporte - somaDias > 0
+      ? '<p class="mut" style="font-size:8.5pt">Os dias somam comida, passeios e transporte dentro da cidade. No resumo, comida, passeios e transporte dão ' + brl(V.comidaPasseios + V.transporte) + ': os outros ' + brl(V.comidaPasseios + V.transporte - somaDias) + " ficam fora dos dias, como o traslado do aeroporto, o seguro e as taxas.</p>" : "") +
     (V.sobra !== null ? '<div class="money" style="grid-template-columns:1fr auto;align-items:center"><span>Mesmo seguindo o roteiro, você ainda tem de sobra</span><span class="big">' + brl(V.sobra) + "</span></div>"
       : '<div class="warnbox"><b>Como usar</b><br>Anote o gasto real no fim de cada dia. Se um dia passar do previsto, compense nos dias seguintes com as dicas da última coluna.</div>') +
     '<p class="mut" style="font-size:8.5pt">Dinheiro vivo por pessoa, para mercado, ônibus árabe e gorjetas. O resto dá para pagar no cartão.</p>');

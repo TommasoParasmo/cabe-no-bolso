@@ -3,6 +3,7 @@
 // Gera o HTML que o navegador imprime em PDF (A4, sem margem, com fundos). As imagens ficam em /roteiros/jerusalem/.
 // ATENÇÃO: horários, regras de entrada, telefones e empresas de guia foram escritos de memória; conferir antes de vender.
 
+import qrcode from "qrcode-generator";
 import { CSS_MAIS, paginasMais } from "./jerusalem-mais.js";
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -162,13 +163,37 @@ h2.t{font-size:26pt}
 
 `;
 
+// QR code (SVG) que abre o lugar no Google Maps: no papel, a câmera do celular leva direto ao mapa.
+const qr = url => {
+  const q = qrcode(0, "M");
+  q.addData(url);
+  q.make();
+  return q.createSvgTag({ cellSize: 1, margin: 0, scalable: true });
+};
+const linkMaps = lugar => "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(lugar);
+const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+const SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+
 const CABECA = CABECA0.replace("</style>", CSS_MAIS + "</style>");
 const brl = v => "R$ " + Math.round(v).toLocaleString("pt-BR");
 const num = v => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : null);
 
+// "AAAA-MM-DD" do primeiro dia da viagem, para dar data e dia da semana a cada dia (o Shabat muda o roteiro).
+const lerData = t => {
+  if (typeof t !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(t)) return null;
+  const d = new Date(t + "T12:00:00Z");
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+// Clima do mês da viagem, como o app já calcula (server/clima.js): { mes: 1 a 12, min, max } em °C.
+const lerClima = c => {
+  const mes = Math.round(num(c?.mes) || 0), min = Number(c?.min), max = Number(c?.max);
+  return mes >= 1 && mes <= 12 && Number.isFinite(min) && Number.isFinite(max) && min <= max && min > -40 && max < 60 ? { mes, min: Math.round(min), max: Math.round(max) } : null;
+};
+
 // Valores da simulação, que mudam com o período escolhido. Tudo opcional: sem eles, o PDF usa a referência
 // por pessoa. { periodo: "07 a 13 de março de 2027", pessoas: 2, cotacao: 1.52 (R$ por shekel),
-//   passagens, hotel, noites, comidaPasseios, transporte, total, sobra, dias: [7 valores, para o grupo] }
+//   passagens, hotel, noites, comidaPasseios, transporte, total, sobra, dias: [7 valores, para o grupo],
+//   inicio: "2027-03-07", clima: { mes: 3, min: 8, max: 19 } }. A cotação é a do dia da compra, passada por quem gera.
 export function lerValores(v = {}) {
   const pessoas = Math.min(20, Math.max(1, Math.round(num(v.pessoas) || 1)));
   const dias = Array.isArray(v.dias) && v.dias.length === 7 && v.dias.every(x => num(x) !== null) ? v.dias.map(Number) : null;
@@ -176,7 +201,8 @@ export function lerValores(v = {}) {
   const total = num(v.total) ?? (itens.every(x => x !== null) ? itens.reduce((a, b) => a + b, 0) : null);
   const periodo = typeof v.periodo === "string" ? esc(v.periodo.trim().slice(0, 60)) : "";
   return { pessoas, dias, total, periodo, passagens: itens[0], hotel: itens[1], comidaPasseios: itens[2], transporte: itens[3],
-    noites: Math.round(num(v.noites) || 6), sobra: num(v.sobra), cotacao: num(v.cotacao) || null };
+    noites: Math.round(num(v.noites) || 6), sobra: num(v.sobra), cotacao: num(v.cotacao) || null,
+    inicio: lerData(v.inicio), clima: lerClima(v.clima) };
 }
 
 export function roteiroJerusalem(nomeCru, valores = {}) {
@@ -193,7 +219,7 @@ export function roteiroJerusalem(nomeCru, valores = {}) {
   const cl=a=>'<ul class="cl">'+a.map(x=>'<li><span>'+x[0]+(x[1]?'<small>'+x[1]+'</small>':'')+'</span></li>').join('')+'</ul>';
   const DAYS=[
    {img:'muro',d:'Chegada · a pé',t:'Chegada, Cidade Antiga e Muro das Lamentações',gasto:gastoDia(0,'R$ 140'),seg:4,bairro:'Cidade Antiga',stops:[
-    ['11:00','Aeroporto Ben Gurion → Jerusalém','Trem direto até a estação Yitzhak Navon, no centro.',['Trem','cerca de 30 min']],
+    ['11:00','Aeroporto Ben Gurion → Jerusalém','Trem direto até a estação Yitzhak Navon, no centro.',['Trem','cerca de 25 min']],
     ['14:00','Check-in e almoço leve','Deixe as malas e coma perto do hotel.',['A pé']],
     ['16:00','Portão de Jaffa','Entrada clássica da Cidade Antiga. Caminhe pela rua David até o Bairro Judeu.',['A pé','grátis'],'Jaffa Gate, Jerusalem'],
     ['17:30','Muro das Lamentações ao entardecer','Há áreas separadas para homens e mulheres. Homens cobrem a cabeça (kipá emprestada na entrada).',['A pé','grátis'],'Western Wall, Jerusalem']],
@@ -215,7 +241,7 @@ export function roteiroJerusalem(nomeCru, valores = {}) {
     ['10:00','Monte das Bem-Aventuranças','Onde foi pregado o Sermão da Montanha, com vista para o lago.',['Excursão'],'Mount of Beatitudes, Israel'],
     ['11:30','Tabgha e Cafarnaum','Igreja da Multiplicação dos Pães e a cidade de Pedro.',['Excursão'],'Capernaum, Israel'],
     ['15:00','Rio Jordão (Yardenit)','Local de batismo com estrutura para visitantes.',['Excursão'],'Yardenit Baptismal Site, Israel']],
-    tip:['Guia indicado','Veja na página de guias as empresas mais conhecidas que fazem este passeio saindo de Jerusalém.']},
+    tip:['Guia indicado','Veja na página @@PG:guias@@ as empresas mais conhecidas que fazem este passeio saindo de Jerusalém.']},
    {img:'belem',d:'Bate-volta de ônibus',t:'Belém',gasto:gastoDia(4,'R$ 150'),seg:3,bairro:'Belém (Cisjordânia)',stops:[
     ['08:30','Ônibus para Belém','Sai da estação de ônibus árabe perto do Portão de Damasco.',['Ônibus','cerca de 40 min']],
     ['10:00','Basílica da Natividade','A gruta onde Jesus nasceu. Chegue cedo para pegar menos fila.',['A pé','grátis'],'Church of the Nativity, Bethlehem'],
@@ -244,6 +270,17 @@ export function roteiroJerusalem(nomeCru, valores = {}) {
    {ler:['João 20:1-18','O túmulo vazio na manhã da ressurreição.'],comer:[['Azura, no Mahane Yehuda (cozidos turcos, só almoço)','R$ 50 a R$ 80 por pessoa'],['Rugelach da Marzipan e o jantar do Shabat comprados no mercado','R$ 30 por pessoa']],chuva:'O mercado é quase todo coberto. Deixe o Jardim do Túmulo para outro dia.'},
    {ler:['Salmo 121:8','"O Senhor guardará a tua saída e a tua entrada."'],comer:[['Knafeh no Jafar Sweets, no Bairro Muçulmano','R$ 15 a R$ 25 por pessoa'],['Lanche no aeroporto, mais caro','R$ 60 por pessoa']],chuva:'Troque a caminhada nas muralhas por uma última visita ao Santo Sepulcro.'}
   ];
+  // Com a data de início, cada dia ganha data e dia da semana, e o texto se ajusta ao Shabat.
+  if (V.inicio) DAYS.forEach((d,i)=>{const dt=new Date(V.inicio.getTime()+i*864e5); d.sem=dt.getUTCDay(); d.d=SEMANA[d.sem]+', '+String(dt.getUTCDate()).padStart(2,'0')+'/'+String(dt.getUTCMonth()+1).padStart(2,'0');});
+  DAYS.forEach((d,i)=>{
+    if (d.sem===undefined) return;
+    const aeroporto = d.sem===6 ? ['Ida para o aeroporto','Hoje é sábado e não tem trem: vá de transfer reservado ou táxi compartilhado (sherut).',['Transfer ou sherut','cerca de 50 min']]
+      : d.sem===5 ? ['Ida para o aeroporto','Na sexta os trens param no meio da tarde. Vá cedo de trem ou reserve um transfer.',['Trem ou transfer','25 a 50 min']]
+      : ['Ida para o aeroporto','De trem, a partir da estação Yitzhak Navon.',['Trem','cerca de 25 min']];
+    d.stops=d.stops.map(st=>st[1]==='Ida para o aeroporto'?[st[0],...aeroporto,st[4]]:st);
+    if (d.sem===6 && i!==6) d.tip=['Hoje é Shabat','Trem, VLT e ônibus israelenses não funcionam. Use táxi, transfer ou os ônibus árabes do Portão de Damasco.'];
+  });
+  const mesDaViagem = V.clima ? MESES[V.clima.mes-1] : V.inicio ? MESES[V.inicio.getUTCMonth()] : '';
   const S={};
   const M = paginasMais({ head, foot, ic, cl, V, brl, DAYS, B: '/roteiros/jerusalem/' });
   // Capa
@@ -268,27 +305,27 @@ export function roteiroJerusalem(nomeCru, valores = {}) {
   // Pré-viagem: linha do tempo
   S.quando='<section class="page">'+head('Pré-viagem')+'<div class="in"><div><span class="kick">Antes de embarcar</span><h2 class="t" style="margin-top:2mm">O que fazer e quando</h2><p class="mut" style="margin-top:2mm">Siga a linha do tempo e você chega no aeroporto sem nenhuma pendência.</p></div><div class="tl">'+
    [['90','dias antes',[['Confira o passaporte','Precisa valer por pelo menos 6 meses depois da volta.'],['Compre as passagens','Simule no vaidarviagem.com.br para achar as datas que cabem no bolso.'],['Avise o banco','Libere o cartão para uso no exterior.']]],
-    ['30','dias antes',[['Peça a ETA-IL, a autorização eletrônica de entrada em Israel','Só no site oficial israel-entry.piba.gov.il. Custa 25 shekels por pessoa e a resposta sai em até 72 horas. Guarde a confirmação.'],['Contrate o seguro viagem','Com cobertura médica de pelo menos US$ 30 mil.'],['Reserve o hotel e o passeio da Galileia','Veja as empresas na página de guias.']]],
+    ['30','dias antes',[['Peça a ETA-IL, a autorização eletrônica de entrada em Israel','Só no site oficial israel-entry.piba.gov.il. Custa 25 shekels por pessoa e a resposta sai em até 72 horas. Guarde a confirmação.'],['Contrate o seguro viagem','Com cobertura médica de pelo menos US$ 30 mil.'],['Reserve o hotel e o passeio da Galileia','Veja as empresas na página @@PG:guias@@.']]],
     ['7','dias antes',[['Compre shekels ou carregue um cartão global','Leve um pouco de dinheiro vivo para mercados e ônibus.'],['Ative o chip ou eSIM de dados',''],['Baixe o mapa offline de Jerusalém','E o aplicativo de táxi (Gett).']]],
-    ['1','dia antes',[['Separe documentos impressos','Passaporte, ETA-IL, seguro e reservas.'],['Confira a mala com a lista da página 6',''],['Reserve o transfer de volta','Se a volta for no sábado, não tem trem para o aeroporto.']]]
+    ['1','dia antes',[['Separe documentos impressos','Passaporte, ETA-IL, seguro e reservas.'],['Confira a mala com a lista da página @@PG:mala@@',''],['Reserve o transfer de volta','Se a volta for no sábado, não tem trem para o aeroporto.']]]
    ].map(t=>'<div class="tli"><div class="when"><b>'+t[0]+'</b><small>'+t[1]+'</small></div>'+cl(t[2])+'</div>').join('')+'</div></div>'+foot()+'</section>';
   // Pré-viagem: regras
   S.regras='<section class="page">'+head('Pré-viagem')+'<div class="in"><div><span class="kick">Bom saber</span><h2 class="t" style="margin-top:2mm">Dinheiro, costumes e clima</h2></div><div class="cards">'+
    '<div class="card"><h3>'+ic("i-doc")+'Documentos</h3><ul><li>Brasileiro não precisa de visto para turismo.</li><li>Antes do voo, peça a ETA-IL (25 shekels) em israel-entry.piba.gov.il. Ela vale até 2 anos ou até o passaporte vencer.</li><li>Leve o passaporte sempre com você: há postos de controle.</li></ul></div>'+
    '<div class="card"><h3>'+ic('coin')+'Dinheiro</h3><ul><li>Moeda: shekel (₪). Cartão é aceito quase em todo lugar.</li><li>Tenha notas pequenas para mercado e táxi.</li><li>Gorjeta em restaurante: cerca de 10% a 12%.</li></ul></div>'+
    '<div class="card"><h3>'+ic('shirt')+'Lugares sagrados</h3><ul><li>Ombros e joelhos cobertos em igrejas, no Muro e em mesquitas.</li><li>Homens cobrem a cabeça no Muro.</li><li>Pergunte antes de fotografar pessoas rezando.</li></ul></div>'+
-   '<div class="card"><h3>'+ic('sun')+'Clima</h3><ul><li>Verão (junho a setembro): quente e seco. Inverno (dezembro a fevereiro): frio e com chuva.</li><li>Primavera e outono são amenos, com noites frescas.</li><li>Use tênis confortável: a Cidade Antiga é toda de pedra.</li></ul></div>'+
+   (V.clima ? '<div class="card"><h3>'+ic('sun')+'Clima em '+mesDaViagem+'</h3><ul><li>Em média, entre '+V.clima.min+' °C e '+V.clima.max+' °C.</li>'+(V.clima.min<12?'<li>Noites frias: leve um casaco quente.</li>':'')+(V.clima.max>=28?'<li>Sol forte: chapéu, protetor e água o dia todo.</li>':'')+([11,12,1,2,3].includes(V.clima.mes)?'<li>Pode chover. Leve guarda-chuva pequeno.</li>':'')+'<li>Use tênis confortável: a Cidade Antiga é toda de pedra.</li></ul></div>' : '<div class="card"><h3>'+ic('sun')+'Clima</h3><ul><li>Verão (junho a setembro): quente e seco. Inverno (dezembro a fevereiro): frio e com chuva.</li><li>Primavera e outono são amenos, com noites frescas.</li><li>Use tênis confortável: a Cidade Antiga é toda de pedra.</li></ul></div>')+
    '</div><div class="warnbox"><b>Shabat: o que muda na sexta e no sábado</b><br>Do pôr do sol de sexta até a noite de sábado, quase todo o transporte público para e muitas lojas fecham. Encaixe o dia 6 numa sexta-feira: ele termina cedo e acaba no Muro na chegada do Shabat. No sábado, abrem os restaurantes dos bairros Cristão e Armênio, e para o aeroporto só de transfer ou táxi.</div>'+
-   '<div class="warnbox" style="background:var(--chip);color:var(--ink)"><b>Segurança e avisos oficiais</b><br>Antes de viajar e durante a viagem, confira os avisos do Itamaraty para Israel e se cadastre no consulado. Os telefones de emergência estão na última página.</div></div>'+foot()+'</section>';
+   '<div class="warnbox" style="background:var(--chip);color:var(--ink)"><b>Segurança e avisos oficiais</b><br>Antes de viajar e durante a viagem, confira os avisos do Itamaraty para Israel e se cadastre no consulado. Os telefones de emergência estão na página @@PG:emergencia@@.</div></div>'+foot()+'</section>';
   // Mala
-  S.mala='<section class="page">'+head('Pré-viagem')+'<div class="in"><div><span class="kick">Lista de mala</span><h2 class="t" style="margin-top:2mm">Para 7 dias</h2></div><div class="cols3">'+
+  S.mala='<section class="page">'+head('Pré-viagem')+'<div class="in"><div><span class="kick">Lista de mala</span><h2 class="t" style="margin-top:2mm">Para 7 dias'+(mesDaViagem?' em '+mesDaViagem:'')+'</h2></div><div class="cols3">'+
    [['Documentos',[['Passaporte'],['ETA-IL impressa'],['Seguro viagem impresso'],['Reservas de hotel e passeios'],['Cartões e um pouco de shekel']]],
     ['Roupas',[['Calças e saias abaixo do joelho'],['Blusas que cubram os ombros'],['Casaco leve e um mais quente'],['Lenço ou xale'],['Tênis confortável']]],
     ['Outros',[['Adaptador de tomada'],['Carregador portátil'],['Guarda-chuva pequeno'],['Garrafa de água'],['Remédios de uso pessoal']]]
    ].map(c=>'<div class="card"><h3>'+c[0]+'</h3>'+cl(c[1])+'</div>').join('')+'</div><div class="card"><h3>Anotações</h3></div><div class="notes"></div></div>'+foot()+'</section>';
   // Dias
   S.dias=DAYS.map((d,i)=>{const e=EXTRA[i];
-   return '<section class="page"><div class="dayhead" style="background-image:url(/roteiros/jerusalem/'+d.img+'.jpg)">'+head('Dia '+(i+1)+' de 7',true)+'<div class="tt"><small>'+d.d+'</small><h2>'+d.t+'</h2></div></div><div class="in" style="padding-top:5mm;gap:4.5mm"><div class="meta"><div><small>'+(V.dias ? 'Gasto previsto para '+(V.pessoas>1?V.pessoas+' pessoas':'1 pessoa') : 'Gasto previsto por pessoa')+'</small><b>'+d.gasto+'</b></div><div><small>Segurança da área</small><b class="stars">'+'★'.repeat(d.seg)+'<span style="color:var(--line)">'+'★'.repeat(5-d.seg)+'</span></b></div><div><small>Região</small><b style="font-size:11pt">'+d.bairro+'</b></div></div><div class="read"><span class="kick">Leitura do dia · '+e.ler[0]+'</span><p>'+e.ler[1]+'</p></div><div class="stops">'+d.stops.map(s=>'<div class="stop"><div class="h">'+s[0]+'</div><div class="c"><b>'+(s[4]?'<a class="maps" href="https://www.google.com/maps/search/?api=1&amp;query='+encodeURIComponent(s[4])+'">'+s[1]+' ↗</a>':s[1])+'</b><p>'+s[2]+'</p><div class="g">'+s[3].map(g=>'<span>'+g+'</span>').join('')+'</div></div></div>').join('')+'</div><div class="two2"><div class="mini"><b>Onde comer</b>'+e.comer.map(c=>'<p>'+c[0]+'<small>'+c[1]+'</small></p>').join('')+'</div><div class="mini"><b>Se chover</b><p>'+e.chuva+'</p></div></div><span class="kick" style="color:var(--mut)">Anotações do dia</span><div class="notes" style="margin-bottom:0;min-height:10mm"></div><div class="tip">'+ic('spark')+'<span><b>'+d.tip[0]+'</b>'+d.tip[1]+'</span></div></div>'+foot()+'</section>';
+   return '<section class="page"><div class="dayhead" style="background-image:url(/roteiros/jerusalem/'+d.img+'.jpg)">'+head('Dia '+(i+1)+' de 7',true)+'<div class="tt"><small>'+d.d+'</small><h2>'+d.t+'</h2></div></div><div class="in" style="padding-top:5mm;gap:4.5mm"><div class="meta"><div><small>'+(V.dias ? 'Gasto previsto para '+(V.pessoas>1?V.pessoas+' pessoas':'1 pessoa') : 'Gasto previsto por pessoa')+'</small><b>'+d.gasto+'</b></div><div><small>Segurança da área</small><b class="stars">'+'★'.repeat(d.seg)+'<span style="color:var(--line)">'+'★'.repeat(5-d.seg)+'</span></b></div><div><small>Região</small><b style="font-size:11pt">'+d.bairro+'</b></div></div><div class="read"><span class="kick">Leitura do dia · '+e.ler[0]+'</span><p>'+e.ler[1]+'</p></div><div class="stops">'+d.stops.map(s=>'<div class="stop"><div class="h">'+s[0]+'</div><div class="c"><b>'+(s[4]?'<a class="maps" href="'+esc(linkMaps(s[4]))+'">'+s[1]+' ↗</a>':s[1])+'</b><p>'+s[2]+'</p><div class="g">'+s[3].map(g=>'<span>'+g+'</span>').join('')+'</div></div>'+(s[4]?'<a class="qr" href="'+esc(linkMaps(s[4]))+'">'+qr(linkMaps(s[4]))+'</a>':'<span></span>')+'</div>').join('')+'</div><div class="two2"><div class="mini"><b>Onde comer</b>'+e.comer.map(c=>'<p>'+c[0]+'<small>'+c[1]+'</small></p>').join('')+'</div><div class="mini"><b>Se chover</b><p>'+e.chuva+'</p></div></div><span class="kick" style="color:var(--mut)">Anotações do dia</span><div class="notes" style="margin-bottom:0;min-height:0;flex:1 1 0"></div><div class="tip">'+ic('spark')+'<span><b>'+d.tip[0]+'</b>'+d.tip[1]+'</span></div></div>'+foot()+'</section>';
   });
   // Guias
   S.guias='<section class="page">'+head('Guias e passeios')+'<div class="in"><div><span class="kick">Para contratar se quiser</span><h2 class="t" style="margin-top:2mm">Empresas de guia e passeio mais conhecidas</h2><p class="mut" style="margin-top:2mm">Lista feita com IA a partir das empresas mais citadas por viajantes. Não temos parceria com elas. Confira avaliações recentes antes de contratar.</p></div><table class="gt"><thead><tr><th>Passeio</th><th>Empresas mais conhecidas</th><th>Faixa</th><th>Dia</th></tr></thead><tbody>'+
@@ -299,7 +336,7 @@ export function roteiroJerusalem(nomeCru, valores = {}) {
     ['Transfer para o aeroporto','Essencial no sábado','Sherut (táxi compartilhado) ou transfer privado','$','7']
    ].map(r=>'<tr><td><b>'+r[0]+'</b><small>'+r[1]+'</small></td><td>'+r[2]+'</td><td class="pr">'+r[3]+'</td><td>'+r[4]+'</td></tr>').join('')+'</tbody></table><div class="warnbox"><b>Como escolher</b><br>Prefira guias com licença do Ministério do Turismo de Israel, avaliações dos últimos 6 meses e cancelamento grátis até 24 horas antes.</div><p class="mut" style="font-size:8.5pt">$ até R$ 150 por pessoa · $$ de R$ 150 a R$ 600 · $$$ acima de R$ 600 (valores de referência)</p></div>'+foot()+'</section>';
   // Emergência
-  S.emergencia='<section class="page">'+head('Na viagem')+'<div class="in"><div><span class="kick">Guarde esta página</span><h2 class="t" style="margin-top:2mm">Emergência e frases úteis</h2></div><div class="em"><div><b>100</b>Polícia</div><div><b>101</b>Ambulância</div><div><b>102</b>Bombeiros</div></div><div class="card"><h3>'+ic('shield')+'Embaixada do Brasil em Tel Aviv</h3><p>Em caso de perda do passaporte ou emergência grave, ligue para o plantão consular: <b>+972 54 803 5858</b>. Endereço: Rua Yehuda Halevi, 23, 30º andar, Tel Aviv. Telefone geral: +972 3 797 1500.</p></div><table class="phr"><tbody>'+
+  S.emergencia='<section class="page">'+head('Na viagem')+'<div class="in"><div><span class="kick">Guarde esta página</span><h2 class="t" style="margin-top:2mm">Emergência e frases úteis</h2></div><div class="em" style="grid-template-columns:repeat(4,1fr)"><div><b>100</b>Polícia</div><div><b>101</b>Ambulância</div><div><b>102</b>Bombeiros</div><div><b>104</b>Alertas de segurança</div></div><div class="card"><h3>'+ic('shield')+'Embaixada do Brasil em Tel Aviv</h3><p>Em caso de perda do passaporte ou emergência grave, ligue para o plantão consular: <b>+972 54 803 5858</b>. Endereço: Rua Yehuda Halevi, 23, 30º andar, Tel Aviv. Telefone geral: +972 3 797 1500.</p><p>Plantão consular do Itamaraty, em Brasília, 24 horas: <b>+55 61 98260-0610</b>. O 104 é a central do Comando da Frente Interna de Israel, para alertas e abrigos.</p></div><table class="phr"><tbody>'+
    M.frases.map(r=>'<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>').join('')+'</tbody></table></div>'+foot()+'</section>';
   // Contracapa
   S.contracapa='<section class="page dark back">'+LOGO_E+'<h2 style="font-size:28pt">Boa viagem, '+PRIMEIRO+'.</h2><p style="opacity:.75;max-width:120mm">Quando voltar, conte para a gente como foi. Sua próxima viagem também pode caber no bolso.</p><p style="opacity:.6;font-size:9pt">vaidarviagem.com.br</p><p style="position:absolute;bottom:10mm;left:16mm;right:16mm;opacity:.45;font-size:7pt">Fotos: Wikimedia Commons. Jerusalem-2013(2) View of the Dome of the Rock; Western Wall at night (20063); Catholicon, Church of the Holy Sepulchre, Jerusalem1; Old Olive trees in the Garden of Gethsemane, 10; View of the Sea of Galilee; Mercado Mahane Yehuda Jerusalén 2 (CC BY-SA 3.0/4.0); Interior of the Church of the Nativity, Bethlehem (CC BY-SA 3.0).</p></section>';
@@ -330,5 +367,7 @@ export function roteiroJerusalem(nomeCru, valores = {}) {
   }).join("");
   ORDEM[1][3] = '<section class="page">' + head("Sumário") + '<div class="in" style="gap:2mm"><div><span class="kick">' + TOTAL + ' páginas</span><h2 class="t" style="margin-top:2mm">O que tem neste roteiro</h2><p class="mut" style="margin-top:2mm">Toque no título para ir direto à página.</p></div><div class="sumario">' + sumario + "</div></div>" + foot() + "</section>";
   const paginas = ORDEM.map((p, i) => p[3].replace("<section ", '<section id="' + p[0] + '" ').replace("@@PAG@@", "pág. " + (i + 1) + " de " + TOTAL)).join("");
-  return CABECA + '<div class="doc" id="doc">' + paginas + "</div>\n</body></html>";
+  // "Veja a página X": o número vem da ordem do sumário, nunca fixo no texto.
+  const comNumeros = paginas.replace(/@@PG:([a-z0-9]+)@@/g, (_, id) => String(ORDEM.findIndex(p => p[0] === id) + 1));
+  return CABECA + '<div class="doc" id="doc">' + comNumeros + "</div>\n</body></html>";
 }

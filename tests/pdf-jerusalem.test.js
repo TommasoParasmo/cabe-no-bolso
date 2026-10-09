@@ -51,3 +51,28 @@ test("PDF de Jerusalém: sumário com links e numeração pág. X de 38", () => 
   for (const id of [...h.matchAll(/<a href="#([a-z0-9]+)"/g)].map(m => m[1])) assert.match(h, new RegExp('<section id="' + id + '"'));
   assert.ok((h.match(/maps\/search\/\?api=1/g) || []).length >= 15);
 });
+
+test("PDF de Jerusalém: correções da revisão (Shabat, clima, QR, emergência, orçamento)", () => {
+  const v = { periodo: "07 a 13 de março de 2027", inicio: "2027-03-07", clima: { mes: 3, min: 8, max: 19 }, pessoas: 2,
+    passagens: 11780, hotel: 3534, noites: 6, comidaPasseios: 3220, transporte: 1060, sobra: 5406, dias: [280, 320, 260, 1150, 300, 340, 520] };
+  const h = roteiroJerusalem("Ana", v);
+  // 07/03/2027 é domingo, então o dia 7 (13/03) cai num sábado: sem trem para o aeroporto.
+  assert.match(h, /Sábado, 13\/03/);
+  assert.match(h, /Hoje é sábado e não tem trem/);
+  assert.match(h, /Clima em março/);
+  assert.match(h, /Para 7 dias em março/);
+  assert.match(h, /Os dias somam comida, passeios e transporte/);
+  // Começando numa segunda, o dia 5 é sexta e o 6 é sábado (Shabat fora do último dia).
+  const s = roteiroJerusalem("Ana", { ...v, inicio: "2027-03-08" });
+  assert.match(s, /Hoje é Shabat/);
+  // Referências de página resolvidas, sem marcador sobrando.
+  assert.doesNotMatch(h, /@@PG:|@@PAG@@/);
+  assert.match(h, /lista da página \d+/);
+  // QR codes nas paradas, emergência com 104 e plantão do Itamaraty.
+  assert.ok((h.match(/<a class="qr"/g) || []).length >= 15);
+  assert.match(h, /<svg[^>]*viewBox/);
+  assert.match(h, /104/);
+  assert.match(h, /98260-0610/);
+  assert.match(h, /Gruta do Leite/);
+  assert.match(h, /Igreja de Santa Catarina/);
+});
