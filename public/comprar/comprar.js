@@ -157,7 +157,11 @@ async function abrirCartao() {
     initialization: { amount: preco.cartao, payer: { email: dados.email } },
     customization: {
       paymentMethods: { maxInstallments: 1, minInstallments: 1, types: { excluded: ["debit_card", "prepaid_card"] } },
-      visual: { style: { theme: "default", customVariables: { baseColor: "#0D3532", buttonTextColor: "#FFFFFF", borderRadiusLarge: "14px" } } }
+      visual: {
+        style: { theme: "default", customVariables: { baseColor: "#0D3532", buttonTextColor: "#FFFFFF", borderRadiusLarge: "14px" } },
+        // Só crédito: o título padrão do Brick fala em "crédito ou débito".
+        texts: { formTitle: "Cartão de crédito", formSubmit: `Pagar ${brl(preco.cartao)}` }
+      }
     },
     callbacks: {
       onReady: () => {},
