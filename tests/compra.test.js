@@ -157,6 +157,20 @@ test("meta: a venda paga vai uma vez pela Conversions API com o número do pedid
   assert.equal(e.user_data.client_ip_address, "200.1.2.3");
   assert.match(e.user_data.em[0], /^[0-9a-f]{64}$/);
   assert.equal(env.LEADS.m.has("meta:ORD01PDF123"), false, "os dados saem do KV depois do envio");
+  assert.equal(meta[0].corpo.test_event_code, undefined, "sem código de teste, vai como evento normal");
+});
+
+test("meta: com META_TEST_EVENT_CODE a compra do servidor leva o código de teste", async () => {
+  const env = { MP_ACCESS_TOKEN: "tok", META_CAPI_TOKEN: "capi", META_TEST_EVENT_CODE: "TEST123", LEADS: kv() };
+  const mp = mercadoPago(pixCriado, pago);
+  const corpos = [];
+  const fetchFn = async (url, opts = {}) => {
+    if (String(url).includes("facebook")) { corpos.push(JSON.parse(opts.body)); return new Response("{}"); }
+    return mp.fetchFn(url, opts);
+  };
+  const { id, chave } = await criarCompra({ ...pedido, meta: { url: "https://vaidarviagem.com.br/comprar/" } }, env, fetchFn);
+  await situacaoCompra(id, chave, env, fetchFn);
+  assert.equal(corpos[0].test_event_code, "TEST123");
 });
 
 test("meta: pedido sem dados para a Meta (checkout antigo) ou sem token, nada vai para a Meta", async () => {

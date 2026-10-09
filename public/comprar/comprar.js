@@ -211,8 +211,9 @@ function emAnalise() {
 
 // ---- Pronto: link do PDF ----
 // `nova`: o pagamento acabou de ser confirmado nesta tela (não é quem voltou para baixar de novo).
-function pronto({ id, chave, preco: valor }, nova = false) {
-  if (nova) compraNoPixel(id, valor);
+// Pedido guardado antes do preço ir junto (Pix aberto em outra versão da página): usa o preço da tela.
+function pronto({ id, chave, preco: valor, forma: f }, nova = false) {
+  if (nova) compraNoPixel(id, valor || (f === "cartao" ? preco?.cartao : preco?.pix));
   clearTimeout(consulta); clearTimeout(relogio);
   localStorage.removeItem("vdv:pix:" + slug);
   localStorage.removeItem("vdv:cartao:" + slug);

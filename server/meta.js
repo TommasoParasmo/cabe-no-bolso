@@ -4,6 +4,8 @@
 // Vai para todos os compradores, com ou sem cookies aceitos (decisão do Tom, 09/10/2026; a política de privacidade
 // e o aviso de cookies dizem isso). Sem cookies, não há _fbp/_fbc: a Meta reconhece pelo e-mail (hash) e pelo IP.
 // Liga com META_CAPI_TOKEN na Cloudflare (token do Gerenciador de Eventos, nunca no código).
+// META_TEST_EVENT_CODE (opcional, o código TEST… de "Testar eventos") faz as compras do servidor aparecerem
+// naquela tela; sem ele, elas só aparecem na Visão geral. Tirar depois do teste.
 // Os dados para a Meta reconhecer a pessoa ficam em meta:<ORD> por 2 dias e saem do KV depois do envio.
 export const PIXEL_ID = "1648295673479841";
 const GUARDA_SEG = 2 * 86400;
@@ -38,9 +40,10 @@ export async function enviarCompraMeta(id, { slug, preco }, env, fetchFn = globa
   };
   const pixel = env.META_PIXEL_ID || PIXEL_ID;
   const r = await fetchFn(`https://graph.facebook.com/v21.0/${pixel}/events?access_token=${encodeURIComponent(env.META_CAPI_TOKEN)}`, {
-    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ data: [evento] })
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ data: [evento], ...(env.META_TEST_EVENT_CODE ? { test_event_code: String(env.META_TEST_EVENT_CODE) } : {}) })
   });
   if (!r.ok) throw new Error(`Meta ${r.status}`);
+  console.log("compra: Purchase enviado à Meta", evento.event_id);
   await env.LEADS.delete?.(chave(id));
   return true;
 }
