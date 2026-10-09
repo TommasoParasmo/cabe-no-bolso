@@ -59,7 +59,11 @@ test("compra: Pix com o preço da hora, referência própria e pedido guardado s
   await assert.rejects(criarCompra({ ...pedido, email: "x" }, env, fetchFn), CompraInvalida);
   await assert.rejects(criarCompra({ ...pedido, nome: "M" }, env, fetchFn), CompraInvalida);
   await assert.rejects(criarCompra({ ...pedido, destino: "rio" }, env, fetchFn), CompraInvalida);
+  // Preço que a pessoa viu diferente do de agora (a promoção acabou com a página aberta): não cobra.
+  await assert.rejects(criarCompra({ ...pedido, precoVisto: 1 }, env, fetchFn), /O preço mudou para R\$/);
   assert.equal(pedidos.length, 1);
+  await criarCompra({ ...pedido, precoVisto: precoDe("orlando", {}).pix }, env, fetchFn);
+  assert.equal(pedidos.length, 2);
 });
 
 test("compra: cartão só crédito à vista, com o token do Mercado Pago, e recusa em português", async () => {
