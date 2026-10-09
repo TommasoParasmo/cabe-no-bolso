@@ -131,8 +131,8 @@ function acompanhar() {
   clearTimeout(consulta);
   const ver = async () => {
     try {
-      const { status } = await postar({ acao: "situacao", id: pendente.id, chave: pendente.chave });
-      if (status === "pago") return pronto(pendente, true);
+      const { status, preco: pago } = await postar({ acao: "situacao", id: pendente.id, chave: pendente.chave });
+      if (status === "pago") return pronto({ ...pendente, preco: pago ?? pendente.preco }, true);
       if (status === "expirado") {
         localStorage.removeItem("vdv:pix:" + slug);
         localStorage.removeItem("vdv:cartao:" + slug);
@@ -211,9 +211,8 @@ function emAnalise() {
 
 // ---- Pronto: link do PDF ----
 // `nova`: o pagamento acabou de ser confirmado nesta tela (não é quem voltou para baixar de novo).
-// Pedido guardado antes do preço ir junto (Pix aberto em outra versão da página): usa o preço da tela.
-function pronto({ id, chave, preco: valor, forma: f }, nova = false) {
-  if (nova) compraNoPixel(id, valor || (f === "cartao" ? preco?.cartao : preco?.pix));
+function pronto({ id, chave, preco: valor }, nova = false) {
+  if (nova) compraNoPixel(id, valor);
   clearTimeout(consulta); clearTimeout(relogio);
   localStorage.removeItem("vdv:pix:" + slug);
   localStorage.removeItem("vdv:cartao:" + slug);

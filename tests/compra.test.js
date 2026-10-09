@@ -87,8 +87,8 @@ test("compra: libera só com a chave certa, order paga e da mesma compra; conta 
   const env = { MP_ACCESS_TOKEN: "tok", LEADS: kv() };
   const mp = mercadoPago(pixCriado, pago);
   const { id, chave } = await criarCompra(pedido, env, mp.fetchFn);
-  assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago" });
-  assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago" });
+  assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago", preco: 29.9 });
+  assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago", preco: 29.9 });
   assert.deepEqual(JSON.parse(env.LEADS.m.get("vendas:pdf:orlando")).n, 1);
   await assert.rejects(compraPaga(id, "0".repeat(32), env, mp.fetchFn), CompraInvalida);
   await assert.rejects(compraPaga(id, "nada", env, mp.fetchFn), CompraInvalida);
@@ -190,7 +190,7 @@ test("compra: preço configurado abaixo do da promoção libera a order paga nes
   const mp = mercadoPago(pixCriado, { ...pago, total_amount: "19.90" });
   const { id, chave } = await criarCompra(pedido, env, mp.fetchFn);
   assert.equal(mp.pedidos[0].corpo.total_amount, "19.90");
-  assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago" });
+  assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago", preco: 19.9 });
 });
 
 test("compra: recupera em outro aparelho com o número e o e-mail, e a chave antiga deixa de valer", async () => {
@@ -201,7 +201,7 @@ test("compra: recupera em outro aparelho com o número e o e-mail, e a chave ant
   const r = await recuperarCompra({ id: id.toLowerCase(), email: "MARIA@email.com" }, env, mp.fetchFn);
   assert.equal(r.destino, "orlando");
   assert.notEqual(r.chave, chave);
-  assert.deepEqual(await situacaoCompra(id, r.chave, env, mp.fetchFn), { status: "pago" });
+  assert.deepEqual(await situacaoCompra(id, r.chave, env, mp.fetchFn), { status: "pago", preco: 29.9 });
   await assert.rejects(compraPaga(id, chave, env, mp.fetchFn), CompraInvalida);
 });
 
