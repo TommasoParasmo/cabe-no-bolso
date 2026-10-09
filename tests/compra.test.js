@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { precoDe, criarCompra, situacaoCompra, compraPaga, recuperarCompra, motivoRecusa, CompraInvalida, NaoPago } from "../server/compra.js";
+import { enviarCompraMeta } from "../server/meta.js";
 import { htmlDaCompra, pdfDaCompra, nomeArquivo } from "../server/entrega.js";
 
 // KV falso (LEADS): get com "json" e "arrayBuffer", put e o que foi gravado.
@@ -78,6 +79,8 @@ test("compra: cartão só crédito à vista, com o token do Mercado Pago, e recu
   await assert.rejects(criarCompra({ ...pedido, forma: "cartao", cartao: { token: "abc123TOKEN", payment_method_id: "visa" } }, env, recusado.fetchFn), /limite/);
   await assert.rejects(criarCompra({ ...pedido, forma: "cartao", cartao: { token: "<x>", payment_method_id: "visa" } }, env, recusado.fetchFn), CompraInvalida);
   assert.match(motivoRecusa("cc_rejected_bad_filled_security_code"), /código de segurança/);
+  // Aprovado na hora: a venda já conta, sem esperar consulta da situação.
+  assert.equal(JSON.parse(env.LEADS.m.get("vendas:pdf:orlando")).n, 1);
 });
 
 test("compra: libera só com a chave certa, order paga e da mesma compra; conta a venda uma vez", async () => {
@@ -119,6 +122,53 @@ test("compra: a venda paga soma no anúncio de onde a pessoa veio (origem:AAAA-M
   const c = await criarCompra({ ...pedido, utm: { fonte: "<script>" } }, env2, mp.fetchFn);
   await situacaoCompra(c.id, c.chave, env2, mp.fetchFn);
   assert.deepEqual(JSON.parse([...env2.LEADS.m.entries()].find(([k]) => k.startsWith("origem:"))[1]).pdf, { direto: 1 });
+});
+
+test("meta: a venda paga vai uma vez pela Conversions API com o número do pedido como event_id", async () => {
+  const env = { MP_ACCESS_TOKEN: "tok", META_CAPI_TOKEN: "capi", LEADS: kv() };
+  env.LEADS.delete = async k => env.LEADS.m.delete(k);
+  const mp = mercadoPago(pixCriado, pago);
+  const meta = [];
+  const fetchFn = async (url, opts = {}) => {
+    if (String(url).startsWith("https://graph.facebook.com/")) { meta.push({ url, corpo: JSON.parse(opts.body) }); return new Response("{}"); }
+    return mp.fetchFn(url, opts);
+  };
+  const fbp = "fb.1.1700000000000.123456789";
+  const { id, chave } = await criarCompra({ ...pedido, meta: { fbp, fbc: "<x>", url: "https://outro.site/" } }, env, fetchFn, { ip: "200.1.2.3", ua: "Navegador" });
+  const guardado = env.LEADS.m.get("meta:ORD01PDF123");
+  assert.ok(guardado && !guardado.includes("maria@email.com"), "o e-mail fica só como hash");
+  // A Meta falha na primeira vez: a venda conta, e a próxima consulta manda de novo.
+  let falhar = true;
+  const comFalha = async (url, opts) => (String(url).includes("facebook") && falhar ? (falhar = false, new Response("{}", { status: 500 })) : fetchFn(url, opts));
+  await situacaoCompra(id, chave, env, comFalha);
+  assert.equal(meta.length, 0);
+  await situacaoCompra(id, chave, env, comFalha);
+  await situacaoCompra(id, chave, env, comFalha);
+  assert.equal(meta.length, 1);
+  assert.equal(JSON.parse(env.LEADS.m.get("vendas:pdf:orlando")).n, 1, "a venda conta uma vez só");
+  assert.match(meta[0].url, /graph\.facebook\.com\/v21\.0\/1648295673479841\/events\?access_token=capi$/);
+  const e = meta[0].corpo.data[0];
+  assert.equal(e.event_name, "Purchase");
+  assert.equal(e.event_id, "ORD01PDF123");
+  assert.deepEqual(e.custom_data, { value: 29.9, currency: "BRL", content_name: "orlando", content_ids: ["orlando"], content_type: "product" });
+  assert.equal(e.user_data.fbp, fbp);
+  assert.equal(e.user_data.fbc, undefined, "cookie fora do formato não vai");
+  assert.equal(e.event_source_url, "https://vaidarviagem.com.br/comprar/", "endereço de fora vira o do checkout");
+  assert.equal(e.user_data.client_ip_address, "200.1.2.3");
+  assert.match(e.user_data.em[0], /^[0-9a-f]{64}$/);
+  assert.equal(env.LEADS.m.has("meta:ORD01PDF123"), false, "os dados saem do KV depois do envio");
+});
+
+test("meta: pedido sem dados para a Meta (checkout antigo) ou sem token, nada vai para a Meta", async () => {
+  const env = { MP_ACCESS_TOKEN: "tok", META_CAPI_TOKEN: "capi", LEADS: kv() };
+  const mp = mercadoPago(pixCriado, pago);
+  let chamadas = 0;
+  const fetchFn = async (url, opts) => { if (String(url).includes("facebook")) chamadas++; return mp.fetchFn(url, opts); };
+  const { id, chave } = await criarCompra(pedido, env, fetchFn, { ip: "200.1.2.3" });
+  assert.equal(env.LEADS.m.has("meta:ORD01PDF123"), false);
+  await situacaoCompra(id, chave, env, fetchFn);
+  assert.equal(chamadas, 0);
+  assert.equal(await enviarCompraMeta("ORD1", { slug: "orlando", preco: "29.90" }, { LEADS: kv() }, fetchFn), false);
 });
 
 test("compra: preço configurado abaixo do da promoção libera a order paga nesse valor", async () => {

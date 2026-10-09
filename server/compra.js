@@ -8,6 +8,7 @@
 // A venda paga também soma em origem:AAAA-MM-DD (tipo "pdf"), com o anúncio de onde a pessoa veio, como os roteiros.
 import { lerCache, gravarCache } from "./cache.js";
 import { lerOrigem, registrarOrigem } from "./uso.js";
+import { guardarDadosMeta, enviarCompraMeta } from "./meta.js";
 
 const API = "https://api.mercadopago.com/v1/orders";
 export const DESTINOS_PDF = { jerusalem: "Jerusalém", orlando: "Orlando", chile: "Santiago do Chile", "buenos-aires": "Buenos Aires" };
@@ -65,7 +66,8 @@ function lerPedido(body) {
 const cabecalho = token => ({ Authorization: `Bearer ${token}`, "content-type": "application/json" });
 
 // Cria a order (Pix ou cartão) com o preço da hora e guarda o pedido. `cartao`: o que o Card Payment Brick devolve.
-export async function criarCompra(body, env, fetchFn = globalThis.fetch) {
+// `contexto`: IP e navegador de quem compra, só para a Meta e só com os cookies aceitos (ver server/meta.js).
+export async function criarCompra(body, env, fetchFn = globalThis.fetch, contexto = {}) {
   const { slug, nome, email, valores } = lerPedido(body);
   const forma = body?.forma === "cartao" ? "cartao" : "pix";
   const preco = precoDe(slug, env)[forma].toFixed(2);
@@ -105,9 +107,11 @@ export async function criarCompra(body, env, fetchFn = globalThis.fetch) {
   await env.LEADS.put(chaveCompra(order.id), JSON.stringify({
     slug, nome, valores, origem: lerOrigem(body), chave: await hash(chave), ref, forma, preco, conferir: await hash(`${String(order.id).toUpperCase()}:${email}`), criado: new Date().toISOString()
   }), { expirationTtl: GUARDA_DIAS * 86400 });
+  await guardarDadosMeta(order.id, { meta: body?.meta, email }, contexto, env).catch(e => console.error("compra: dados da Meta não guardados", e?.message));
   const base = { id: order.id, chave, forma, preco: Number(preco) };
   if (forma === "cartao") {
-    if (pago(order, preco)) return { ...base, status: "pago" };
+    // Cartão aprovado na hora: a tela vai direto para o PDF, sem consultar a situação, então a venda conta aqui.
+    if (pago(order, preco)) { await registrarVenda(order.id, { slug, origem: lerOrigem(body), preco }, env, fetchFn); return { ...base, status: "pago" }; }
     if (["failed", "canceled"].includes(order.status)) throw new CompraInvalida(motivoRecusa(order.status_detail));
     return { ...base, status: "esperando" };
   }
@@ -154,7 +158,7 @@ async function compraGuardada(id, chave, env) {
 }
 
 // Conta a venda uma vez só por order (venda:<ORD>), na primeira vez que ela aparece paga.
-async function contarVenda(id, slug, env, origem) {
+async function contarVenda(id, { slug, origem }, env) {
   const marca = `venda:${String(id).toUpperCase()}`;
   if (await env.LEADS.get(marca)) return;
   await env.LEADS.put(marca, "1", { expirationTtl: GUARDA_DIAS * 86400 });
@@ -163,13 +167,20 @@ async function contarVenda(id, slug, env, origem) {
   await registrarOrigem({ tipo: "pdf", origem: origem || "direto" }, env);
 }
 
+// Venda paga: conta (uma vez) e manda o Purchase para a Meta. O envio para a Meta tem a marca própria (meta:<ORD>,
+// apagada só quando a Meta aceita): se falhar, a próxima consulta da compra tenta de novo.
+async function registrarVenda(id, g, env, fetchFn) {
+  await contarVenda(id, g, env).catch(e => console.error("compra: venda não contada", e?.message));
+  await enviarCompraMeta(id, g, env, fetchFn).catch(e => console.error("compra: Purchase não foi para a Meta", e?.message));
+}
+
 // Confere no Mercado Pago que a order foi paga e é deste pedido. Devolve o pedido guardado.
 export async function compraPaga(id, chave, env, fetchFn = globalThis.fetch, agora = Date.now()) {
   const g = await compraGuardada(id, chave, env);
   const o = await lerOrder(id, env, fetchFn);
   if (o.external_reference !== g.ref) throw new CompraInvalida("Pedido não encontrado.");
   if (!pago(o, g.preco)) throw new NaoPago(["expired", "canceled", "failed"].includes(o.status) || venceu(o, agora) ? "expirado" : "esperando");
-  await contarVenda(id, g.slug, env, g.origem).catch(e => console.error("compra: venda não contada", e?.message));
+  await registrarVenda(id, g, env, fetchFn);
   return g;
 }
 

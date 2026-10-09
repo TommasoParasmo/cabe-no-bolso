@@ -61,11 +61,25 @@ function escolher(f) {
   $("continuar").textContent = f === "pix" ? "Gerar o Pix" : "Continuar para o cartão";
 }
 
+// Pixel da Meta: só existe quando a pessoa aceitou os cookies (/lib/cookies.js carrega o Pixel nesse caso).
+// O Purchase leva o número do pedido como eventID, o mesmo event_id que o servidor manda pela Conversions API
+// (server/meta.js) para todos os compradores: a Meta junta os dois e conta a compra uma vez.
+const cookie = nome => document.cookie.split("; ").find(c => c.startsWith(nome + "="))?.slice(nome.length + 1);
+const noPixel = (evento, valor, id) => window.fbq?.("track", evento,
+  { value: Number(valor), currency: "BRL", content_name: slug, content_ids: [slug], content_type: "product" }, id ? { eventID: id } : undefined);
+function compraNoPixel(id, valor) {
+  if (!valor || ler("vdv:pixel:" + id)) return;
+  noPixel("Purchase", valor, id);
+  guardar("vdv:pixel:" + id, 1);
+}
+
 function dadosDoFormulario() {
   const nome = $("nome").value.replace(/\s+/g, " ").trim(), email = $("email").value.trim();
   if (nome.length < 2) throw new Error("Escreva o nome que vai na capa.");
   if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) throw new Error("Confira o e-mail.");
-  return { destino: slug, nome, email, valores: valoresDaSimulacao(), utm: ler("vdv-origem", sessionStorage) || undefined };
+  return { destino: slug, nome, email, valores: valoresDaSimulacao(), utm: ler("vdv-origem", sessionStorage) || undefined,
+    // _fbp e _fbc só existem com o Pixel carregado (cookies aceitos); sem eles, a Meta usa o e-mail (hash) e o IP.
+    meta: { fbp: cookie("_fbp"), fbc: cookie("_fbc"), url: location.href } };
 }
 
 // Turnstile (o "não sou robô" invisível da Cloudflare), igual ao app.
@@ -92,7 +106,7 @@ function tokenTurnstile() {
 async function gerarPix() {
   const dados = dadosDoFormulario();
   const pix = await postar({ acao: "criar", forma: "pix", ...dados, precoVisto: preco?.pix, turnstile: await tokenTurnstile() });
-  pendente = { id: pix.id, chave: pix.chave, copiaECola: pix.copiaECola, qrCode: pix.qrCode, expiraEm: pix.expiraEm };
+  pendente = { id: pix.id, chave: pix.chave, preco: pix.preco, copiaECola: pix.copiaECola, qrCode: pix.qrCode, expiraEm: pix.expiraEm };
   guardar("vdv:pix:" + slug, pendente);
   telaPix();
 }
@@ -118,7 +132,7 @@ function acompanhar() {
   const ver = async () => {
     try {
       const { status } = await postar({ acao: "situacao", id: pendente.id, chave: pendente.chave });
-      if (status === "pago") return pronto(pendente);
+      if (status === "pago") return pronto(pendente, true);
       if (status === "expirado") {
         localStorage.removeItem("vdv:pix:" + slug);
         localStorage.removeItem("vdv:cartao:" + slug);
@@ -173,8 +187,8 @@ async function abrirCartao() {
         try {
           const r = await postar({ acao: "criar", forma: "cartao", ...dados, precoVisto: preco?.cartao, turnstile: await tokenTurnstile(),
             cartao: { token: formData.token, payment_method_id: formData.payment_method_id } });
-          if (r.status === "pago") return pronto(r);
-          pendente = { id: r.id, chave: r.chave, forma: "cartao" };
+          if (r.status === "pago") return pronto(r, true);
+          pendente = { id: r.id, chave: r.chave, preco: r.preco, forma: "cartao" };
           guardar("vdv:cartao:" + slug, pendente);
           emAnalise();
         } catch (e) {
@@ -196,7 +210,9 @@ function emAnalise() {
 }
 
 // ---- Pronto: link do PDF ----
-function pronto({ id, chave }) {
+// `nova`: o pagamento acabou de ser confirmado nesta tela (não é quem voltou para baixar de novo).
+function pronto({ id, chave, preco: valor }, nova = false) {
+  if (nova) compraNoPixel(id, valor);
   clearTimeout(consulta); clearTimeout(relogio);
   localStorage.removeItem("vdv:pix:" + slug);
   localStorage.removeItem("vdv:cartao:" + slug);
@@ -262,6 +278,7 @@ async function iniciar() {
     await atualizarPreco();
     if (!chavePublica) document.querySelector('[data-forma="cartao"]').hidden = true;
     if (preco.promocao) cronometroPromo(preco.ate);
+    noPixel("InitiateCheckout", preco.pix);
   } catch (e) { erro("erro-dados", e.message); }
 
   // Pix gerado e ainda no prazo (a pessoa recarregou a página ou foi pagar no app do banco): volta para ele.
