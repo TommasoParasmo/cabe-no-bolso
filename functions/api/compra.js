@@ -1,6 +1,6 @@
 // Compra do PDF por destino (checkout no site). Ações no corpo:
 // { acao: "preco", destino }                        → preço de agora (e o fim da promoção)
-// { acao: "criar", destino, nome, email, valores, forma: "pix" | "cartao", cartao?, turnstile? } → cria o pagamento
+// { acao: "criar", destino, nome, email, valores, forma: "pix" | "cartao", cartao?, utm?, turnstile? } → cria o pagamento
 // { acao: "situacao", id, chave }                   → "pago", "esperando" ou "expirado"
 // { acao: "recuperar", id, email }                  → chave nova para baixar o PDF em outro aparelho
 import { compraLigada, precoDe, criarCompra, situacaoCompra, recuperarCompra, dentroDoLimite, CompraInvalida, NaoPago } from "../../server/compra.js";

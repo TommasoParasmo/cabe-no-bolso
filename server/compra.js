@@ -5,7 +5,9 @@
 // Preço promocional de outubro de 2026: vale até OFERTA.ate (horário de Brasília) e depois passa ao preço "depois".
 // O checkout mostra um cronômetro até essa data, que é real e igual para todo mundo.
 // Tudo fica no KV (LEADS): compra:<ORD> (o pedido), vendas:pdf:<destino> (vendas pagas, para acompanhar) e venda:<ORD> (já contada).
+// A venda paga também soma em origem:AAAA-MM-DD (tipo "pdf"), com o anúncio de onde a pessoa veio, como os roteiros.
 import { lerCache, gravarCache } from "./cache.js";
+import { lerOrigem, registrarOrigem } from "./uso.js";
 
 const API = "https://api.mercadopago.com/v1/orders";
 export const DESTINOS_PDF = { jerusalem: "Jerusalém", orlando: "Orlando", chile: "Santiago do Chile", "buenos-aires": "Buenos Aires" };
@@ -101,7 +103,7 @@ export async function criarCompra(body, env, fetchFn = globalThis.fetch) {
     throw new Error(`Mercado Pago ${r.status}${codigo ? ` (${codigo})` : ""}`);
   }
   await env.LEADS.put(chaveCompra(order.id), JSON.stringify({
-    slug, nome, valores, chave: await hash(chave), ref, forma, preco, conferir: await hash(`${String(order.id).toUpperCase()}:${email}`), criado: new Date().toISOString()
+    slug, nome, valores, origem: lerOrigem(body), chave: await hash(chave), ref, forma, preco, conferir: await hash(`${String(order.id).toUpperCase()}:${email}`), criado: new Date().toISOString()
   }), { expirationTtl: GUARDA_DIAS * 86400 });
   const base = { id: order.id, chave, forma, preco: Number(preco) };
   if (forma === "cartao") {
@@ -152,12 +154,13 @@ async function compraGuardada(id, chave, env) {
 }
 
 // Conta a venda uma vez só por order (venda:<ORD>), na primeira vez que ela aparece paga.
-async function contarVenda(id, slug, env) {
+async function contarVenda(id, slug, env, origem) {
   const marca = `venda:${String(id).toUpperCase()}`;
   if (await env.LEADS.get(marca)) return;
   await env.LEADS.put(marca, "1", { expirationTtl: GUARDA_DIAS * 86400 });
   const v = (await env.LEADS.get(chaveVendas(slug), "json").catch(() => null)) || { n: 0 };
   await env.LEADS.put(chaveVendas(slug), JSON.stringify({ n: v.n + 1, ultima: new Date().toISOString() }));
+  await registrarOrigem({ tipo: "pdf", origem: origem || "direto" }, env);
 }
 
 // Confere no Mercado Pago que a order foi paga e é deste pedido. Devolve o pedido guardado.
@@ -166,7 +169,7 @@ export async function compraPaga(id, chave, env, fetchFn = globalThis.fetch, ago
   const o = await lerOrder(id, env, fetchFn);
   if (o.external_reference !== g.ref) throw new CompraInvalida("Pedido não encontrado.");
   if (!pago(o, g.preco)) throw new NaoPago(["expired", "canceled", "failed"].includes(o.status) || venceu(o, agora) ? "expirado" : "esperando");
-  await contarVenda(id, g.slug, env).catch(e => console.error("compra: venda não contada", e?.message));
+  await contarVenda(id, g.slug, env, g.origem).catch(e => console.error("compra: venda não contada", e?.message));
   return g;
 }
 
