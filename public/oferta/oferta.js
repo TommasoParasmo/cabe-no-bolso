@@ -252,7 +252,7 @@ function mostrar(v,org){
   try{sessionStorage.setItem('vdv:simulacao',JSON.stringify(simulacao))}catch{}
   const r=$('result');r.hidden=false;r.dataset.ok='1';r.scrollIntoView({block:'start'});
   $('mbar-s').textContent=ok?'Cabe no seu bolso':'Simulação pronta';
-  $('mbar-b').textContent=promo.promocao?brl(promo.pix)+' no Pix até 31/10':'Roteiro + Pré-viagem';
+  $('mbar-b').textContent='Aproveite uma oferta imperdível';
   $('mbar-a').textContent='Quero o roteiro';$('mbar-a').setAttribute('href','#oferta');
 }
 
