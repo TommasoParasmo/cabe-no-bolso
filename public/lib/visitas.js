@@ -1,13 +1,15 @@
-// Contador da página inicial: visualizações reais do site na última semana (estatística da Cloudflare).
-// Sem número (ou abaixo do mínimo), a linha continua escondida.
+// Contador de visualizações reais do site na última semana (estatística da Cloudflare), na página
+// inicial e no /app. Sem número (ou abaixo do mínimo), as linhas continuam escondidas.
 (async () => {
-  const el = document.getElementById("visitas");
-  if (!el) return;
+  const els = document.querySelectorAll("[data-visitas]");
+  if (!els.length) return;
   try {
     const r = await fetch("/api/visitas");
     const n = r.ok ? (await r.json())?.visitas?.semana : null;
     if (!Number.isFinite(n)) return;
-    el.textContent = `${n.toLocaleString("pt-BR")} visualizações do site nos últimos 7 dias`;
-    el.hidden = false;
+    for (const el of els) {
+      el.querySelector("[data-visitas-n]").textContent = n.toLocaleString("pt-BR");
+      el.hidden = false;
+    }
   } catch {}
 })();

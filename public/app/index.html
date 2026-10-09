@@ -40,6 +40,13 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; le
 .link:hover { text-decoration: underline; }
 
 /* Topo */
+.visitas { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 8px 0 18px; padding: 12px 18px; border-radius: 999px; background: var(--goldbg); color: var(--goldink); border: 1px solid var(--gold); font-size: 16px; text-align: center; }
+.visitas[hidden] { display: none; }
+.visitas strong { font-size: 20px; color: var(--deep); font-weight: 800; }
+.visitas .pulso { width: 10px; height: 10px; border-radius: 50%; background: #E0533D; flex: none; animation: pulso 1.6s ease-out infinite; }
+@keyframes pulso { 0% { box-shadow: 0 0 0 0 rgba(224, 83, 61, .55); } 100% { box-shadow: 0 0 0 12px rgba(224, 83, 61, 0); } }
+@media (prefers-reduced-motion: reduce) { .visitas .pulso { animation: none; } }
+@media (max-width: 700px) { .visitas { font-size: 14px; border-radius: 16px; } .visitas strong { font-size: 17px; } }
 .brand { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 22px 4px; }
 .brand h1 { line-height: 0; }
 .marca { display: block; line-height: 0; }
@@ -487,6 +494,8 @@ button.voando .frase { display: inline-block; animation: frase 2.4s ease both; }
     <nav aria-label="Site"><a href="/#como-funciona">Como funciona</a><a href="/#destinos">Destinos</a></nav>
   </header>
 
+  <p class="visitas" data-visitas hidden><span class="pulso" aria-hidden="true"></span><span><strong data-visitas-n></strong> visualizações do Vai Dar Viagem nos últimos 7 dias</span></p>
+
   <div class="sim">
   <aside class="side">
     <div>
@@ -615,6 +624,7 @@ button.voando .frase { display: inline-block; animation: frase 2.4s ease both; }
   <p class="fine">Passagens: preços encontrados no Aviasales a partir de buscas recentes, ou estimativa quando não há busca para a rota. Hospedagem, comida e passeios: médias estimadas por destino. Confira os valores nos sites parceiros antes de reservar. Alguns links geram comissão, sem custo extra para você.</p>
   <p class="fine">Vai Dar Viagem · <a href="mailto:contato@vaidarviagem.com.br">contato@vaidarviagem.com.br</a> · <a href="/termos.html">Termos de uso</a> · <a href="/privacidade.html">Política de privacidade</a> · <a href="/termos.html#reembolso">Reembolso</a> · <a href="/privacidade.html#cookies" data-cookies>Cookies</a></p>
 </div>
+<script src="/lib/visitas.js" defer></script>
 <script type="module" src="./app.js"></script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});</script>
 </body>
