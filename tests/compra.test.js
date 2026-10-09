@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { precoDe, criarCompra, situacaoCompra, compraPaga, recuperarCompra, motivoRecusa, CompraInvalida, NaoPago } from "../server/compra.js";
+import { enviarCompraMeta } from "../server/meta.js";
 import { htmlDaCompra, pdfDaCompra, nomeArquivo } from "../server/entrega.js";
 
 // KV falso (LEADS): get com "json" e "arrayBuffer", put e o que foi gravado.
@@ -119,6 +120,47 @@ test("compra: a venda paga soma no anúncio de onde a pessoa veio (origem:AAAA-M
   const c = await criarCompra({ ...pedido, utm: { fonte: "<script>" } }, env2, mp.fetchFn);
   await situacaoCompra(c.id, c.chave, env2, mp.fetchFn);
   assert.deepEqual(JSON.parse([...env2.LEADS.m.entries()].find(([k]) => k.startsWith("origem:"))[1]).pdf, { direto: 1 });
+});
+
+test("meta: com cookies aceitos, a venda paga vai uma vez pela Conversions API com o número do pedido como event_id", async () => {
+  const env = { MP_ACCESS_TOKEN: "tok", META_CAPI_TOKEN: "capi", LEADS: kv() };
+  env.LEADS.delete = async k => env.LEADS.m.delete(k);
+  const mp = mercadoPago(pixCriado, pago);
+  const meta = [];
+  const fetchFn = async (url, opts = {}) => {
+    if (String(url).startsWith("https://graph.facebook.com/")) { meta.push({ url, corpo: JSON.parse(opts.body) }); return new Response("{}"); }
+    return mp.fetchFn(url, opts);
+  };
+  const fbp = "fb.1.1700000000000.123456789";
+  const { id, chave } = await criarCompra({ ...pedido, meta: { fbp, fbc: "<x>", url: "https://outro.site/" } }, env, fetchFn, { ip: "200.1.2.3", ua: "Navegador" });
+  const guardado = env.LEADS.m.get("meta:ORD01PDF123");
+  assert.ok(guardado && !guardado.includes("maria@email.com"), "o e-mail fica só como hash");
+  await situacaoCompra(id, chave, env, fetchFn);
+  await situacaoCompra(id, chave, env, fetchFn);
+  assert.equal(meta.length, 1);
+  assert.match(meta[0].url, /graph\.facebook\.com\/v21\.0\/1648295673479841\/events\?access_token=capi$/);
+  const e = meta[0].corpo.data[0];
+  assert.equal(e.event_name, "Purchase");
+  assert.equal(e.event_id, "ORD01PDF123");
+  assert.deepEqual(e.custom_data, { value: 29.9, currency: "BRL", content_name: "orlando", content_ids: ["orlando"], content_type: "product" });
+  assert.equal(e.user_data.fbp, fbp);
+  assert.equal(e.user_data.fbc, undefined, "cookie fora do formato não vai");
+  assert.equal(e.event_source_url, "https://vaidarviagem.com.br/comprar/", "endereço de fora vira o do checkout");
+  assert.equal(e.user_data.client_ip_address, "200.1.2.3");
+  assert.match(e.user_data.em[0], /^[0-9a-f]{64}$/);
+  assert.equal(env.LEADS.m.has("meta:ORD01PDF123"), false, "os dados saem do KV depois do envio");
+});
+
+test("meta: sem cookies aceitos ou sem token, nada vai para a Meta", async () => {
+  const env = { MP_ACCESS_TOKEN: "tok", META_CAPI_TOKEN: "capi", LEADS: kv() };
+  const mp = mercadoPago(pixCriado, pago);
+  let chamadas = 0;
+  const fetchFn = async (url, opts) => { if (String(url).includes("facebook")) chamadas++; return mp.fetchFn(url, opts); };
+  const { id, chave } = await criarCompra(pedido, env, fetchFn, { ip: "200.1.2.3" });
+  assert.equal(env.LEADS.m.has("meta:ORD01PDF123"), false);
+  await situacaoCompra(id, chave, env, fetchFn);
+  assert.equal(chamadas, 0);
+  assert.equal(await enviarCompraMeta("ORD1", { slug: "orlando", preco: "29.90" }, { LEADS: kv() }, fetchFn), false);
 });
 
 test("compra: preço configurado abaixo do da promoção libera a order paga nesse valor", async () => {

@@ -1,6 +1,6 @@
 // Compra do PDF por destino (checkout no site). Ações no corpo:
 // { acao: "preco", destino }                        → preço de agora (e o fim da promoção)
-// { acao: "criar", destino, nome, email, valores, forma: "pix" | "cartao", cartao?, utm?, turnstile? } → cria o pagamento
+// { acao: "criar", destino, nome, email, valores, forma: "pix" | "cartao", cartao?, utm?, meta?, turnstile? } → cria o pagamento
 // { acao: "situacao", id, chave }                   → "pago", "esperando" ou "expirado"
 // { acao: "recuperar", id, email }                  → chave nova para baixar o PDF em outro aparelho
 import { compraLigada, precoDe, criarCompra, situacaoCompra, recuperarCompra, dentroDoLimite, CompraInvalida, NaoPago } from "../../server/compra.js";
@@ -29,7 +29,7 @@ export async function onRequestPost({ request, env }) {
       case "criar":
         await conferirTurnstile(body.turnstile, ip, env);
         if (!(await dentroDoLimite("compra", ip))) return json({ erro: "Muitos pagamentos gerados agora. Espere um pouco e tente de novo." }, 429);
-        return json(await criarCompra(body, env));
+        return json(await criarCompra(body, env, globalThis.fetch, { ip, ua: request.headers.get("user-agent") }));
       default: return json({ erro: "Pedido inválido." }, 400);
     }
   } catch (e) {
