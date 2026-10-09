@@ -65,7 +65,7 @@ function dadosDoFormulario() {
   const nome = $("nome").value.replace(/\s+/g, " ").trim(), email = $("email").value.trim();
   if (nome.length < 2) throw new Error("Escreva o nome que vai na capa.");
   if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) throw new Error("Confira o e-mail.");
-  return { destino: slug, nome, email, valores: valoresDaSimulacao() };
+  return { destino: slug, nome, email, valores: valoresDaSimulacao(), utm: ler("vdv-origem", sessionStorage) || undefined };
 }
 
 // Turnstile (o "não sou robô" invisível da Cloudflare), igual ao app.
