@@ -110,7 +110,8 @@ export async function criarCompra(body, env, fetchFn = globalThis.fetch, context
   await guardarDadosMeta(order.id, { meta: body?.meta, email }, contexto, env).catch(e => console.error("compra: dados da Meta não guardados", e?.message));
   const base = { id: order.id, chave, forma, preco: Number(preco) };
   if (forma === "cartao") {
-    if (pago(order, preco)) return { ...base, status: "pago" };
+    // Cartão aprovado na hora: a tela vai direto para o PDF, sem consultar a situação, então a venda conta aqui.
+    if (pago(order, preco)) { await registrarVenda(order.id, { slug, origem: lerOrigem(body), preco }, env, fetchFn); return { ...base, status: "pago" }; }
     if (["failed", "canceled"].includes(order.status)) throw new CompraInvalida(motivoRecusa(order.status_detail));
     return { ...base, status: "esperando" };
   }
@@ -157,14 +158,20 @@ async function compraGuardada(id, chave, env) {
 }
 
 // Conta a venda uma vez só por order (venda:<ORD>), na primeira vez que ela aparece paga.
-async function contarVenda(id, { slug, origem, preco }, env, fetchFn) {
+async function contarVenda(id, { slug, origem }, env) {
   const marca = `venda:${String(id).toUpperCase()}`;
   if (await env.LEADS.get(marca)) return;
   await env.LEADS.put(marca, "1", { expirationTtl: GUARDA_DIAS * 86400 });
   const v = (await env.LEADS.get(chaveVendas(slug), "json").catch(() => null)) || { n: 0 };
   await env.LEADS.put(chaveVendas(slug), JSON.stringify({ n: v.n + 1, ultima: new Date().toISOString() }));
   await registrarOrigem({ tipo: "pdf", origem: origem || "direto" }, env);
-  await enviarCompraMeta(id, { slug, preco }, env, fetchFn).catch(e => console.error("compra: Purchase não foi para a Meta", e?.message));
+}
+
+// Venda paga: conta (uma vez) e manda o Purchase para a Meta. O envio para a Meta tem a marca própria (meta:<ORD>,
+// apagada só quando a Meta aceita): se falhar, a próxima consulta da compra tenta de novo.
+async function registrarVenda(id, g, env, fetchFn) {
+  await contarVenda(id, g, env).catch(e => console.error("compra: venda não contada", e?.message));
+  await enviarCompraMeta(id, g, env, fetchFn).catch(e => console.error("compra: Purchase não foi para a Meta", e?.message));
 }
 
 // Confere no Mercado Pago que a order foi paga e é deste pedido. Devolve o pedido guardado.
@@ -173,7 +180,7 @@ export async function compraPaga(id, chave, env, fetchFn = globalThis.fetch, ago
   const o = await lerOrder(id, env, fetchFn);
   if (o.external_reference !== g.ref) throw new CompraInvalida("Pedido não encontrado.");
   if (!pago(o, g.preco)) throw new NaoPago(["expired", "canceled", "failed"].includes(o.status) || venceu(o, agora) ? "expirado" : "esperando");
-  await contarVenda(id, g, env, fetchFn).catch(e => console.error("compra: venda não contada", e?.message));
+  await registrarVenda(id, g, env, fetchFn);
   return g;
 }
 

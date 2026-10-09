@@ -79,6 +79,8 @@ test("compra: cartão só crédito à vista, com o token do Mercado Pago, e recu
   await assert.rejects(criarCompra({ ...pedido, forma: "cartao", cartao: { token: "abc123TOKEN", payment_method_id: "visa" } }, env, recusado.fetchFn), /limite/);
   await assert.rejects(criarCompra({ ...pedido, forma: "cartao", cartao: { token: "<x>", payment_method_id: "visa" } }, env, recusado.fetchFn), CompraInvalida);
   assert.match(motivoRecusa("cc_rejected_bad_filled_security_code"), /código de segurança/);
+  // Aprovado na hora: a venda já conta, sem esperar consulta da situação.
+  assert.equal(JSON.parse(env.LEADS.m.get("vendas:pdf:orlando")).n, 1);
 });
 
 test("compra: libera só com a chave certa, order paga e da mesma compra; conta a venda uma vez", async () => {
@@ -135,9 +137,15 @@ test("meta: com cookies aceitos, a venda paga vai uma vez pela Conversions API c
   const { id, chave } = await criarCompra({ ...pedido, meta: { fbp, fbc: "<x>", url: "https://outro.site/" } }, env, fetchFn, { ip: "200.1.2.3", ua: "Navegador" });
   const guardado = env.LEADS.m.get("meta:ORD01PDF123");
   assert.ok(guardado && !guardado.includes("maria@email.com"), "o e-mail fica só como hash");
-  await situacaoCompra(id, chave, env, fetchFn);
-  await situacaoCompra(id, chave, env, fetchFn);
+  // A Meta falha na primeira vez: a venda conta, e a próxima consulta manda de novo.
+  let falhar = true;
+  const comFalha = async (url, opts) => (String(url).includes("facebook") && falhar ? (falhar = false, new Response("{}", { status: 500 })) : fetchFn(url, opts));
+  await situacaoCompra(id, chave, env, comFalha);
+  assert.equal(meta.length, 0);
+  await situacaoCompra(id, chave, env, comFalha);
+  await situacaoCompra(id, chave, env, comFalha);
   assert.equal(meta.length, 1);
+  assert.equal(JSON.parse(env.LEADS.m.get("vendas:pdf:orlando")).n, 1, "a venda conta uma vez só");
   assert.match(meta[0].url, /graph\.facebook\.com\/v21\.0\/1648295673479841\/events\?access_token=capi$/);
   const e = meta[0].corpo.data[0];
   assert.equal(e.event_name, "Purchase");
