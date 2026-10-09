@@ -53,7 +53,7 @@ para o que fica fora do desenho.
 ## `dias`
 
 7 × `{ img, d: "Chegada · de carro" (até 35), t: título até 45, gasto: "R$ 280" (referência por pessoa),
-seg: 1–5, bairro: até 28, destaque: [kick até 40, frase até 110], stops: [4 × [hora, lugar, texto até 115,
+seg: 1–5, bairro: até 28, destaque: [kick até 40, frase até 110], stops: [4 × [hora, lugar, texto até 75 (uma linha),
 [2 chips curtos], busca no Maps em inglês ou espanhol, ou omitida para paradas sem lugar]], comer: [2 × [lugar
 até 70, "R$ 40 a R$ 70 por pessoa"]], chuva: até 140, tip: [título, texto até 150], semana?: { dias: [0–6],
 senao: [título, texto] } }`.
