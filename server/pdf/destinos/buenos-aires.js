@@ -380,7 +380,7 @@ export default {
       ["R$ 50 em pesos", "Menú ejecutivo no almoço"],
       ["R$ 50 em pesos", "Show sem jantar, ou só a milonga"],
       ["Cartão", "Colonia Express costuma custar menos"],
-      ["R$ 40 em pesos", "Passeio grátis: feira ou Bosques"]
+      ["R$ 40 em pesos", "Bosques de Palermo"]
     ],
     fora: "como o seguro viagem e o traslado do aeroporto na chegada e na volta",
     nota: "Dinheiro vivo por pessoa, em pesos, para gorjeta, feira e lugares sem cartão. Os valores em reais são de referência: os preços em pesos mudam rápido."
@@ -493,5 +493,5 @@ export default {
     ]
   },
 
-  creditos: "Buenos Aires, La Boca, Caminito 200807i; San Pedro Telmo (4729482264) (CC BY 2.0); Obelisco de Buenos Aires at sunset; Puente de la Mujer, Puerto Madero (CC BY-SA 4.0); El Viejo Almacén de Buenos Aires (CC BY-SA 2.0); Calle De Los Suspiros, Colonia del Sacramento (CC BY-SA 3.0)."
+  creditos: "<a href='https://commons.wikimedia.org/wiki/File:Buenos_Aires_-_La_Boca_-_Caminito_-_200807i.jpg' style='color:inherit'>“Buenos Aires - La Boca - Caminito - 200807i”</a>, Luis Argerich (<a href='https://creativecommons.org/licenses/by/2.0/' style='color:inherit'>CC BY 2.0</a>); <a href='https://commons.wikimedia.org/wiki/File:San_Pedro_Telmo_(4729482264' style='color:inherit'>“San Pedro Telmo (4729482264)”</a>, Jorge Láscar (<a href='https://creativecommons.org/licenses/by/2.0/' style='color:inherit'>CC BY 2.0</a>); <a href='https://commons.wikimedia.org/wiki/File:Obelisco_de_Buenos_Aires_at_sunset.jpg' style='color:inherit'>“Obelisco de Buenos Aires at sunset”</a>, Dpalma01 (<a href='https://creativecommons.org/licenses/by-sa/4.0/' style='color:inherit'>CC BY-SA 4.0</a>); <a href='https://commons.wikimedia.org/wiki/File:Puente_de_la_Mujer_-_Puerto_Madero_-_Buenos_Aires_-_Argentina.jpg' style='color:inherit'>“Puente de la Mujer - Puerto Madero - Buenos Aires - Argentina”</a>, Hernan Pablo (<a href='https://creativecommons.org/licenses/by-sa/4.0/' style='color:inherit'>CC BY-SA 4.0</a>); <a href='https://commons.wikimedia.org/wiki/File:El_Viejo_Almacén_de_Buenos_Aires.jpg' style='color:inherit'>“El Viejo Almacén de Buenos Aires”</a>, bastique (<a href='https://creativecommons.org/licenses/by-sa/2.0/' style='color:inherit'>CC BY-SA 2.0</a>); <a href='https://commons.wikimedia.org/wiki/File:Calle_De_Los_Suspiros,_Colonia_del_Sacramento.jpg' style='color:inherit'>“Calle De Los Suspiros, Colonia del Sacramento”</a>, Banfield (<a href='https://creativecommons.org/licenses/by-sa/3.0/' style='color:inherit'>CC BY-SA 3.0</a>). Endereços: commons.wikimedia.org (cada foto) e creativecommons.org/licenses (cada licença); os nomes acima são links."
 };
