@@ -26,8 +26,8 @@
     if (document.getElementById("cookies-aviso")) return;
     const css = document.createElement("style");
     css.textContent = `
-#cookies-aviso{position:fixed;left:0;right:0;bottom:0;z-index:1000;padding:6px 10px calc(6px + env(safe-area-inset-bottom));background:rgba(16,38,36,.96);color:#E4EFED;font:13px/1.35 "Segoe UI",system-ui,sans-serif;display:flex;gap:6px 10px;align-items:center;justify-content:center}
-#cookies-aviso p{margin:0;flex:0 1 auto}
+#cookies-aviso{position:fixed;left:0;right:0;bottom:0;z-index:1000;padding:6px 10px calc(6px + env(safe-area-inset-bottom));background:rgba(16,38,36,.96);color:#E4EFED;font:13px/1.35 "Segoe UI",system-ui,sans-serif;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:center}
+#cookies-aviso p{margin:0;flex:1 1 150px;max-width:max-content}
 #cookies-aviso a{color:#7FD8CF}
 #cookies-aviso .botoes{display:flex;gap:6px;flex:none}
 #cookies-aviso button{font:inherit;font-weight:600;min-height:44px;padding:0 12px;border-radius:8px;border:1.5px solid #E4EFED;background:transparent;color:#E4EFED;cursor:pointer}
