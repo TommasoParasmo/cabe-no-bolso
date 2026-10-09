@@ -209,6 +209,9 @@ test("mapa offline: só aparece com link, soma ao mesmo pagamento e o link vai s
   assert.deepEqual(JSON.parse(env.LEADS.m.get("vendas:pdf:orlando")).mapa, 1);
   const rec = await recuperarCompra({ id: c.id, email: "maria@email.com" }, env, fetchFn);
   assert.equal(rec.mapa, "https://maps.app.goo.gl/abc123");
+  // MAPAS_OFFLINE mudou depois da compra: quem pagou continua recebendo o link guardado no pedido.
+  delete env.MAPAS_OFFLINE;
+  assert.equal((await situacaoCompra(c.id, rec.chave, env, fetchFn)).mapa, "https://maps.app.goo.gl/abc123");
 
   // Comprou sem o mapa: o link não vai, mesmo com o destino tendo mapa.
   const env2 = { MP_ACCESS_TOKEN: "tok", MAPAS_OFFLINE: MAPAS, LEADS: kv() };

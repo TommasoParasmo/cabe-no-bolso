@@ -121,7 +121,7 @@ export async function criarCompra(body, env, fetchFn = globalThis.fetch, context
     throw new Error(`Mercado Pago ${r.status}${codigo ? ` (${codigo})` : ""}`);
   }
   await env.LEADS.put(chaveCompra(order.id), JSON.stringify({
-    slug, nome, valores, origem: lerOrigem(body), chave: await hash(chave), ref, forma, preco, ...(mapa ? { mapa: true } : {}), conferir: await hash(`${String(order.id).toUpperCase()}:${email}`), criado: new Date().toISOString()
+    slug, nome, valores, origem: lerOrigem(body), chave: await hash(chave), ref, forma, preco, ...(mapa ? { mapa: linkMapa(slug, env) } : {}), conferir: await hash(`${String(order.id).toUpperCase()}:${email}`), criado: new Date().toISOString()
   }), { expirationTtl: GUARDA_DIAS * 86400 });
   await guardarDadosMeta(order.id, { meta: body?.meta, email }, contexto, env).catch(e => console.error("compra: dados da Meta não guardados", e?.message));
   const base = { id: order.id, chave, forma, preco: Number(preco) };
@@ -138,8 +138,13 @@ export async function criarCompra(body, env, fetchFn = globalThis.fetch, context
   return { ...base, status: "esperando", copiaECola: pm.qr_code, qrCode: pm.qr_code_base64 || null, expiraEm };
 }
 
-// O que vai junto com o PDF para quem pagou: o link do mapa offline, se comprou.
-const entrega = (g, env) => (g.mapa && linkMapa(g.slug, env) ? { mapa: linkMapa(g.slug, env) } : {});
+// O que vai junto com o PDF para quem pagou: o link do mapa offline, se comprou. Vale o link de agora (um mapa
+// corrigido chega a quem já comprou); sem ele (MAPAS_OFFLINE mudou ou quebrou), o link guardado na compra.
+function entrega(g, env) {
+  if (!g.mapa) return {};
+  const l = linkMapa(g.slug, env) || (typeof g.mapa === "string" ? g.mapa : null);
+  return l ? { mapa: l } : {};
+}
 
 // Motivos de recusa do cartão em português simples (status_detail ou código de erro do Mercado Pago).
 export function motivoRecusa(det = "") {
