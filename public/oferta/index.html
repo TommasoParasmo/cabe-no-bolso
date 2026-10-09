@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<script>/* O endereço .pages.dev é só da hospedagem: quem cair nele vai para o site. */if (location.hostname.endsWith(".pages.dev")) location.replace("https://vaidarviagem.com.br" + location.pathname + location.search + location.hash);</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vai Dar Viagem</title>
+<meta name="description" content="Coloque quanto você tem e quantas pessoas vão: a gente mostra, em reais, se os 7 dias cabem no seu bolso. E o Roteiro Detalhado + Pré-viagem em PDF.">
+<meta property="og:locale" content="pt_BR">
+<link rel="icon" href="/marca/icone-32.png" type="image/png">
+<link rel="apple-touch-icon" href="/marca/icone-180.png">
+<meta name="theme-color" content="#0D3532">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Páginas de oferta por destino (/jerusalem, /orlando, /chile, /buenos-aires), para os anúncios: destino fixo, calculadora já preenchida,
+   veredito com o mesmo cálculo do app e a oferta do Roteiro Detalhado + Pré-viagem, que leva ao checkout com a simulação. */
+:root{
+  --paper:#F7F8F6; --surf:#FFFFFF; --ink:#102624; --mut:#557370; --line:#D7E2E0; --chip:#E8F0EF;
+  --deep:#0D3532; --acc:#0E6E6A; --gold:#E2B23F; --goldbg:#FBF1D8; --goldink:#7A5A0E;
+  --ok:#1E8A4C; --warn:#A86A00; --on:#FFFFFF;
+  --display:"Bricolage Grotesque","Arial Narrow",system-ui,sans-serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 var(--body);-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--display);font-weight:800;letter-spacing:-.02em;line-height:1.04;margin:0;text-wrap:balance}
+p{margin:0}
+a{color:inherit}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--gold);outline-offset:3px;border-radius:6px}
+.wrap{max-width:1180px;margin-inline:auto;padding-inline:clamp(16px,4vw,40px)}
+.num{font-variant-numeric:tabular-nums}
+.kick{font:700 13px/1 var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--acc)}
+.dark{color:var(--on)}
+.dark .kick{color:var(--gold)}
+.gold{color:var(--gold)}
+
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:54px;padding:0 24px;border-radius:14px;border:0;background:var(--gold);color:var(--deep);font-weight:700;font-size:17px;text-decoration:none;transition:transform .15s,filter .15s}
+.btn:hover{filter:brightness(1.05);transform:translateY(-1px)}
+.btn.block{width:100%}
+.btn.deep{background:var(--deep);color:var(--on)}
+.btn.line{background:transparent;color:var(--deep);box-shadow:inset 0 0 0 1.5px var(--deep)}
+
+/* Topo */
+.hero{position:relative;background:var(--deep) center 40%/cover no-repeat;isolation:isolate}
+.hero::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,rgba(13,53,50,.96) 0%,rgba(13,53,50,.8) 42%,rgba(13,53,50,.25) 100%),linear-gradient(180deg,rgba(13,53,50,.2) 0%,rgba(13,53,50,0) 30%,rgba(13,53,50,.75) 100%)}
+.nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:20px}
+.nav img{height:48px;width:auto}
+.vagas{display:inline-flex;align-items:center;gap:8px;background:rgba(226,178,63,.16);border:1px solid rgba(226,178,63,.55);color:var(--on);border-radius:999px;padding:7px 14px;font-weight:700;font-size:14px}
+.vagas i{width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 4px rgba(226,178,63,.25)}
+.hgrid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.95fr);gap:56px;align-items:center;padding-block:28px 88px}
+.hero h1{font-size:clamp(40px,5.6vw,70px);margin-top:14px}
+.hero .lead{font-size:19px;opacity:.88;max-width:36ch;margin-top:20px}
+.proof{display:flex;gap:28px;flex-wrap:wrap;margin-top:28px}
+.proof div{display:grid}
+.proof strong{font:800 26px var(--display);color:var(--gold)}
+.proof span{font-size:14px;opacity:.75}
+
+/* Calculadora */
+.calc{background:var(--surf);color:var(--ink);border-radius:28px;overflow:hidden;box-shadow:0 30px 70px rgba(0,0,0,.3)}
+.calc .top{background:var(--goldbg);color:var(--goldink);padding:14px 24px;display:flex;gap:10px;align-items:center;font-weight:600;font-size:14px}
+.calc .top b{color:var(--deep)}
+.calc form{padding:24px;display:grid;gap:18px}
+.fixed{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fix{background:var(--chip);border-radius:14px;padding:10px 14px;display:grid}
+.fix small{font-size:12px;color:var(--mut);font-weight:600}
+.fix b{font-size:16px;display:flex;gap:6px;align-items:center}
+.f{display:grid;gap:8px;min-width:0;align-content:start}
+.f label,.lbl{font-weight:600;font-size:14px;color:var(--mut)}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.two>*{min-width:0}
+.inp{display:flex;align-items:center;gap:10px;height:56px;padding:0 16px;border:1px solid var(--line);border-radius:14px;background:var(--surf)}
+.inp:focus-within{border:2px solid var(--deep);padding:0 15px}
+.inp input,.inp select{all:unset;flex:1;min-width:0;font-weight:600;color:var(--ink)}
+.money{display:flex;align-items:baseline;gap:8px;border-bottom:2px solid var(--gold);padding-bottom:6px}
+.money span{font:700 24px var(--display);color:var(--mut)}
+.money input{all:unset;font:800 46px/1.05 var(--display);letter-spacing:-.03em;color:var(--deep);width:100%;min-width:0}
+.quick{display:flex;flex-wrap:wrap;gap:8px}
+.quick button{background:var(--chip);color:var(--ink);border:0;border-radius:999px;padding:7px 14px;font-weight:600;font-size:14px;min-height:36px}
+.quick button[aria-pressed="true"]{background:var(--deep);color:var(--on)}
+.step{display:flex;align-items:center;justify-content:space-between;height:56px;border:1px solid var(--line);border-radius:14px;padding:0 6px}
+.step button{width:44px;height:44px;border-radius:10px;border:0;background:var(--chip);font-size:22px;font-weight:700;color:var(--deep)}
+.step output{font:800 22px var(--display)}
+.help{font-size:13px;color:var(--mut)}
+
+/* Resultado */
+.result{background:var(--surf);border-radius:28px;padding:28px;display:grid;gap:18px;box-shadow:0 20px 50px rgba(13,53,50,.08);margin-top:-48px;position:relative}
+.verd{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;justify-content:space-between}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-weight:700;font-size:14px}
+.pill.ok{background:var(--ok);color:var(--on)}
+.pill.no{background:var(--goldbg);color:var(--goldink)}
+.result h2{font-size:clamp(30px,4vw,44px);margin-top:10px}
+.result .ctx{color:var(--mut)}
+.dates{background:var(--deep);color:var(--on);border-radius:18px;padding:16px 20px;display:grid;gap:2px;min-width:240px}
+.dates small{opacity:.7;font-size:13px}
+.dates b{font:800 24px var(--display);color:var(--gold)}
+.bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--chip)}
+.bar span{display:block;height:100%}
+.rows{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.rw{background:var(--paper);border-radius:14px;padding:12px 14px;display:grid;gap:2px}
+.rw small{display:flex;gap:8px;align-items:center;color:var(--mut);font-size:13px;font-weight:600}
+.rw small i{width:10px;height:10px;border-radius:50%}
+.rw b{font:800 20px var(--display)}
+.fine{font-size:12px;color:var(--mut)}
+.nextstep{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+
+section.block{padding-block:80px}
+.head{display:grid;gap:12px;margin-bottom:36px;max-width:720px}
+.head h2{font-size:clamp(32px,4vw,46px)}
+.head p{color:var(--mut);font-size:18px}
+
+/* Dores */
+.pains{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+.pain{background:var(--surf);border-radius:22px;padding:24px;display:grid;gap:10px;align-content:start}
+.pain .q{font:700 20px/1.2 var(--display)}
+.pain p{color:var(--mut);font-size:15px}
+.pain .a{color:var(--acc);font-weight:700;font-size:15px;display:flex;gap:8px;align-items:flex-start}
+
+/* Roteiro */
+.days{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.day{position:relative;border-radius:22px;min-height:300px;padding:22px;display:flex;align-items:flex-end;color:var(--on);background:var(--deep) center/cover;isolation:isolate;overflow:hidden}
+.day::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(13,53,50,0) 30%,rgba(13,53,50,.94) 100%)}
+.day small{color:var(--gold);font-weight:700}
+.day h3{font-size:26px;margin-block:4px 6px}
+.day p{opacity:.8;font-size:14px}
+.day.lock{background:var(--deep)}
+.day.lock::after{content:"";position:absolute;inset:0;z-index:-1;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);background:rgba(13,53,50,.35)}
+.day.lock .lk{position:absolute;top:18px;right:18px;background:var(--gold);color:var(--deep);border-radius:999px;padding:5px 12px;font-weight:700;font-size:13px;display:flex;gap:6px;align-items:center}
+.daysmore{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.daysmore span{background:var(--chip);border-radius:999px;padding:8px 14px;font-weight:600;font-size:14px}
+
+/* Oferta */
+.offerwrap{background:var(--deep);color:var(--on)}
+.ogrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:48px;align-items:start}
+.scar{display:grid;gap:10px;background:rgba(255,255,255,.06);border:1px solid rgba(226,178,63,.45);border-radius:20px;padding:20px}
+.scar b{font:800 22px var(--display)}
+.scar b em{font-style:normal;color:var(--gold)}
+.cd{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.cd span{background:rgba(255,255,255,.08);border-radius:12px;padding:10px 4px;text-align:center;font-size:12px;opacity:.9;display:grid;gap:2px}.cd em{font:800 28px var(--display);font-style:normal;color:var(--gold)}
+.scar p{font-size:14px;opacity:.75}
+.plans{display:grid;gap:16px}
+.plan{background:var(--surf);color:var(--ink);border-radius:24px;padding:26px;display:grid;gap:14px;position:relative;border:2px solid transparent}
+.plan.rec{border-color:var(--gold)}
+.plan .badge{position:absolute;top:-13px;left:24px;background:var(--gold);color:var(--deep);border-radius:999px;padding:4px 12px;font-weight:700;font-size:13px}
+.plan h3{font-size:26px}
+.plan .pr{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.plan .pr strong{font:800 40px var(--display);color:var(--deep)}
+.plan .pr span{color:var(--mut);font-size:14px}
+.checks{list-style:none;margin:0;padding:0;display:grid;gap:9px}
+.checks li{display:flex;gap:10px;align-items:flex-start;font-weight:500;font-size:15px}
+.checks svg{flex:none;margin-top:1px;color:var(--ok)}
+.dark .checks svg{color:var(--gold)}
+.pre{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px}
+.guar{display:flex;gap:12px;align-items:center;font-size:14px;opacity:.85;margin-top:6px}
+.pics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}
+.pics img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:16px;display:block}
+
+/* Perguntas */
+.faq{display:grid;gap:12px;max-width:820px}
+details{background:var(--surf);border-radius:18px;padding:0 22px}
+summary{list-style:none;cursor:pointer;min-height:64px;display:flex;align-items:center;justify-content:space-between;gap:12px;font:700 18px var(--display)}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-size:26px;color:var(--acc);flex:none}
+details[open] summary::after{content:"–"}
+details p{color:var(--mut);padding-bottom:20px}
+
+footer{background:var(--deep);color:var(--on);padding-block:36px 120px;margin-top:80px}
+footer .wrap{display:grid;gap:16px}
+footer img{height:44px}
+footer p{font-size:12px;opacity:.65;max-width:110ch}
+footer a{color:inherit}
+.ferro{color:#B3261E;font-size:14px;font-weight:600}
+[hidden]{display:none!important}
+
+/* Barra fixa no celular */
+.mbar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surf);box-shadow:0 -8px 30px rgba(13,53,50,.15);padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:none;gap:12px;align-items:center}
+.mbar div{flex:1;display:grid;line-height:1.2}
+.mbar small{font-size:12px;color:var(--mut)}
+.mbar b{font-size:15px}
+.mbar .btn{min-height:48px;font-size:15px;padding:0 18px}
+
+@media (max-width:960px){.hgrid,.ogrid{grid-template-columns:1fr}.pains{grid-template-columns:1fr 1fr}.days{grid-template-columns:1fr 1fr}.rows{grid-template-columns:1fr 1fr}.hgrid{gap:32px;padding-bottom:72px}}
+@media (max-width:600px){
+  .pains,.days{grid-template-columns:1fr}.day{min-height:240px}
+  .hero .lead{font-size:17px}.proof{gap:20px}.proof strong{font-size:22px}
+  .calc form{padding:20px}.money input{font-size:40px}
+  .result{padding:22px;border-radius:24px}.dates{min-width:0;width:100%}
+  .pre{grid-template-columns:1fr}.nav img{height:40px}.vagas{font-size:13px;padding:6px 12px}
+  .mbar{display:flex}
+}
+</style>
+<style>
+.vs{margin-top:28px;background:var(--surf);border-radius:22px;padding:24px;box-shadow:0 10px 30px rgba(13,53,50,.06)}
+.vsh{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.vsh h3{font-size:22px}
+.upd{background:var(--goldbg);color:var(--goldink);border-radius:999px;padding:6px 12px;font-weight:700;font-size:13px}
+.vs table{width:100%;border-collapse:collapse;font-size:15px}
+.vs th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);padding:8px 10px;border-bottom:1.5px solid var(--line)}
+.vs th:last-child{color:var(--acc)}
+.vs td{padding:11px 10px;border-bottom:1px solid var(--line)}
+.vs td.y{font-weight:700;color:var(--ok)}
+.vs td.n{color:var(--mut)}
+.vs td:last-child{background:rgba(14,110,106,.06)}
+.anc{font-size:14px;color:var(--mut)}.plan .card{margin-top:-8px;font-size:15px;color:var(--ink)}.hupd{display:inline-block;margin:14px 0 18px}
+.anc b{color:var(--deep)}
+@media (max-width:600px){.vs{padding:16px}.vs table{font-size:13.5px}.vs td,.vs th{padding:9px 6px}}
+</style>
+<style>
+.spg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.sp{background:var(--surf);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 10px 30px rgba(13,53,50,.08)}
+.sp .pg{position:relative;background:var(--chip);padding:18px 18px 0;overflow:hidden;height:260px}
+.sp .pg img{width:100%;display:block;border-radius:6px 6px 0 0;box-shadow:0 8px 24px rgba(13,53,50,.18)}
+.sp .pg::after{content:"";position:absolute;left:0;right:0;bottom:0;height:46%;background:linear-gradient(180deg,rgba(232,240,239,0),rgba(232,240,239,.92) 70%);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);mask-image:linear-gradient(180deg,transparent,#000 45%);-webkit-mask-image:linear-gradient(180deg,transparent,#000 45%)}
+.sp .pg span{position:absolute;z-index:2;left:50%;bottom:14px;transform:translateX(-50%);background:var(--deep);color:var(--on);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;white-space:nowrap}
+.sp .tx{padding:18px 20px 22px;display:grid;gap:6px}
+.sp .tx small{color:var(--acc);font-weight:700;font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+.sp .tx b{font:700 19px/1.2 var(--display)}
+.sp .tx p{color:var(--mut);font-size:15px}
+.sumario{margin-top:28px;background:var(--deep);color:var(--on);border-radius:22px;padding:24px;display:grid;gap:14px}
+.sumario b{font:800 22px var(--display)}
+.sumario b em{font-style:normal;color:var(--gold)}
+.sumario div{display:flex;flex-wrap:wrap;gap:8px}
+.sumario span{background:rgba(255,255,255,.1);border-radius:999px;padding:6px 12px;font-size:14px;font-weight:600}
+@media (max-width:960px){.spg{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:14px;padding-bottom:8px;margin-inline:calc(-1*clamp(16px,4vw,40px));padding-inline:clamp(16px,4vw,40px)}.sp{flex:0 0 78%;scroll-snap-align:start}}
+</style>
+<style>
+.thumbs{display:grid;gap:10px;background:var(--paper);border-radius:16px;padding:14px}
+.thumbs .tr{display:flex;justify-content:center;padding:6px 0}
+.thumbs img{width:22%;max-width:96px;aspect-ratio:210/297;object-fit:cover;border-radius:4px;box-shadow:0 6px 16px rgba(13,53,50,.22);background:#fff;margin-inline:-6px}
+.thumbs img:nth-child(odd){transform:rotate(-4deg)}.thumbs img:nth-child(even){transform:rotate(3deg) translateY(4px)}
+.thumbs img:nth-child(3){position:relative;z-index:2;transform:scale(1.08)}
+.thumbs span{text-align:center;font-weight:700;color:var(--deep);font-size:15px}
+</style>
+
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0112 2.5a7 7 0 017 7C19 14.8 12 21 12 21z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="9.5" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M8 11V8a4 4 0 018 0v3" fill="none" stroke="currentColor" stroke-width="2.2"/></symbol>
+  <symbol id="spark" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+</svg>
+
+<style>
+</style>
+
+
+<header class="hero dark" id="hero">
+  <div class="wrap">
+    <nav class="nav"><img src="/marca/logo-escuro.png" alt="Vai Dar Viagem"><a class="vagas so-promo" href="#oferta" data-scroll><i></i><span>Promoção de outubro: <b class="t-cd">termina em breve</b></span></a></nav>
+    <div class="hgrid">
+      <div>
+        <span class="kick" id="kick"></span>
+        <h1 id="h1"></h1>
+        <p class="lead" id="lead"></p><span class="upd hupd">Roteiro atualizado em outubro de 2026</span>
+        <div class="proof" id="proof"></div>
+      </div>
+      <div class="calc" id="calc">
+        <div class="top"><svg width="18" height="18"><use href="#spark"/></svg><span><span class="t-nome"></span> já está escolhido. Faltam <b>só 2 respostas</b>.</span></div>
+        <form id="form" novalidate>
+          <div class="fixed">
+            <div class="fix"><small>Destino</small><b><svg width="16" height="16"><use href="#pin"/></svg><span class="t-nome"></span></b></div>
+            <div class="fix"><small>Duração</small><b>7 dias</b></div>
+          </div>
+          <div class="f">
+            <label for="valor">Quanto você tem para a viagem toda?</label>
+            <div class="money"><span>R$</span><input id="valor" inputmode="numeric" aria-describedby="valor-help"></div>
+            <div class="quick" id="quick"></div>
+            <span class="help" id="valor-help">Contando passagem, hotel, comida e passeios de todo mundo.</span>
+          </div>
+          <div class="two">
+            <div class="f"><span class="lbl" id="pes-l">Pessoas</span><div class="step" role="group" aria-labelledby="pes-l"><button type="button" id="menos" aria-label="Menos uma pessoa">−</button><output id="pessoas" aria-live="polite">2</output><button type="button" id="mais" aria-label="Mais uma pessoa">+</button></div></div>
+            <div class="f"><label for="mes">Mês</label><div class="inp"><svg width="20" height="20" style="color:var(--mut)"><use href="#cal"/></svg><select id="mes"></select></div></div>
+          </div>
+          <div class="f"><label for="origem">Saindo de</label><div class="inp"><svg width="20" height="20" style="color:var(--mut)"><use href="#pin"/></svg><select id="origem"><option>São Paulo</option><option>Rio de Janeiro</option><option>Belo Horizonte</option><option>Brasília</option><option>Recife</option><option>Curitiba</option></select></div></div>
+          <button class="btn block" type="submit">Ver se cabe no meu bolso</button>
+          <p class="ferro" id="ferro" role="alert" hidden></p>
+        </form>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <section class="result" id="result" aria-live="polite" hidden>
+    <div class="verd">
+      <div>
+        <span class="pill ok" id="pill"></span>
+        <h2 id="vtitle"></h2>
+        <p class="ctx" id="vctx"></p>
+      </div>
+      <div class="dates"><small>Os 7 dias da viagem</small><b id="vdates"></b><small id="vmes"></small></div>
+    </div>
+    <div class="bar" id="bar" aria-hidden="true"></div>
+    <div class="rows" id="rows"></div>
+    <p class="fine">Estimativa: passagem pela busca dos parceiros (ou pela média, quando não há preço), hotel, comida e passeios pelas médias de cada cidade. Os valores mudam todo dia.</p>
+    <div class="nextstep"><a class="btn" href="#oferta" data-scroll>Quero o roteiro desses 7 dias</a><a class="btn line" href="#roteiro" data-scroll>Ver o roteiro primeiro</a></div>
+  </section>
+</div>
+
+<section class="block">
+  <div class="wrap">
+    <div class="head"><span class="kick">Por que tanta gente adia</span><h2 id="painh"></h2></div>
+    <div class="pains" id="pains"></div>
+  </div>
+</section>
+
+<section class="block" id="roteiro" style="padding-top:0">
+  <div class="wrap">
+    <div class="head"><span class="kick">O roteiro</span><h2 id="roth"></h2><p>Um dia de cada vez, com horário, como chegar e quanto vai gastar.</p></div>
+    <div class="days" id="days"></div>
+    <div class="daysmore" id="daysmore"></div>
+  </div>
+</section>
+
+<section class="block" id="spoilers" style="padding-top:0">
+  <div class="wrap">
+    <div class="head"><span class="kick">Spoiler do roteiro</span><h2 id="sph"></h2><p>Algumas páginas de verdade do PDF. O resto você recebe depois do Pix.</p></div>
+    <div class="spg" id="spg"></div>
+    <div class="sumario" id="sumario"></div>
+    <div class="vs">
+      <div class="vsh"><h3>Roteiro grátis da internet x Roteiro Detalhado</h3><span class="upd">Atualizado em outubro de 2026</span></div>
+      <table><thead><tr><th></th><th>Grátis</th><th>Roteiro Detalhado</th></tr></thead><tbody>
+        <tr><td>Lista de lugares para visitar</td><td class="y">Sim</td><td class="y">Sim</td></tr>
+        <tr><td>A viagem inteira, dia a dia, com horários</td><td class="n">Não</td><td class="y">Sim</td></tr>
+        <tr><td>Pré-viagem: documentos, dinheiro e mala</td><td class="n">Não</td><td class="y">Sim</td></tr>
+        <tr><td>Quanto gastar em cada dia, em reais</td><td class="n">Não</td><td class="y">Sim</td></tr>
+        <tr><td>QR code do Google Maps em cada lugar</td><td class="n">Não</td><td class="y">Sim</td></tr>
+        <tr><td>Segurança da área de cada dia</td><td class="n">Não</td><td class="y">Sim</td></tr>
+        <tr><td>Data de atualização</td><td class="n">Quase nunca</td><td class="y">Outubro de 2026</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</section>
+
+<section class="block offerwrap dark" id="oferta">
+  <div class="wrap ogrid">
+    <div>
+      <span class="kick so-promo">Promoção de outubro</span><span class="kick so-normal" hidden>Roteiro Detalhado + Pré-viagem</span>
+      <h2 class="so-normal" style="font-size:clamp(32px,4vw,48px);margin-block:12px 18px" hidden>A viagem inteira de <span class="t-nome"></span>, dia a dia, em PDF</h2>
+      <h2 class="so-promo" style="font-size:clamp(32px,4vw,48px);margin-block:12px 18px">Preço promocional de <span class="t-nome"></span> só até 31 de outubro</h2>
+      <p class="so-promo" style="opacity:.8;font-size:18px;margin-bottom:22px">Este valor vale para compras feitas até 31 de outubro. Em novembro, o preço sobe para R$ 39,90 no Pix e R$ 44,90 no cartão.</p>
+      <div class="scar so-promo">
+        <b>A promoção termina em</b>
+        <div class="cd" id="cd" aria-live="off"><span><em id="cd-d">00</em>dias</span><span><em id="cd-h">00</em>horas</span><span><em id="cd-m">00</em>min</span><span><em id="cd-s">00</em>seg</span></div>
+        <p>Até 31/10 às 23h59, horário de Brasília.</p>
+      </div>
+      <div class="pics" id="pics"></div>
+    </div>
+    <div class="plans">
+      <div class="plan rec">
+        <span class="badge">Tudo incluído</span>
+        <h3>Roteiro Detalhado + Pré-viagem</h3>
+        <div class="pr"><strong class="num" id="preco-pix">R$ 29,90</strong><span>no Pix</span></div><p class="card">ou <b id="preco-cartao">R$ 34,90 no cartão de crédito</b></p>
+        <p class="anc" id="anc"></p>
+        <div class="thumbs" id="thumbs"><div class="tr" id="tr"></div><span id="tp"></span></div>
+        <ul class="checks" id="checks">
+          <li><svg width="20" height="20"><use href="#check"/></svg>Os 7 dias completos, com horário real de cada lugar</li>
+          <li><svg width="20" height="20"><use href="#check"/></svg>Como ir de um lugar ao outro e quanto custa</li>
+          <li><svg width="20" height="20"><use href="#check"/></svg>Segurança da área de cada dia, de 1 a 5</li>
+          <li><svg width="20" height="20"><use href="#check"/></svg>Indicação das empresas de guia e passeio mais conhecidas, para contratar se quiser</li>
+          <li><svg width="20" height="20"><use href="#check"/></svg>PDF com o seu nome na capa</li>
+        </ul>
+        <div style="background:var(--goldbg);border-radius:16px;padding:16px;display:grid;gap:10px">
+          <b style="color:var(--goldink)">Pré-viagem: tudo pronto antes de embarcar</b>
+          <ul class="checks pre" id="pre"></ul>
+        </div>
+        <a class="btn block buy" href="/comprar/">Quero meu roteiro</a>
+      </div>
+      <div class="guar"><svg width="26" height="26" class="gold"><use href="#shield"/></svg><span>Não gostou? Devolvemos o dinheiro em até 7 dias, sem perguntas.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <div class="head"><span class="kick">Dúvidas</span><h2>Antes de comprar</h2></div>
+    <div class="faq" id="faq"></div>
+  </div>
+</section>
+
+<footer><div class="wrap"><img src="/marca/logo-escuro.png" alt="Vai Dar Viagem"><p>Preços de passagens e hotéis fornecidos por parceiros. Alguns links podem gerar comissão, sem custo extra para você. © 2026 Vai Dar Viagem. <a href="/privacidade.html">Política de privacidade</a> · <a href="/termos.html">Termos de uso</a> · <a href="#" data-cookies>Cookies</a></p><p id="credits"></p></div></footer>
+
+<div class="mbar" id="mbar"><div><small id="mbar-s">Promoção de outubro</small><b id="mbar-b">termina em breve</b></div><a class="btn" href="#calc" id="mbar-a" data-scroll>Ver se cabe</a></div>
+
+<script src="/lib/cookies.js"></script>
+<script src="/lib/origem.js"></script>
+<script src="/oferta/oferta.js" type="module"></script>
+</body>
+</html>
