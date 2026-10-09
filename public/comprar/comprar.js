@@ -224,8 +224,11 @@ function pronto({ id, chave, preco: valor, comMapa: levou, mapa }, nova = false)
   localStorage.removeItem("vdv:cartao:" + slug);
   guardar("vdv:compra:" + slug, { id, chave, ...(mapa ? { mapa } : {}) });
   $("baixar").href = "/api/pdf?" + new URLSearchParams({ id, chave });
-  $("abrir-mapa").hidden = !mapa;
-  if (mapa) $("abrir-mapa").href = mapa;
+  $("mapa-pronto").hidden = !mapa;
+  if (mapa) {
+    $("abrir-mapa").href = mapa;
+    $("baixar-mapa").href = "/api/mapa?" + new URLSearchParams({ id, chave });
+  }
   $("num-pedido").textContent = id;
   mostrar("pronto");
 }

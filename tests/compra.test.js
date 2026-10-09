@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { precoDe, criarCompra, situacaoCompra, compraPaga, recuperarCompra, motivoRecusa, CompraInvalida, NaoPago } from "../server/compra.js";
+import { precoDe, criarCompra, situacaoCompra, mapaDaCompra, compraPaga, recuperarCompra, motivoRecusa, CompraInvalida, NaoPago } from "../server/compra.js";
 import { enviarCompraMeta } from "../server/meta.js";
 import { htmlDaCompra, pdfDaCompra, nomeArquivo } from "../server/entrega.js";
 
@@ -209,6 +209,10 @@ test("mapa offline: só aparece com link, soma ao mesmo pagamento e o link vai s
   assert.deepEqual(JSON.parse(env.LEADS.m.get("vendas:pdf:orlando")).mapa, 1);
   const rec = await recuperarCompra({ id: c.id, email: "maria@email.com" }, env, fetchFn);
   assert.equal(rec.mapa, "https://maps.app.goo.gl/abc123");
+  // O arquivo para usar sem internet (KML) sai só para quem pagou com o mapa.
+  const arq = await mapaDaCompra(c.id, rec.chave, env, fetchFn);
+  assert.equal(arq.slug, "orlando");
+  assert.match(arq.kml, /^<\?xml[\s\S]*<kml[\s\S]*Magic Kingdom/);
   // MAPAS_OFFLINE mudou depois da compra: quem pagou continua recebendo o link guardado no pedido.
   delete env.MAPAS_OFFLINE;
   assert.equal((await situacaoCompra(c.id, rec.chave, env, fetchFn)).mapa, "https://maps.app.goo.gl/abc123");
@@ -219,6 +223,7 @@ test("mapa offline: só aparece com link, soma ao mesmo pagamento e o link vai s
   const c2 = await criarCompra({ ...pedido, precoVisto: 29.9 }, env2, mp2.fetchFn);
   assert.deepEqual(await situacaoCompra(c2.id, c2.chave, env2, mp2.fetchFn), { status: "pago" });
   assert.equal(JSON.parse(env2.LEADS.m.get("vendas:pdf:orlando")).mapa, undefined);
+  await assert.rejects(mapaDaCompra(c2.id, c2.chave, env2, mp2.fetchFn), CompraInvalida);
 });
 
 test("compra: recupera em outro aparelho com o número e o e-mail, e a chave antiga deixa de valer", async () => {

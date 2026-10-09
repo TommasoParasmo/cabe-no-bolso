@@ -10,6 +10,7 @@
 import { lerCache, gravarCache } from "./cache.js";
 import { lerOrigem, registrarOrigem } from "./uso.js";
 import { guardarDadosMeta, enviarCompraMeta } from "./meta.js";
+import { MAPAS_KML } from "./mapas-kml.js";
 
 const API = "https://api.mercadopago.com/v1/orders";
 export const DESTINOS_PDF = { jerusalem: "Jerusalém", orlando: "Orlando", chile: "Santiago do Chile", "buenos-aires": "Buenos Aires" };
@@ -18,7 +19,8 @@ export const DESTINOS_PDF = { jerusalem: "Jerusalém", orlando: "Orlando", chile
 export const OFERTA = { ate: "2026-11-01T00:00:00-03:00", pix: "29.90", cartao: "34.90", depois: { pix: "39.90", cartao: "44.90" } };
 // Mapa offline (order bump): caixinha no checkout que soma ao mesmo pagamento. Só aparece para o destino que tem
 // link do mapa (Google Maps, feito pelo time de Produto). MAPAS_OFFLINE na Cloudflare junta ou troca links sem mexer
-// no código, em JSON ({"orlando":"https://maps.app.goo.gl/..."}). O link só vai para quem pagou com o mapa.
+// no código, em JSON ({"orlando":"https://maps.app.goo.gl/..."}). O link só vai para quem pagou com o mapa, junto com
+// o arquivo KML do destino (server/mapas-kml.js, por /api/mapa): o link do Google só abre com internet, o KML não.
 export const MAPA = { preco: "9.90", links: {} };
 export const VALIDADE_MIN = 60;
 const GUARDA_DIAS = 400;
@@ -206,6 +208,13 @@ export async function compraPaga(id, chave, env, fetchFn = globalThis.fetch, ago
   if (!pago(o, g.preco)) throw new NaoPago(["expired", "canceled", "failed"].includes(o.status) || venceu(o, agora) ? "expirado" : "esperando");
   await registrarVenda(id, g, env, fetchFn);
   return g;
+}
+
+// Arquivo do mapa offline (KML, para o Organic Maps) de uma compra paga que levou o mapa.
+export async function mapaDaCompra(id, chave, env, fetchFn = globalThis.fetch) {
+  const g = await compraPaga(id, chave, env, fetchFn);
+  if (!g.mapa || !Object.hasOwn(MAPAS_KML, g.slug)) throw new CompraInvalida("Esse pedido não tem mapa offline.");
+  return { slug: g.slug, kml: MAPAS_KML[g.slug] };
 }
 
 // Situação para o checkout: "pago", "esperando" ou "expirado".
