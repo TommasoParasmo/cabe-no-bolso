@@ -26,17 +26,17 @@
     if (document.getElementById("cookies-aviso")) return;
     const css = document.createElement("style");
     css.textContent = `
-#cookies-aviso{position:fixed;left:12px;right:12px;bottom:12px;z-index:1000;max-width:560px;margin:0 auto;padding:14px 16px;border-radius:12px;background:#102624;color:#E4EFED;font:15px/1.45 "Segoe UI",system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.25);display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
-#cookies-aviso p{margin:0;flex:1 1 260px}
+#cookies-aviso{position:fixed;left:0;right:0;bottom:0;z-index:1000;padding:8px 12px calc(8px + env(safe-area-inset-bottom));background:rgba(16,38,36,.96);color:#E4EFED;font:13px/1.35 "Segoe UI",system-ui,sans-serif;display:flex;gap:8px 12px;align-items:center;justify-content:center}
+#cookies-aviso p{margin:0;flex:0 1 auto}
 #cookies-aviso a{color:#7FD8CF}
-#cookies-aviso .botoes{display:flex;gap:8px}
-#cookies-aviso button{font:inherit;font-weight:600;padding:8px 18px;border-radius:8px;border:2px solid #7FD8CF;background:transparent;color:#E4EFED;cursor:pointer}
+#cookies-aviso .botoes{display:flex;gap:6px;flex:none}
+#cookies-aviso button{font:inherit;font-weight:600;padding:5px 12px;border-radius:6px;border:1.5px solid #7FD8CF;background:transparent;color:#E4EFED;cursor:pointer}
 @media print{#cookies-aviso{display:none}}`;
     const aviso = document.createElement("div");
     aviso.id = "cookies-aviso";
     aviso.setAttribute("role", "region");
     aviso.setAttribute("aria-label", "Aviso de cookies");
-    aviso.innerHTML = `<p>Usamos cookies da Meta para medir quem chega pelos nossos anúncios. Você escolhe. <a href="/privacidade.html">Saiba mais</a></p>
+    aviso.innerHTML = `<p>Usamos cookies para medir nossos anúncios. <a href="/privacidade.html">Saiba mais</a></p>
 <div class="botoes"><button type="button" data-escolha="sim">Aceitar</button><button type="button" data-escolha="nao">Recusar</button></div>`;
     aviso.addEventListener("click", ev => {
       const escolha = ev.target.closest("button")?.dataset.escolha;
