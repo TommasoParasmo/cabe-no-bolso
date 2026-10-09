@@ -16,7 +16,7 @@ const aviso = a => (a ? '<div class="warnbox"><b>' + a[0] + "</b><br>" + a[1] + 
 // semana.alternativa (o mesmo dia sem o que depende da data); por fim, a dica vira semana.senao.
 export function encaixarDias(dias, sem, comValores = false) {
   const g = (novo, antigo) => (comValores ? antigo.gasto : novo.gasto);
-  const D = dias.slice();
+  const D = dias.map((d, i) => ({ ...d, de: i })); // de: posição original, para os números de dia acompanharem
   const ok = (d, i) => !d.semana || d.semana.dias.includes(sem[i]);
   for (let i = 0; i < D.length; i++) {
     const d = D[i];
@@ -25,9 +25,12 @@ export function encaixarDias(dias, sem, comValores = false) {
     if (j !== undefined && i > 0 && i < D.length - 1) { D[i] = D[j]; D[j] = d; continue; }
     const fim = D.length - 1;
     if (d.semana.ultimo && d.semana.meio && i !== fim && d.semana.dias.includes(sem[fim])) {
-      D[fim] = { ...d.semana.ultimo, gasto: g(d.semana.ultimo, D[fim]) }; D[i] = { ...d.semana.meio, gasto: g(d.semana.meio, d) }; continue;
+      const ultimoAntes = D[fim];
+      D[fim] = { ...d.semana.ultimo, gasto: g(d.semana.ultimo, ultimoAntes), de: d.de };
+      D[i] = { ...d.semana.meio, gasto: g(d.semana.meio, d), de: ultimoAntes.de };
+      continue;
     }
-    if (d.semana.alternativa) { D[i] = { ...d.semana.alternativa, gasto: g(d.semana.alternativa, d) }; continue; }
+    if (d.semana.alternativa) { D[i] = { ...d.semana.alternativa, gasto: g(d.semana.alternativa, d), de: d.de }; continue; }
     if (d.semana.senao) D[i] = { ...d, tip: d.semana.senao };
   }
   return D;
@@ -60,6 +63,8 @@ export function montarRoteiro(D, slug, nomeCru, valores = {}) {
       d.d = SEMANA[d.sem] + ", " + String(dt.getUTCDate()).padStart(2, "0") + "/" + String(dt.getUTCMonth() + 1).padStart(2, "0");
     });
   }
+  // "Dia N" escrito no conteúdo (mapa, lugares, fotos, orçamento) segue o dia para onde o passeio foi.
+  const diaDe = n => { const k = DAYS.findIndex(d => d.de === Number(n) - 1); return Number.isFinite(Number(n)) && k >= 0 ? k + 1 : n; };
   const mesDaViagem = V.clima ? MESES[V.clima.mes - 1] : V.inicio ? MESES[V.inicio.getUTCMonth()] : "";
   const S = {};
 
@@ -96,7 +101,7 @@ export function montarRoteiro(D, slug, nomeCru, valores = {}) {
     (M.agua || []).map(a => '<path d="' + a.d + '" fill="' + (a.fill ? "#D7E2E0" : "none") + '" stroke="#D7E2E0" stroke-width="' + (a.fill ? 0 : a.w || 30) + '" stroke-linecap="round"/>' + (a.l ? '<text x="' + a.lx + '" y="' + a.ly + '" font-family="Figtree" font-size="12" fill="#557370" font-weight="700">' + a.l + "</text>" : "")).join("") +
     (M.areas || []).map((a, i) => '<rect x="' + a.x + '" y="' + a.y + '" width="' + a.w + '" height="' + a.h + '" rx="10" fill="' + (i % 2 ? "#FBF1D8" : "#E8F0EF") + '"/><text x="' + (a.x + 12) + '" y="' + (a.y + 22) + '" font-family="Figtree" font-weight="700" font-size="11" fill="#557370">' + a.l + "</text>").join("") +
     (M.rotas || []).map(r => '<path d="' + r.d + '" fill="none" stroke="#0E6E6A" stroke-width="4" stroke-dasharray="7 6"/>' + (r.l ? '<text x="' + r.lx + '" y="' + r.ly + '" font-family="Figtree" font-weight="700" font-size="12" fill="#0E6E6A" text-anchor="middle">' + r.l + "</text>" : "")).join("") +
-    M.pinos.map(pin).join("") +
+    M.pinos.map(p => pin({ ...p, dia: diaDe(p.dia) })).join("") +
     '<g font-family="Figtree" font-weight="700" font-size="12" fill="#0D3532">' + (M.notas || []).map(n => '<text x="' + n[0] + '" y="' + n[1] + '"' + (n[3] ? ' text-anchor="' + n[3] + '"' : "") + ">" + n[2] + "</text>").join("") + "</g></svg>";
   S.mapa = sec("Mapa", "Onde fica cada coisa", M.titulo, MAPA + '<div class="cards">' + M.cards.map(card).join("") + "</div>", M.sub);
 
@@ -137,7 +142,7 @@ export function montarRoteiro(D, slug, nomeCru, valores = {}) {
 
   // Guias de lugar: o mesmo desenho das páginas de lugar sagrado de Jerusalém.
   const G = D.guiasLugar;
-  S.lugares = G.itens.map((s, i) => '<section class="page sacro"><div class="dayhead" style="background-image:url(' + B + s.img + '.jpg)">' + head(G.rotulo + " " + (i + 1) + " de " + G.itens.length, true) + '<div class="tt"><small>Dia ' + s.dia + " do roteiro · reserve " + s.tempo + "</small><h2>" + s.t + "</h2></div></div>" +
+  S.lugares = G.itens.map((s, i) => '<section class="page sacro"><div class="dayhead" style="background-image:url(' + B + s.img + '.jpg)">' + head(G.rotulo + " " + (i + 1) + " de " + G.itens.length, true) + '<div class="tt"><small>Dia ' + diaDe(s.dia) + " do roteiro · reserve " + s.tempo + "</small><h2>" + s.t + "</h2></div></div>" +
     '<div class="in" style="padding-top:5mm;gap:4.5mm"><div><span class="kick">' + (s.kickHist || "A história em poucas linhas") + '</span><p class="hist" style="margin-top:2mm">' + s.hist + "</p></div>" +
     '<div><span class="kick">O que fazer, nesta ordem</span><ol class="passos" style="margin-top:2mm">' + s.passos.map(p => "<li><b>" + p[0] + ":</b> " + p[1] + "</li>").join("") + "</ol></div>" +
     '<div class="trio"><div><b>A foto</b>' + s.foto + "</div><div><b>Tempo</b>Reserve " + s.tempo + ".</div><div><b>Bom saber</b>" + s.saber + "</div></div>" +
@@ -149,7 +154,7 @@ export function montarRoteiro(D, slug, nomeCru, valores = {}) {
   const somaDias = V.dias ? V.dias.reduce((a, b) => a + b, 0) : null;
   S.orcamento = sec("Na viagem", "O nosso diferencial", "Orçamento dia a dia",
     '<table class="tb"><thead><tr><th>Dia</th><th>Previsto ' + porQuem + "</th><th>Gasto real</th><th>" + D.orcamento.colDinheiro + "</th><th>Onde economizar</th></tr></thead><tbody>" +
-    DAYS.map((d, i) => "<tr><td><b>Dia " + (i + 1) + "</b><small>" + d.t + "</small></td><td>" + d.gasto + '</td><td class="vazio"></td><td>' + D.orcamento.dias[i][0] + "</td><td>" + D.orcamento.dias[i][1] + "</td></tr>").join("") +
+    DAYS.map((d, i) => "<tr><td><b>Dia " + (i + 1) + "</b><small>" + d.t + "</small></td><td>" + d.gasto + '</td><td class="vazio"></td><td>' + D.orcamento.dias[d.de ?? i][0] + "</td><td>" + D.orcamento.dias[d.de ?? i][1] + "</td></tr>").join("") +
     "<tr><td><b>Total</b></td><td><b>" + (somaDias !== null ? brl(somaDias) : D.referencia.total) + '</b></td><td class="vazio"></td><td></td><td></td></tr></tbody></table>' +
     (somaDias !== null && V.comidaPasseios !== null && V.transporte !== null && V.comidaPasseios + V.transporte - somaDias > 0
       ? '<p class="mut" style="font-size:8.5pt">Os dias somam o que você gasta em cada dia da viagem. No resumo, comida, passeios e ' + D.rotuloExtra.toLowerCase() + " dão " + brl(V.comidaPasseios + V.transporte) + ": os outros " + brl(V.comidaPasseios + V.transporte - somaDias) + " ficam fora dos dias, " + D.orcamento.fora + ".</p>" : "") +
@@ -167,7 +172,7 @@ export function montarRoteiro(D, slug, nomeCru, valores = {}) {
 
   S.fotos = sec("Na viagem", "Dez fotos para não esquecer", "Fotos que você não pode deixar de tirar",
     '<table class="tb"><thead><tr><th></th><th>Onde</th><th>Melhor horário</th><th>Dia do roteiro</th></tr></thead><tbody>' +
-    D.fotos.itens.map((f, i) => "<tr><td>☐</td><td><b>" + (i + 1) + ". " + f[0] + "</b></td><td>" + f[1] + "</td><td>Dia " + f[2] + "</td></tr>").join("") + "</tbody></table>" + aviso(D.fotos.aviso));
+    D.fotos.itens.map((f, i) => "<tr><td>☐</td><td><b>" + (i + 1) + ". " + f[0] + "</b></td><td>" + f[1] + "</td><td>Dia " + diaDe(f[2]) + "</td></tr>").join("") + "</tbody></table>" + aviso(D.fotos.aviso));
 
   // Passeios extras: a sobra do orçamento da simulação, quando existe, mostra quanto cada um usa.
   const usa = (min, max) => {

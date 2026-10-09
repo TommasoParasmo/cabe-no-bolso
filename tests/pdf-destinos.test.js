@@ -68,4 +68,8 @@ test("PDF de Buenos Aires: a feira de San Telmo cai sempre num domingo", () => {
     assert.ok(comFeira.length >= 1, inicio);
     for (const d of comFeira) assert.match(d, /Domingo, /, inicio);
   }
+  // A página de lugar da feira aponta para o dia em que ela caiu.
+  const h = roteiroDestino("buenos-aires", "Ana", { inicio: "2027-03-15" });
+  const n = dias(h).findIndex(d => /Feira de San Telmo/.test(d)) + 1;
+  assert.match(h, new RegExp("<small>Dia " + n + " do roteiro · reserve [^<]*</small><h2>[^<]*Feira", "i"));
 });

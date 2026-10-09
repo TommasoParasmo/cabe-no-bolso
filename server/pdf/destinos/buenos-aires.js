@@ -2,26 +2,19 @@
 // Conteúdo fixo do destino; o motor está em server/pdf/roteiro.js e o formato em server/pdf/destinos/LEIA-ME.md.
 // Escrito de memória. Os preços estão em reais e em faixas porque o câmbio argentino muda rápido.
 //
-// CONFERIR antes de vender:
-// - Entrada: RG com menos de 10 anos de emissão e em bom estado (ou CIN) aceito na Argentina e no Uruguai; CNH não vale;
-//   regra de autorização para menores (Polícia Federal).
-// - Seguro saúde: se a Argentina já exige comprovante na entrada e cobra estrangeiros no hospital público (decreto de 2025).
-// - Câmbio: cotação usada nos cartões estrangeiros (próxima do dólar MEP), IOF de 3,5% no cartão de crédito, aceitação de
-//   Pix nas lojas, se casas de câmbio trocam real.
-// - Cartão SUBE: onde comprar, se o ônibus ainda não aceita dinheiro, pagamento por aproximação no metrô.
-// - Aeroporto: preços de táxi oficial, aplicativo, Tienda León e linha 8 de Ezeiza; tempo de 45 a 60 min.
-// - Barcos para Colonia: terminais (Buquebus em Puerto Madero, Av. Antártida Argentina 821; Colonia Express na
-//   Av. Pedro de Mendoza 330, Dársena Sur; Seacat), tempo de cerca de 1h15, antecedência de 1 hora, preços.
-// - Gastos de referência por dia (R$ 2.460 por pessoa no total) e faixas de preço de restaurantes, hotéis e extras.
-// - Restaurantes citados ainda abertos: Güerrín, El Cuartito, Café Tortoni, El Desnivel, Banchero, Parrilla Peña.
-// - Shows e milongas: El Viejo Almacén, Café de los Angelitos, Esquina Carlos Gardel, Rojo Tango, La Catedral, La Viruta.
-// - Horários e dias fechados da tabela (Feira de San Telmo só no domingo, Fundación Proa, Reserva Ecológica fechada na
-//   segunda, MALBA fechado na terça, Belas Artes fechado na segunda, Casa Rosada só no fim de semana com reserva,
-//   Museo de la Pasión Boquense, Jardim Japonês, Cemitério da Recoleta pago para estrangeiros).
-// - Desconto do IVA em restaurantes do Uruguai para cartão estrangeiro (citado só como "confira").
-// - Endereços do Consulado-Geral (Carlos Pellegrini 1363, 5º andar) e da Embaixada (Cerrito 1350); números 911, 107 e 100.
+// CONFERIR antes de vender (o QA de 09/10/2026 já confirmou documentos, IOF, cota de bebida, 911/107/100, terminal
+// Buquebus, táxi de Ezeiza, restaurantes, Viejo Almacén, La Catedral, La Viruta, dias fechados, Proa, Belas Artes,
+// Jardim Japonês, IVA do Uruguai, linha do tempo e os telefones do consulado em Buenos Aires):
+// - Plantão do Consulado-Geral em Montevidéu (+598 91 300 301): confiança média-alta; uma página antiga traz +598 99 789 111.
+// - 103 como Defesa Civil de Buenos Aires (o QA pediu "o 103"; o rótulo é nosso).
+// - Seguro saúde: se a entrada na Argentina já pede o comprovante.
+// - Câmbio: cotação dos cartões estrangeiros perto do dólar MEP, Pix nas lojas, casas de câmbio que trocam real.
+// - SUBE e cartão por aproximação: quais linhas de ônibus aceitam.
+// - Preços de Ezeiza por aplicativo, Tienda León e linha 8; preços e terminal do Seacat; preço do Colonia Express.
+// - Casa Rosada: se a visita interna voltou.
+// - Gastos de referência por dia (R$ 2.820 por pessoa) e faixas de restaurantes, hotéis, show e extras.
+// - Café de los Angelitos, Esquina Carlos Gardel e Rojo Tango; horários de Tortoni, Barolo, Fragata e Pasión Boquense.
 // - Empresas da página de guias: BA Free Tour, Free Walks, La Bicicleta Naranja, Biking Buenos Aires, Tienda León.
-// - Cota da Receita: 12 litros de bebida alcoólica por pessoa.
 
 export default {
   nome: "Buenos Aires",
@@ -29,7 +22,7 @@ export default {
   moedaPlural: "pesos argentinos",
   rotuloExtra: "Show de tango e Colonia",
   capa: { img: "capa", frase: "Buenos Aires e Colonia, no Uruguai, com o gasto de cada dia e a viagem inteira no papel.", ritmo: "Tranquilo, a pé e de metrô" },
-  referencia: { total: "R$ 2.460", inclui: "comida, passeios, show, barco e transporte", porDia: "cerca de R$ 350" },
+  referencia: { total: "R$ 2.820", inclui: "comida, passeios, show e barco", porDia: "cerca de R$ 400" },
   fichaDoc: ["RG ou passaporte", "Número e data de emissão do RG"],
   fichaExtra: [["Show de tango", "Casa, data, horário e código da reserva"], ["Barco para Colonia", "Empresa, horários de ida e volta e terminal"]],
 
@@ -78,9 +71,9 @@ export default {
       ["Compre as passagens", "Simule no vaidarviagem.com.br para achar as datas que cabem no bolso."],
       ["Avise o banco", "Libere o cartão para uso no exterior e pergunte como ele cobra compras na Argentina."]]],
     ["30", "dias antes", [
-      ["Contrate o seguro viagem", "A Argentina pode pedir seguro saúde na entrada e cobra estrangeiros no hospital público. Inclua Argentina e Uruguai."],
+      ["Contrate o seguro viagem", "A Argentina pode exigir seguro saúde. Hospitais públicos nacionais cobram consulta de estrangeiro desde 08/2026 (urgência não)."],
       ["Compre o barco para Colonia", "Compare Buquebus, Colonia Express e Seacat. Comprar antes costuma sair mais barato."],
-      ["Reserve o hotel e o show de tango", "Veja os bairros na página @@PG:ficar@@ e as casas de tango na página @@PG:guias@@."]]],
+      ["Reserve o hotel e o show de tango", "Veja os bairros na página @@PG:ficar@@ e as casas de tango nas páginas @@PG:lugar4@@ e @@PG:guias@@."]]],
     ["7", "dias antes", [
       ["Decida como pagar", "Compare cartão, Pix e dólar com a cotação da semana, como explica a página @@PG:cambio@@."],
       ["Ative o chip ou eSIM de dados", "Com internet você usa mapa, aplicativo de carro e Pix."],
@@ -94,7 +87,7 @@ export default {
   regras: {
     titulo: "Dinheiro, documentos e clima",
     cards: [
-      { ic: "i-doc", t: "Documentos", itens: ["Brasileiro não precisa de visto nem de passaporte para Argentina e Uruguai.", "Vale o RG com menos de 10 anos de emissão e em bom estado, ou o passaporte válido. CNH não vale.", "Menor viajando sem os dois pais precisa de autorização. Veja no site da Polícia Federal."] },
+      { ic: "i-doc", t: "Documentos", itens: ["Sem visto: vale o RG com menos de 10 anos de emissão e em bom estado, ou o passaporte. CNH não vale.", "Pode ser exigido seguro saúde. Desde 08/2026, hospital público nacional cobra consulta de estrangeiro (urgência não).", "Menor viajando sem os dois pais precisa de autorização. Veja no site da Polícia Federal."] },
       { ic: "coin", t: "Dinheiro", itens: ["Moeda: peso argentino. Em Colonia, peso uruguaio.", "Cartão, Pix ou dólar: veja como comparar na página @@PG:cambio@@.", "Gorjeta de cerca de 10%, fora da conta. O cubierto é cobrado por pessoa."] },
       { ic: "spark", t: "Costumes", itens: ["Almoço depois das 13h e jantar depois das 21h.", "Cumprimento com um beijo no rosto, até entre homens conhecidos.", "A tomada é diferente da brasileira (três pinos chatos): leve adaptador."] }
     ],
@@ -113,7 +106,7 @@ export default {
 
   mala: [
     ["Documentos", ["RG ou passaporte", "Seguro viagem impresso", "Reservas e passagem do barco", "Cartões e um pouco de dólar", "Cópia do documento, separada"]],
-    ["Roupas por estação", ["Verão: roupa leve e chapéu", "Inverno: casaco quente, gorro e cachecol", "Meia-estação: casaco leve e corta-vento", "Uma roupa arrumada para o tango", "Tênis confortável"]],
+    ["Roupas", ["Roupa leve para o dia", "Casaco para a noite (veja o clima do mês na página @@PG:regras@@)", "Corta-vento para a beira do rio", "Uma roupa arrumada para o tango", "Tênis confortável"]],
     ["Outros", ["Adaptador de tomada (tipo I)", "Carregador portátil", "Guarda-chuva pequeno", "Bolsa pequena, de usar na frente", "Remédios de uso pessoal"]]
   ],
 
@@ -141,13 +134,13 @@ export default {
       ["Táxi oficial (balcão no desembarque)", "45 a 60 min", "cerca de R$ 120 a 200 o carro", "Chegada à noite, com malas"],
       ["Uber, Cabify ou DiDi", "45 a 60 min", "cerca de R$ 80 a 150 o carro", "Quem tem internet no celular"],
       ["Ônibus Tienda León", "1h a 1h30 até Puerto Madero", "cerca de R$ 50 a 80 por pessoa", "Quem viaja sozinho"],
-      ["Ônibus urbano (linha 8)", "2 horas ou mais", "poucos reais, com SUBE", "Só com pouca mala"]
+      ["Ônibus urbano (linha 8)", "2 horas ou mais", "poucos reais, com SUBE ou cartão por aproximação", "Só com pouca mala"]
     ],
     cards: [
-      { ic: "coin", t: "Cartão SUBE", itens: ["Necessário no ônibus, que não aceita dinheiro. Vale também no metrô e no trem.", "Compre e recarregue em quiosques (kioscos), estações e centros de turismo.", "Em muitas catracas do metrô já dá para pagar com cartão por aproximação."] },
+      { ic: "coin", t: "SUBE ou cartão por aproximação", itens: ["O ônibus não aceita dinheiro: pague com o SUBE ou, em muitas linhas, com cartão por aproximação.", "Compre e recarregue o SUBE em quiosques (kioscos), estações e centros de turismo.", "Metrô e trem aceitam os dois."] },
       { t: "Metrô (subte)", itens: ["Linhas de A a H, com estações no Obelisco e na Plaza de Mayo.", "A linha A, de 1913, foi a primeira da América Latina.", "Evite o pico: 8h às 9h30 e 17h às 19h."] },
       { t: "Táxi e aplicativo", itens: ["Táxis pretos e amarelos têm taxímetro.", "Uber, Cabify e DiDi mostram o preço antes.", "À noite, prefira o carro até a porta."] },
-      { t: "Barco para Colonia", itens: ["Buquebus sai de Puerto Madero e Colonia Express da Dársena Sur. Confira o terminal na passagem.", "Barco rápido: cerca de 1h15. Chegue 1 hora antes.", "Detalhes no dia 6, página @@PG:dia6@@."] }
+      { t: "Barco para Colonia", itens: ["Buquebus: Av. Antártida Argentina 821. Colonia Express: Av. Elvira Rawson de Dellepiane 155.", "Barco rápido: cerca de 1h15. Chegue 1h a 1h30 antes.", "Os terminais estão no cartão da página @@PG:cartao@@."] }
     ],
     aviso: ["Aeroparque (AEP)", "Alguns voos do Brasil chegam e saem do Aeroparque Jorge Newbery, a 15 ou 20 minutos de Palermo de táxi ou aplicativo. Confira na passagem qual é o seu aeroporto."]
   },
@@ -156,19 +149,19 @@ export default {
     linhas: [
       ["Feira de San Telmo", "Domingo, das 10h às 17h", "Seg a sáb", "Grátis", "Não"],
       ["Mercado de San Telmo", "Todos os dias, de manhã à noite", "Abre todo dia", "Grátis", "Não"],
-      ["Casa Rosada (visita)", "Fins de semana, com reserva", "Dias úteis", "Grátis", "Sim, no site"],
+      ["Casa Rosada (visita interna)", "Confira em casarosada.gob.ar se está aberta", "Pode estar suspensa", "Grátis", "Sim, no site"],
       ["Café Tortoni", "Todos os dias, de manhã à noite", "Abre todo dia", "Consumo", "Não"],
       ["Teatro Colón (visita guiada)", "Todos os dias, várias por dia", "Dias de evento", "Pago", "Melhor reservar"],
       ["Palacio Barolo", "Visitas guiadas todos os dias", "Abre todo dia", "Pago", "Sim"],
       ["Caminito", "Todos os dias, de dia", "À noite, evite", "Grátis", "Não"],
       ["Museo de la Pasión Boquense", "Todos os dias, das 10h às 18h", "Dias de jogo", "Pago", "Não"],
-      ["Fundación Proa", "Qui a dom, à tarde", "Seg a qua", "Pago", "Não"],
+      ["Fundación Proa", "Qua a dom, das 12h às 19h", "Seg e ter", "Quarta grátis", "Não"],
       ["Reserva Ecológica", "Ter a dom, das 8h ao fim da tarde", "Segunda", "Grátis", "Não"],
       ["Fragata Sarmiento", "Todos os dias, das 10h às 19h", "Abre todo dia", "Barato", "Não"],
       ["Cemitério da Recoleta", "Todos os dias, das 9h às 17h", "Abre todo dia", "Pago (estrangeiro)", "Não"],
-      ["Museu Nacional de Belas Artes", "Ter a dom, das 11h às 20h", "Segunda", "Grátis", "Não"],
+      ["Museu Nacional de Belas Artes", "Ter a sex, 11h às 19h30; sáb e dom, 10h às 19h30", "Segunda", "Grátis", "Não"],
       ["MALBA", "Qua a seg, das 12h às 20h", "Terça", "Pago", "Não"],
-      ["Jardim Japonês", "Todos os dias, das 10h às 18h", "Abre todo dia", "Pago", "Não"]
+      ["Jardim Japonês", "Todos os dias, das 10h às 18h45", "Abre todo dia", "Pago (estrangeiro)", "Não"]
     ],
     aviso: ["Confira na semana da viagem", "Horários mudam com a estação e os feriados. Muitos museus fecham na segunda ou na terça. Em Colonia, os museus do bairro histórico abrem quase todos os dias."]
   },
@@ -196,19 +189,19 @@ export default {
   },
 
   dias: [
-    { img: "obelisco", d: "Chegada · a pé e de táxi", t: "Centro, Obelisco e Corrientes", gasto: "R$ 220", seg: 3, bairro: "Centro",
+    { img: "obelisco", d: "Chegada · a pé e de táxi", t: "Centro, Obelisco e Corrientes", gasto: "R$ 200", seg: 3, bairro: "Centro",
       destaque: ["Para começar", "A avenida Corrientes é a rua das pizzarias e dos teatros. À noite, ela fica cheia."],
       stops: [
         ["10:00", "Aeroporto de Ezeiza → hotel", "Táxi oficial ou aplicativo. Compre o cartão SUBE no caminho.", ["Táxi ou app", "cerca de 50 min"]],
-        ["15:00", "Plaza de Mayo e Casa Rosada", "A praça da história argentina, com a Catedral e o Cabildo.", ["A pé", "grátis"], "Plaza de Mayo, Buenos Aires"],
+        ["15:00", "Plaza de Mayo e Casa Rosada (por fora)", "A praça da história argentina, com a Catedral e o Cabildo.", ["A pé", "grátis"], "Plaza de Mayo, Buenos Aires"],
         ["17:00", "Café Tortoni", "O café mais antigo da cidade, de 1858. A fila na porta anda rápido.", ["A pé", "café e medialuna"], "Café Tortoni, Buenos Aires"],
         ["19:30", "Obelisco e avenida Corrientes", "Foto no Obelisco iluminado e jantar de pizza portenha.", ["A pé", "pizza"], "Obelisco, Buenos Aires"]],
       comer: [["Güerrín, av. Corrientes 1368", "R$ 40 a R$ 70 por pessoa"], ["El Cuartito, rua Talcahuano", "R$ 45 a R$ 75 por pessoa"]],
       chuva: "Troque a praça pela visita guiada ao Teatro Colón, perto do Obelisco. Reserve no site.",
       tip: ["Para economizar", "Uma pizza grande serve 2 pessoas. No balcão da Güerrín sai mais barato que na mesa."] },
 
-    { img: "telmo", d: "A pé pelo bairro antigo", t: "San Telmo e a feira de domingo", gasto: "R$ 230", seg: 3, bairro: "San Telmo",
-      destaque: ["Melhor num domingo", "Aos domingos, a rua Defensa vira uma feira de antiguidades, com tango na praça."],
+    { img: "telmo", d: "Faça este dia num domingo", t: "San Telmo e a feira de domingo", gasto: "R$ 230", seg: 3, bairro: "San Telmo",
+      destaque: ["Só no domingo", "Aos domingos, a rua Defensa vira uma feira de antiguidades, com tango na praça."],
       stops: [
         ["10:00", "Feira de San Telmo (rua Defensa)", "Antiguidades, artesanato e música de rua até a Plaza Dorrego.", ["A pé", "grátis"], "Feria de San Telmo, Defensa, Buenos Aires"],
         ["12:30", "Mercado de San Telmo", "Mercado coberto de 1897, com antiquários e comida. Bom para almoçar.", ["A pé", "almoço"], "Mercado de San Telmo, Buenos Aires"],
@@ -217,20 +210,50 @@ export default {
       comer: [["Choripán na feira ou no mercado", "R$ 20 a R$ 35 por pessoa"], ["Parrilla El Desnivel, rua Defensa", "R$ 60 a R$ 100 por pessoa"]],
       chuva: "O Mercado de San Telmo é coberto. Depois, vá ao Museu de Arte Moderna (MAMBA), na av. San Juan.",
       tip: ["Atenção", "Na feira, celular no bolso da frente e mochila na frente. É onde mais se furta turista."],
-      semana: { dias: [0], senao: ["Hoje não tem feira", "A feira da rua Defensa só abre no domingo. O mercado e os antiquários abrem todo dia. Se der, troque este dia."] } },
+      semana: { dias: [0],
+        ultimo: { img: "telmo", d: "Último dia", t: "Feira de San Telmo e volta", gasto: "R$ 220", seg: 3, bairro: "San Telmo",
+          destaque: ["Domingo de feira", "Hoje a rua Defensa vira uma feira de antiguidades. Deixe a mala pronta no hotel."],
+          stops: [
+            ["10:00", "Feira de San Telmo (rua Defensa)", "Antiguidades, artesanato e música até a Plaza Dorrego. Fica até 13h30.", ["A pé", "grátis"], "Feria de San Telmo, Defensa, Buenos Aires"],
+            ["12:00", "Plaza Dorrego", "O coração do bairro, com tango na praça por gorjeta.", ["A pé", "grátis"], "Plaza Dorrego, Buenos Aires"],
+            ["13:30", "Almoço no Mercado de San Telmo", "Mercado coberto de 1897, com barracas de comida e antiquários.", ["A pé", "almoço"], "Mercado de San Telmo, Buenos Aires"],
+            ["16:00", "Ida para o aeroporto", "Pegue a mala no hotel. Ezeiza (EZE) ou Aeroparque (AEP), 3h antes do voo.", ["Táxi ou transfer", "50 min a 1h30"]]],
+          comer: [["Choripán numa barraca da feira", "R$ 20 a R$ 35 por pessoa"], ["Barracas do Mercado de San Telmo", "R$ 50 a R$ 90 por pessoa"]],
+          chuva: "O Mercado de San Telmo é coberto e abre no domingo. Com chuva forte, a feira encolhe: fique no mercado.",
+          tip: ["Não esqueça", "Gaste os pesos que sobrarem na feira. Trocar peso argentino de volta no Brasil dá perda grande."] },
+        meio: { img: "obelisco", d: "A pé e de aplicativo", t: "Recoleta e Palermo", gasto: "R$ 280", seg: 4, bairro: "Recoleta e Palermo",
+          destaque: ["Bairros verdes", "Recoleta e Palermo são tranquilos e bons para andar. A feira de domingo fica para o dia 7."],
+          stops: [
+            ["09:00", "Cemitério da Recoleta", "Túmulos de mármore e o jazigo de Evita. Pago para estrangeiros.", ["Táxi ou app", "ingresso pago"], "Cementerio de la Recoleta, Buenos Aires"],
+            ["11:00", "Floralis Genérica", "A flor gigante de metal, na Plaza de las Naciones Unidas.", ["A pé", "grátis"], "Floralis Genérica, Buenos Aires"],
+            ["12:30", "Jardim Japonês e Palermo", "Almoço em Palermo e passeio pelo Jardim Japonês.", ["App", "ingresso pago"], "Jardín Japonés, Buenos Aires"],
+            ["17:00", "Palermo Soho", "Ruas de lojas, cafés e bares. Fique para jantar no bairro.", ["A pé", "grátis"], "Plaza Serrano, Buenos Aires"]],
+          comer: [["Empanadas ou milanesa em Palermo Soho", "R$ 60 a R$ 100 por pessoa"], ["Medialunas e café na Recoleta", "R$ 20 a R$ 40 por pessoa"]],
+          chuva: "Troque o Jardim Japonês pelo Museu Nacional de Belas Artes, grátis e aberto na terça. O MALBA fecha na terça.",
+          tip: ["Para economizar", "Os Bosques de Palermo, ao lado do Jardim Japonês, são grátis e ótimos para caminhar."] },
+        alternativa: { img: "telmo", d: "A pé pelo bairro antigo", t: "San Telmo, o bairro antigo", gasto: "R$ 200", seg: 3, bairro: "San Telmo",
+          destaque: ["Sem feira, com calma", "A feira de domingo não cai na sua viagem, mas os antiquários e o mercado abrem."],
+          stops: [
+            ["10:00", "Rua Defensa e antiquários", "Lojas de antiguidades e casarões, da Plaza de Mayo até San Telmo.", ["A pé", "grátis"], "Defensa 1000, San Telmo, Buenos Aires"],
+            ["12:30", "Mercado de San Telmo", "Mercado coberto de 1897, com antiquários e comida. Bom para almoçar.", ["A pé", "almoço"], "Mercado de San Telmo, Buenos Aires"],
+            ["15:00", "Pasaje de la Defensa", "Casarão antigo com pátios internos e lojinhas.", ["A pé", "grátis"], "Pasaje de la Defensa, Buenos Aires"],
+            ["17:00", "Plaza Dorrego e Parque Lezama", "Café na praça e fim de tarde no parque.", ["A pé", "grátis"], "Plaza Dorrego, Buenos Aires"]],
+          comer: [["Barracas do Mercado de San Telmo", "R$ 40 a R$ 80 por pessoa"], ["Parrilla El Desnivel, rua Defensa", "R$ 60 a R$ 100 por pessoa"]],
+          chuva: "O Mercado de San Telmo é coberto e abre todos os dias. Fique por lá e pelos antiquários.",
+          tip: ["Atenção", "Celular no bolso da frente e mochila na frente nas ruas mais cheias do bairro."] } } },
 
-    { img: "capa", d: "De táxi na ida e na volta", t: "La Boca e Caminito", gasto: "R$ 200", seg: 2, bairro: "La Boca",
+    { img: "capa", d: "De táxi na ida e na volta", t: "La Boca e Caminito", gasto: "R$ 300", seg: 2, bairro: "La Boca",
       destaque: ["Vá de dia", "Caminito é colorido e turístico. Fique nas ruas com movimento e saia antes de escurecer."],
       stops: [
         ["10:00", "Caminito", "Casas coloridas e tango. Fique nas 3 ou 4 quadras com turistas.", ["Táxi ou app", "grátis"], "Caminito, La Boca, Buenos Aires"],
         ["11:30", "La Bombonera", "O estádio do Boca Juniors e seu museu. Pago, fecha em dia de jogo.", ["A pé", "ingresso pago"], "La Bombonera, Buenos Aires"],
-        ["14:00", "Fundación Proa", "Centro de arte na beira do Riachuelo, com café no terraço.", ["A pé", "ingresso pago"], "Fundación Proa, Buenos Aires"],
+        ["14:00", "Fundación Proa", "Arte na beira do Riachuelo. Abre de quarta a domingo, das 12h às 19h.", ["A pé", "grátis às quartas"], "Fundación Proa, Buenos Aires"],
         ["16:00", "Volta de táxi ou app", "Peça o carro na frente do Caminito. Não volte a pé até San Telmo.", ["Táxi ou app", "cerca de 15 min"]]],
       comer: [["Restaurante no Caminito, com tango", "R$ 70 a R$ 120 por pessoa"], ["Pizzaria Banchero, av. Almirante Brown", "R$ 40 a R$ 70 por pessoa"]],
-      chuva: "Fique no museu do Boca e na Fundación Proa, que são cobertos. As fotos ficam para depois.",
+      chuva: "Fique no museu do Boca e na Fundación Proa, que são cobertos. Na segunda e na terça, a Proa fecha.",
       tip: ["Segurança", "Nada de celular na mão fora das ruas turísticas. À noite, em La Boca, só de táxi."] },
 
-    { img: "madero", d: "A pé pela beira do rio", t: "Puerto Madero e parrilla", gasto: "R$ 330", seg: 5, bairro: "Puerto Madero",
+    { img: "madero", d: "A pé pela beira do rio", t: "Puerto Madero e parrilla", gasto: "R$ 290", seg: 5, bairro: "Puerto Madero",
       destaque: ["O bairro mais novo", "As docas do porto viraram restaurantes e prédios altos. É ótimo para caminhar."],
       stops: [
         ["10:00", "Reserva Ecológica Costanera Sur", "Trilhas planas até a beira do Rio da Prata. Fecha às segundas.", ["A pé", "grátis"], "Reserva Ecológica Costanera Sur, Buenos Aires"],
@@ -241,37 +264,37 @@ export default {
       chuva: "Troque a reserva pela Colección Fortabat, museu de arte argentina em Puerto Madero.",
       tip: ["Para economizar", "No almoço, procure o \"menú ejecutivo\": prato, bebida e sobremesa por preço fechado."] },
 
-    { img: "tango", d: "Dia livre e show à noite", t: "Noite de tango", gasto: "R$ 550", seg: 3, bairro: "San Telmo e Almagro",
+    { img: "tango", d: "Dia livre e show à noite", t: "Noite de tango", gasto: "R$ 800", seg: 3, bairro: "San Telmo e Almagro",
       destaque: ["Show ou milonga", "O show é um espetáculo. A milonga é o baile dos portenhos. Dá para fazer os dois."],
       stops: [
         ["10:00", "Palacio Barolo", "Prédio de 1923 inspirado na Divina Comédia. Visita guiada com reserva.", ["Metrô", "ingresso pago"], "Palacio Barolo, Buenos Aires"],
         ["15:00", "Aula de tango para iniciantes", "Muitas milongas dão aula em grupo antes do baile.", ["App", "aula barata"]],
-        ["20:00", "Show de tango", "El Viejo Almacén e Café de los Angelitos são clássicos. Compre no site.", ["App", "reserve"], "El Viejo Almacén, Buenos Aires"],
+        ["20:00", "Show de tango com jantar", "El Viejo Almacén e Café de los Angelitos são clássicos. Compre no site.", ["App", "reserve"], "El Viejo Almacén, Buenos Aires"],
         ["23:30", "Milonga (opção barata)", "La Catedral, em Almagro, ou La Viruta, em Palermo. Baile até tarde.", ["App", "entrada barata"], "La Catedral Club, Buenos Aires"]],
-      comer: [["Jantar do show, se for o pacote com jantar", "incluído no show"], ["Empanadas numa rotisería", "R$ 20 a R$ 40 por pessoa"]],
+      comer: [["Jantar do show (já está no gasto do dia)", "incluído no show"], ["Empanadas numa rotisería", "R$ 20 a R$ 40 por pessoa"]],
       chuva: "Show e milonga são em salão fechado. De dia, troque o Barolo pela livraria El Ateneo Grand Splendid.",
-      tip: ["Sem preço de turista", "Compre no site do próprio show: hotel e agência cobram comissão. Sem jantar sai mais barato."] },
+      tip: ["Sem preço de turista", "Compre no site do próprio show: hotel e agência cobram comissão. Sem jantar, o dia sai uns R$ 300 mais barato."] },
 
-    { img: "colonia", d: "Bate-volta de barco", t: "Colonia del Sacramento, no Uruguai", gasto: "R$ 650", seg: 5, bairro: "Colonia (Uruguai)",
-      destaque: ["Outro país em 1 hora", "Fundada pelos portugueses em 1680, Colonia é Patrimônio Mundial e se conhece a pé."],
+    { img: "colonia", d: "Bate-volta de barco", t: "Colonia del Sacramento, no Uruguai", gasto: "R$ 700", seg: 5, bairro: "Colonia (Uruguai)",
+      destaque: ["Leve o documento", "A migração da Argentina e do Uruguai é feita no terminal, na ida e na volta. RG ou passaporte."],
       stops: [
-        ["07:30", "Terminal do barco", "Chegue 1 hora antes para a migração. Leve o RG ou o passaporte.", ["Táxi ou app", "barco de 1h15"], "Terminal Buquebus, Buenos Aires"],
+        ["07:30", "Terminal da sua empresa", "Buquebus em Puerto Madero ou Colonia Express. Chegue 1h a 1h30 antes.", ["Táxi ou app", "barco de 1h15"]],
         ["10:00", "Calle de los Suspiros", "Entre pelo Portón de Campo e desça a rua de pedra até o rio.", ["A pé", "grátis"], "Calle de los Suspiros, Colonia del Sacramento"],
         ["11:30", "Farol e Plaza Mayor", "Suba o farol para ver o rio e os telhados. Subida paga.", ["A pé", "entrada barata"], "Faro de Colonia del Sacramento"],
         ["16:30", "Pôr do sol e volta", "Veja o sol cair no rio e embarque. Confira o horário na passagem.", ["A pé", "barco"]]],
       comer: [["Chivito no bairro histórico", "R$ 60 a R$ 110 por pessoa"], ["Lanche na rua General Flores", "R$ 30 a R$ 60 por pessoa"]],
       chuva: "Com chuva fraca o passeio vale. Com temporal o barco pode atrasar: veja as regras de remarcação.",
-      tip: ["Moeda", "Em Colonia a moeda é o peso uruguaio. Cartão funciona em quase tudo: não troque dinheiro."] },
+      tip: ["Pague com cartão", "No Uruguai, restaurante pago com cartão estrangeiro tem desconto do IVA, prorrogado até 04/2027."] },
 
-    { img: "obelisco", d: "Último dia", t: "Recoleta, Palermo e volta", gasto: "R$ 280", seg: 4, bairro: "Recoleta e Palermo",
+    { img: "obelisco", d: "Último dia", t: "Recoleta, Palermo e volta", gasto: "R$ 300", seg: 4, bairro: "Recoleta e Palermo",
       destaque: ["Dia de despedida", "Deixe a mala no hotel. Recoleta e Palermo são bairros verdes e bons para andar."],
       stops: [
         ["09:00", "Cemitério da Recoleta", "Túmulos de mármore e o jazigo de Evita. Pago para estrangeiros.", ["Táxi ou app", "ingresso pago"], "Cementerio de la Recoleta, Buenos Aires"],
         ["11:00", "Floralis Genérica", "A flor gigante de metal, na Plaza de las Naciones Unidas.", ["A pé", "grátis"], "Floralis Genérica, Buenos Aires"],
-        ["12:30", "Jardim Japonês e Palermo", "Almoço em Palermo e passeio pelo Jardim Japonês.", ["App", "entrada barata"], "Jardín Japonés, Buenos Aires"],
+        ["12:30", "Jardim Japonês e Palermo", "Almoço em Palermo e passeio pelo Jardim Japonês.", ["App", "ingresso pago"], "Jardín Japonés, Buenos Aires"],
         ["16:00", "Ida para o aeroporto", "Ezeiza (EZE) ou Aeroparque (AEP). Chegue 3 horas antes do voo.", ["Táxi ou transfer", "50 min a 1h30"]]],
       comer: [["Empanadas ou milanesa em Palermo Soho", "R$ 60 a R$ 100 por pessoa"], ["Medialunas e café na Recoleta", "R$ 20 a R$ 40 por pessoa"]],
-      chuva: "Troque o Jardim Japonês pelo Museu Nacional de Belas Artes (grátis) ou pelo MALBA.",
+      chuva: "Troque o Jardim Japonês pelo Museu Nacional de Belas Artes (grátis, fecha na segunda) ou pelo MALBA (fecha na terça).",
       tip: ["Não esqueça", "Gaste os pesos que sobrarem. Trocar peso argentino de volta no Brasil dá perda grande."] }
   ],
 
@@ -288,7 +311,7 @@ export default {
         passos: [["Rua Caminito", "a rua curta e torta, com murais e casas coloridas."], ["Conventillos", "entre num dos antigos cortiços, hoje com lojas no pátio."], ["Museu Benito Quinquela Martín", "quadros do pintor do bairro e um terraço com vista."], ["La Bombonera", "a três quadras, com o museu do Boca Juniors."], ["Volta", "peça o táxi ou o app na frente do Caminito."]],
         foto: "As casas coloridas vistas do começo da rua Caminito, de manhã.", saber: "Dançarinos e sósias de Maradona cobram pela foto. Combine o preço antes." },
       { img: "madero", t: "Puerto Madero", dia: 4, tempo: "meio dia",
-        hist: "O porto foi inaugurado em 1897, mas logo ficou pequeno para os navios novos e foi abandonado. A partir dos anos 1990, os armazéns de tijolo viraram escritórios, restaurantes e apartamentos, e o bairro ganhou os prédios mais altos da cidade. As ruas têm nomes de mulheres argentinas. O Puente de la Mujer, do arquiteto espanhol Santiago Calatrava, foi inaugurado em 2001 e gira para deixar os barcos passarem.",
+        hist: "O porto foi inaugurado entre 1889 e 1897, mas logo ficou pequeno para os navios novos e foi abandonado. A partir dos anos 1990, os armazéns de tijolo viraram escritórios, restaurantes e apartamentos, e o bairro ganhou os prédios mais altos da cidade. As ruas têm nomes de mulheres argentinas. O Puente de la Mujer, do arquiteto espanhol Santiago Calatrava, foi inaugurado em 2001 e gira para deixar os barcos passarem.",
         passos: [["Dique 3", "comece pelos armazéns de tijolo e pela Fragata Sarmiento."], ["Puente de la Mujer", "atravesse para o lado dos prédios novos."], ["Costanera Sur", "a antiga avenida da beira do rio, com carrinhos de choripán."], ["Reserva Ecológica", "trilhas até a margem do Rio da Prata (fecha na segunda)."], ["Docas à noite", "volte para o jantar, com a ponte iluminada."]],
         foto: "O Puente de la Mujer ao pôr do sol, com os prédios atrás.", saber: "É o bairro mais tranquilo para andar à noite, mas os restaurantes das docas são os mais caros da cidade." },
       { img: "tango", t: "Show de tango", dia: 5, tempo: "2 a 3 horas",
@@ -352,14 +375,14 @@ export default {
     colDinheiro: "Dinheiro vivo",
     dias: [
       ["R$ 60 em pesos", "Pizza no balcão em vez de na mesa"],
-      ["R$ 80 em pesos", "Choripán na feira em vez de restaurante"],
+      ["R$ 80 em pesos", "Lanche de rua em vez de restaurante"],
       ["R$ 40 em pesos", "Almoço fora da rua do Caminito"],
       ["R$ 50 em pesos", "Menú ejecutivo no almoço"],
       ["R$ 50 em pesos", "Show sem jantar, ou só a milonga"],
-      ["Cartão", "Barco comprado com antecedência"],
-      ["R$ 40 em pesos", "Ônibus Tienda León em vez de táxi"]
+      ["Cartão", "Colonia Express costuma custar menos"],
+      ["R$ 40 em pesos", "Passeio grátis: feira ou Bosques"]
     ],
-    fora: "como o seguro viagem, o chip de dados e as compras",
+    fora: "como o seguro viagem e o traslado do aeroporto na chegada e na volta",
     nota: "Dinheiro vivo por pessoa, em pesos, para gorjeta, feira e lugares sem cartão. Os valores em reais são de referência: os preços em pesos mudam rápido."
   },
 
@@ -417,14 +440,15 @@ export default {
       cards: [{ t: "Tigre e o Delta", o: "Cidade na entrada do delta, com rios, ilhas, casas sobre palafitas e o mercado do Puerto de Frutos.", preco: "R$ 100 a 250", min: 100, max: 250,
         itens: ["Trem da linha Mitre a partir de Retiro, cerca de 1 hora, ou o Tren de la Costa.", "Passeio de lancha coletiva (lancha colectiva) pelos rios do delta.", "Puerto de Frutos: artesanato, móveis de vime e comida."],
         dica: "Melhor num dia de sol. No fim de semana fica cheio." }],
-      aviso: ["Quando encaixar", "Troque pelo dia 7 se o voo for à noite, ou acrescente um dia antes da volta. O Puerto de Frutos tem mais movimento no fim de semana."] },
+      aviso: ["Quando encaixar", "Troque pelo dia 7 se o voo for à noite, ou acrescente um dia antes da volta. Se a sua sobra for pequena, guarde para imprevistos."] },
     { kick: "Mais duas ideias", titulo: "Estância e futebol",
       cards: [
         { t: "Dia de campo numa estância", o: "Passeio a uma estância nos arredores, com cavalos, churrasco e show gaúcho.", preco: "R$ 400 a 800", min: 400, max: 800,
           itens: ["San Antonio de Areco é a cidade gaúcha mais conhecida, a cerca de 1h30.", "O pacote costuma incluir transporte, almoço e bebida.", "Bom para ver o campo argentino."], dica: "Reserve com agência ou direto com a estância." },
         { t: "Jogo de futebol", o: "Ver o Boca na Bombonera ou o River no Monumental é programa disputado.", preco: "R$ 300 a 900", min: 300, max: 900,
           itens: ["Para turista, o ingresso costuma vir em pacote com transporte.", "Carteirinha de sócio vendida na porta é golpe comum.", "Vá e volte com o grupo do pacote."], dica: "Confira o calendário do campeonato perto da viagem." }
-      ] }
+      ],
+      aviso: ["Escolha um", "Os dois juntos pesam no orçamento. Com sobra pequena, fique com um só, ou com nenhum."] }
   ],
 
   guias: {
@@ -439,10 +463,10 @@ export default {
   },
 
   emergencia: {
-    numeros: [["911", "Polícia (na cidade)"], ["107", "Ambulância (SAME)"], ["100", "Bombeiros"]],
-    consulado: { t: "Consulado-Geral e Embaixada do Brasil em Buenos Aires", p: [
-      "O Consulado-Geral do Brasil fica na rua Carlos Pellegrini 1363, 5º andar, perto do Obelisco. A Embaixada fica na rua Cerrito 1350, em Retiro. O telefone do plantão consular, para perda de documento ou emergência grave, está no site do consulado (gov.br/mre). Anote antes de viajar: ____________________",
-      "Plantão consular do Itamaraty, em Brasília, 24 horas: <b>+55 61 98260-0610</b>. Em Colonia, no Uruguai, quem atende é a Embaixada do Brasil em Montevidéu." ] },
+    numeros: [["911", "Polícia (na cidade)"], ["107", "Ambulância (SAME)"], ["100", "Bombeiros"], ["103", "Defesa Civil"]],
+    consulado: { t: "Consulado do Brasil e Polícia Turística", p: [
+      "<b>Consulado-Geral do Brasil em Buenos Aires</b>: Carlos Pellegrini 1363, 5º andar, perto do Obelisco. Telefone +54 11 4515-6500. <b>Plantão, só emergências: +54 9 11 4199-9668</b>, ligação ou WhatsApp (de celular argentino, 15 4199-9668). A Embaixada, na Cerrito 1350, passa as emergências ao consulado.",
+      "Em Colonia: plantão do Consulado-Geral em Montevidéu, <b>+598 91 300 301</b>, 24 horas, com WhatsApp. Itamaraty, em Brasília, fora do horário comercial: <b>+55 61 98260-0610</b>. Polícia Turística: Av. Corrientes 436, 24 horas, WhatsApp +54 9 11 5050-9260." ] },
     frases: [
       ["Olá / tchau", "Hola / chau", "espanhol"], ["Bom dia", "Buen día", "espanhol"], ["Obrigado", "Gracias", "espanhol"],
       ["Com licença / desculpe", "Permiso / disculpe", "espanhol"], ["Quanto custa?", "¿Cuánto sale?", "espanhol"], ["Onde fica…?", "¿Dónde queda…?", "espanhol"],
@@ -462,8 +486,8 @@ export default {
     lugares: [
       ["Aeroporto de Ezeiza", "Aeropuerto Internacional de Ezeiza"],
       ["Aeroparque", "Aeroparque Jorge Newbery"],
-      ["Terminal do barco para Colonia", "Terminal de Buquebus o de Colonia Express (ver pasaje)"],
-      ["Obelisco", "Obelisco, Av. 9 de Julio y Corrientes"],
+      ["Barco Buquebus", "Terminal Buquebus, Av. Antártida Argentina 821"],
+      ["Barco Colonia Express", "Terminal Colonia Express, Av. Elvira Rawson de Dellepiane 155"],
       ["Caminito", "Caminito, La Boca"],
       ["Cemitério da Recoleta", "Cementerio de la Recoleta"]
     ]
