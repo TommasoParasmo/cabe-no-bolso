@@ -61,8 +61,8 @@ export const CSS_MAIS = `
 .sumario a b{font:800 10pt var(--display);color:var(--acc);min-width:9mm;text-align:right}
 .sumario h3{break-after:avoid;font-size:8.5pt;text-transform:uppercase;letter-spacing:.12em;color:var(--mut);margin:4mm 0 1mm}
 .maps{color:var(--acc);text-decoration:none;border-bottom:1px solid currentColor}
-.stop{grid-template-columns:16mm 1fr 15mm}
-.qr{display:block;width:15mm;height:15mm;align-self:start}
+.stop{grid-template-columns:16mm 1fr 18mm}
+.qr{display:block;width:18mm;height:18mm;align-self:start}
 .qr svg{width:100%;height:100%;display:block}
 #emergencia .phr td{padding:.8mm 3mm;font-size:8.6pt}
 #emergencia .in{gap:4mm}
