@@ -40,7 +40,11 @@ export function montarRoteiro(D, slug, nomeCru, valores = {}) {
     (V.periodo ? "<div><small>Datas</small><b>" + V.periodo + "</b></div><div><small>Viajantes</small><b>" + V.pessoas + (V.pessoas > 1 ? " pessoas" : " pessoa") + "</b></div>"
       : "<div><small>Duração</small><b>7 dias e 6 noites</b></div><div><small>Ritmo</small><b>" + D.capa.ritmo + "</b></div>") + "</div></div></section>";
 
-  const cot = V.cotacao ? "Valores em reais, com a cotação da data da compra: R$ " + V.cotacao.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " por " + D.moeda + "." : "Valores em reais, aproximados, para conferir perto da viagem.";
+  // Cotação da data da compra (R$ por unidade da moeda). Moedas de valor baixo, como os pesos, aparecem ao contrário:
+  // "R$ 1 vale cerca de 170 pesos chilenos".
+  const cot = !V.cotacao ? "Valores em reais, aproximados, para conferir perto da viagem."
+    : V.cotacao < 0.1 ? "Valores em reais, com a cotação da data da compra: R$ 1 vale cerca de " + Math.round(1 / V.cotacao).toLocaleString("pt-BR") + " " + (D.moedaPlural || D.moeda) + "."
+    : "Valores em reais, com a cotação da data da compra: R$ " + V.cotacao.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " por " + D.moeda + ".";
   S.resumo = '<section class="page">' + head("Resumo da viagem") + '<div class="in"><div><span class="kick">Sua viagem em uma página</span><h2 class="t" style="margin-top:2mm">7 dias, um de cada vez</h2></div><div class="sum"><div class="dl">' +
     DAYS.map((d, i) => '<div class="dr"><img src="' + B + d.img + '.jpg" alt=""><div><b>Dia ' + (i + 1) + " · " + d.t + "</b><small>" + d.d + "</small></div><em>" + d.gasto + "</em></div>").join("") +
     '</div><div style="display:grid;gap:5mm;align-content:start">' +

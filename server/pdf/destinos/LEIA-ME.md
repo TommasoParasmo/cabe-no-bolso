@@ -14,7 +14,7 @@ Em `@@PG:<id>@@` o motor põe o número da página (ids: `quando`, `mala`, `guia
 | Campo | Formato |
 |---|---|
 | `nome` | "Orlando" (aparece na capa "<nome> em 7 dias" e no rodapé) |
-| `moeda` | nome da moeda no singular, para "R$ 5,40 por dólar" |
+| `moeda` | nome da moeda no singular, para "R$ 5,40 por dólar"; `moedaPlural` (opcional) para moedas abaixo de R$ 0,10: "R$ 1 vale cerca de 170 pesos chilenos" |
 | `rotuloExtra` | rótulo do 4º item do custo, igual ao `extraNome` da página de oferta (ex.: "Parques (3 dias) e carro") |
 | `capa` | `{ img, frase, ritmo }`: imagem da capa (nome do .jpg em `public/roteiros/<slug>/`), frase de até 90 caracteres, ritmo de até 30 |
 | `referencia` | sem valores da simulação: `{ total: "R$ 2.400", inclui: "até 45 caracteres", porDia: "cerca de R$ 340" }`, por pessoa no destino (comida, passeios, transporte) |

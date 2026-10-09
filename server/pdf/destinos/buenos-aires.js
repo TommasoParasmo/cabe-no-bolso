@@ -26,6 +26,7 @@
 export default {
   nome: "Buenos Aires",
   moeda: "peso argentino",
+  moedaPlural: "pesos argentinos",
   rotuloExtra: "Show de tango e Colonia",
   capa: { img: "capa", frase: "Buenos Aires e Colonia, no Uruguai, com o gasto de cada dia e a viagem inteira no papel.", ritmo: "Tranquilo, a pé e de metrô" },
   referencia: { total: "R$ 2.460", inclui: "comida, passeios, show, barco e transporte", porDia: "cerca de R$ 350" },
