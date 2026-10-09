@@ -29,18 +29,20 @@ test("soma a origem por tipo no dia, incluindo roteiros do cache", async () => {
   await semLog(() => registrarUso(uso(), { tipo: "gratis", resultado: "erro", origem: "meta:tom-chile" }, { LEADS }, agora));
   await registrarOrigem({ tipo: "gratis", origem: "meta:tom-chile" }, { LEADS }, agora);
   await registrarOrigem({ tipo: "detalhado", origem: "meta:tom-chile" }, { LEADS }, agora);
+  const origem = JSON.parse(kv.get("origem:2026-10-09"));
+  assert.deepEqual(origem, { dia: "2026-10-09", gratis: { "meta:tom-chile": 2, direto: 1 }, detalhado: { "meta:tom-chile": 1 } });
+  // O registro de gasto fica igual e sem origem: roteiros e gasto só dos que chamaram a IA.
   const dia = JSON.parse(kv.get("uso:2026-10-09"));
-  assert.deepEqual(dia.origem, { gratis: { "meta:tom-chile": 2, direto: 1 }, detalhado: { "meta:tom-chile": 1 } });
-  // O resto do contador não muda: roteiros e gasto só dos que chamaram a IA.
   assert.equal(dia.roteiros.gratis, 3);
   assert.equal(dia.roteiros.detalhado, undefined);
+  assert.equal(dia.origem, undefined);
 });
 
 test("limita os nomes de origem por dia para não encher o KV", async () => {
   const { kv, LEADS } = kvFalso();
   for (let i = 0; i < 35; i++) await registrarOrigem({ tipo: "gratis", origem: `meta:a${i}` }, { LEADS }, agora);
   await registrarOrigem({ tipo: "gratis", origem: "meta:a0" }, { LEADS }, agora);
-  const o = JSON.parse(kv.get("uso:2026-10-09")).origem.gratis;
+  const o = JSON.parse(kv.get("origem:2026-10-09")).gratis;
   assert.equal(Object.keys(o).length, 31);
   assert.equal(o["meta:a0"], 2);
   assert.equal(o.outro, 5);

@@ -69,30 +69,27 @@ export function lerOrigem(body) {
   return anuncio ? `meta:${anuncio}` : "meta";
 }
 const diaDe = agora => new Date(agora.getTime() - 3 * 3600e3).toISOString().slice(0, 10); // dia em Brasília
-const somarOrigem = (t, tipo, origem) => {
-  const o = (t.origem ||= {})[tipo] ||= {};
-  const nome = origem in o || Object.keys(o).length < MAX_ORIGENS ? origem : "outro";
-  o[nome] = (o[nome] || 0) + 1;
-};
 
-// Roteiro que veio pronto do cache: não gastou IA, mas conta na origem (anúncio que levou a pessoa a montar).
+// Soma numa chave própria (origem:AAAA-MM-DD), separada de uso:AAAA-MM-DD: assim um roteiro do cache que
+// grava ao mesmo tempo que um roteiro novo nunca desfaz a soma de gasto que o teto do dia lê.
+// Formato: { dia, gratis: { "meta:<anúncio>": n, direto: n }, detalhado: { ... } }. Conta também os do cache.
 export async function registrarOrigem({ tipo, origem }, env, agora = new Date()) {
   if (!env?.LEADS || !origem) return;
   try {
-    const dia = diaDe(agora), chave = `uso:${dia}`;
-    const t = (await env.LEADS.get(chave, "json")) || { dia, roteiros: {}, modelos: {}, usd: 0 };
-    somarOrigem(t, tipo, origem);
+    const dia = diaDe(agora), chave = `origem:${dia}`;
+    const t = (await env.LEADS.get(chave, "json")) || { dia };
+    const o = t[tipo] ||= {};
+    const nome = origem in o || Object.keys(o).length < MAX_ORIGENS ? origem : "outro";
+    o[nome] = (o[nome] || 0) + 1;
     await env.LEADS.put(chave, JSON.stringify(t), { expirationTtl: VALIDADE_KV });
   } catch (e) { console.error("uso: não somou a origem no KV", e?.message); }
 }
 
 // Grava a linha no log e soma no dia. Falha aqui nunca derruba o roteiro.
-// `origem` (de lerOrigem) soma em origem.<tipo>, contando também os roteiros que vieram do cache.
+// `origem` (de lerOrigem) vai para registrarOrigem quando o roteiro saiu.
 export async function registrarUso(uso, { tipo, resultado, origem }, env, agora = new Date()) {
-  if (!uso.chamadas.length) {
-    if (resultado === "ok") await registrarOrigem({ tipo, origem }, env, agora);
-    return null;
-  }
+  if (resultado === "ok") await registrarOrigem({ tipo, origem }, env, agora);
+  if (!uso.chamadas.length) return null;
   const { modelos, usd } = resumoUso(uso, env, agora);
   const dia = diaDe(agora);
   const linha = { quando: agora.toISOString(), tipo, resultado, modelos, usd, ...(origem ? { origem } : {}) };
@@ -103,7 +100,6 @@ export async function registrarUso(uso, { tipo, resultado, origem }, env, agora 
     const chave = `uso:${dia}`;
     const t = (await env.LEADS.get(chave, "json")) || { dia, roteiros: {}, modelos: {}, usd: 0 };
     t.roteiros[tipo] = (t.roteiros[tipo] || 0) + 1;
-    if (origem && resultado === "ok") somarOrigem(t, tipo, origem);
     for (const [nome, m] of Object.entries(modelos)) {
       const x = t.modelos[nome] ||= { chamadas: 0, entrada: 0, saida: 0, usd: 0 };
       x.chamadas += m.chamadas; x.entrada += m.entrada; x.saida += m.saida; x.usd = Number((x.usd + m.usd).toFixed(6));
