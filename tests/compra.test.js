@@ -179,6 +179,45 @@ test("compra: preço configurado abaixo do da promoção libera a order paga nes
   assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago" });
 });
 
+test("mapa offline: só aparece com link, soma ao mesmo pagamento e o link vai só para quem pagou com ele", async () => {
+  const MAPAS = '{"orlando":"https://maps.app.goo.gl/abc123"}';
+  // Sem link do destino, nem aparece nem cobra.
+  assert.equal(precoDe("orlando", {}, OUT).mapa, undefined);
+  await assert.rejects(criarCompra({ ...pedido, mapa: true }, { MP_ACCESS_TOKEN: "tok", LEADS: kv() }, mercadoPago(pixCriado).fetchFn), CompraInvalida);
+  assert.equal(precoDe("orlando", { MAPAS_OFFLINE: MAPAS }, OUT).mapa, 9.9);
+  assert.equal(precoDe("chile", { MAPAS_OFFLINE: MAPAS }, OUT).mapa, undefined);
+  assert.equal(precoDe("orlando", { MAPAS_OFFLINE: '{"orlando":"javascript:alert(1)"}' }, OUT).mapa, undefined, "link estranho não vale");
+
+  const env = { MP_ACCESS_TOKEN: "tok", META_CAPI_TOKEN: "capi", MAPAS_OFFLINE: MAPAS, LEADS: kv() };
+  const meta = [];
+  const mp = mercadoPago({ ...pixCriado, total_amount: "39.80" }, { ...pago, total_amount: "39.80" });
+  const fetchFn = async (url, opts = {}) => {
+    if (String(url).includes("facebook")) { meta.push(JSON.parse(opts.body).data[0]); return new Response("{}"); }
+    return mp.fetchFn(url, opts);
+  };
+  // O preço visto é o total com o mapa: 29,90 + 9,90.
+  await assert.rejects(criarCompra({ ...pedido, mapa: true, precoVisto: 29.9 }, env, fetchFn), /39,80/);
+  const c = await criarCompra({ ...pedido, mapa: true, precoVisto: 39.8, meta: { url: "https://vaidarviagem.com.br/comprar/" } }, env, fetchFn);
+  assert.equal(c.preco, 39.8);
+  const corpo = mp.pedidos.at(-1).corpo;
+  assert.equal(corpo.total_amount, "39.80");
+  assert.equal(corpo.transactions.payments[0].amount, "39.80");
+  assert.match(corpo.description, /\+ Mapa offline$/);
+  assert.deepEqual(await situacaoCompra(c.id, c.chave, env, fetchFn), { status: "pago", mapa: "https://maps.app.goo.gl/abc123" });
+  assert.equal(meta[0].custom_data.value, 39.8, "a Meta recebe o total do pedido");
+  assert.deepEqual(meta[0].custom_data.content_ids, ["orlando", "mapa-offline"]);
+  assert.deepEqual(JSON.parse(env.LEADS.m.get("vendas:pdf:orlando")).mapa, 1);
+  const rec = await recuperarCompra({ id: c.id, email: "maria@email.com" }, env, fetchFn);
+  assert.equal(rec.mapa, "https://maps.app.goo.gl/abc123");
+
+  // Comprou sem o mapa: o link não vai, mesmo com o destino tendo mapa.
+  const env2 = { MP_ACCESS_TOKEN: "tok", MAPAS_OFFLINE: MAPAS, LEADS: kv() };
+  const mp2 = mercadoPago(pixCriado, pago);
+  const c2 = await criarCompra({ ...pedido, precoVisto: 29.9 }, env2, mp2.fetchFn);
+  assert.deepEqual(await situacaoCompra(c2.id, c2.chave, env2, mp2.fetchFn), { status: "pago" });
+  assert.equal(JSON.parse(env2.LEADS.m.get("vendas:pdf:orlando")).mapa, undefined);
+});
+
 test("compra: recupera em outro aparelho com o número e o e-mail, e a chave antiga deixa de valer", async () => {
   const env = { MP_ACCESS_TOKEN: "tok", LEADS: kv() };
   const mp = mercadoPago(pixCriado, pago);

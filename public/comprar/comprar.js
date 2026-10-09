@@ -5,6 +5,7 @@
 // inicio ("2027-07-05"), pessoas, noites, passagens, hotel, comidaPasseios, transporte, sobra, cotacao (reais por
 // unidade da moeda local), clima ({ mes, min, max }) e dias (7 valores, o gasto de cada dia).
 // Pix: QR Code na tela e confirmação automática. Cartão: formulário do Mercado Pago (Card Payment Brick).
+// Mapa offline: caixinha que soma ao mesmo pagamento, só no destino que tem o mapa (o servidor diz o preço dele).
 const NOMES = { jerusalem: "Jerusalém", orlando: "Orlando", chile: "Santiago do Chile", "buenos-aires": "Buenos Aires" };
 const TURNSTILE_SITE_KEY = "0x4AAAAAAFReB_e_h1sYplN2";
 const $ = id => document.getElementById(id);
@@ -38,6 +39,9 @@ function mostrar(passo) {
   document.body.classList.toggle("pagando", passo !== "dados");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
+// Total na forma escolhida, com o mapa offline se a caixinha está marcada (em centavos, sem erro de arredondamento).
+const comMapa = () => Boolean(preco?.mapa && $("mapa").checked);
+const total = f => (Math.round(preco[f] * 100) + (comMapa() ? Math.round(preco.mapa * 100) : 0)) / 100;
 const erro = (id, msg) => { $(id).textContent = msg || ""; $(id).hidden = !msg; };
 
 // ---- Promoção de outubro: cronômetro até o fim real da promoção ----
@@ -65,11 +69,12 @@ function escolher(f) {
 // O Purchase leva o número do pedido como eventID, o mesmo event_id que o servidor manda pela Conversions API
 // (server/meta.js) para todos os compradores: a Meta junta os dois e conta a compra uma vez.
 const cookie = nome => document.cookie.split("; ").find(c => c.startsWith(nome + "="))?.slice(nome.length + 1);
-const noPixel = (evento, valor, id) => window.fbq?.("track", evento,
-  { value: Number(valor), currency: "BRL", content_name: slug, content_ids: [slug], content_type: "product" }, id ? { eventID: id } : undefined);
-function compraNoPixel(id, valor) {
+const noPixel = (evento, valor, id, mapa) => window.fbq?.("track", evento,
+  { value: Number(valor), currency: "BRL", content_name: slug, content_ids: mapa ? [slug, "mapa-offline"] : [slug], content_type: "product" },
+  id ? { eventID: id } : undefined);
+function compraNoPixel(id, valor, mapa) {
   if (!valor || ler("vdv:pixel:" + id)) return;
-  noPixel("Purchase", valor, id);
+  noPixel("Purchase", valor, id, mapa);
   guardar("vdv:pixel:" + id, 1);
 }
 
@@ -77,7 +82,7 @@ function dadosDoFormulario() {
   const nome = $("nome").value.replace(/\s+/g, " ").trim(), email = $("email").value.trim();
   if (nome.length < 2) throw new Error("Escreva o nome que vai na capa.");
   if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) throw new Error("Confira o e-mail.");
-  return { destino: slug, nome, email, valores: valoresDaSimulacao(), utm: ler("vdv-origem", sessionStorage) || undefined,
+  return { destino: slug, nome, email, mapa: comMapa(), valores: valoresDaSimulacao(), utm: ler("vdv-origem", sessionStorage) || undefined,
     // _fbp e _fbc só existem com o Pixel carregado (cookies aceitos); sem eles, a Meta usa o e-mail (hash) e o IP.
     meta: { fbp: cookie("_fbp"), fbc: cookie("_fbc"), url: location.href } };
 }
@@ -105,8 +110,8 @@ function tokenTurnstile() {
 // ---- Pix ----
 async function gerarPix() {
   const dados = dadosDoFormulario();
-  const pix = await postar({ acao: "criar", forma: "pix", ...dados, precoVisto: preco?.pix, turnstile: await tokenTurnstile() });
-  pendente = { id: pix.id, chave: pix.chave, preco: pix.preco, copiaECola: pix.copiaECola, qrCode: pix.qrCode, expiraEm: pix.expiraEm };
+  const pix = await postar({ acao: "criar", forma: "pix", ...dados, precoVisto: total("pix"), turnstile: await tokenTurnstile() });
+  pendente = { id: pix.id, chave: pix.chave, preco: pix.preco, comMapa: dados.mapa, copiaECola: pix.copiaECola, qrCode: pix.qrCode, expiraEm: pix.expiraEm };
   guardar("vdv:pix:" + slug, pendente);
   telaPix();
 }
@@ -131,8 +136,8 @@ function acompanhar() {
   clearTimeout(consulta);
   const ver = async () => {
     try {
-      const { status } = await postar({ acao: "situacao", id: pendente.id, chave: pendente.chave });
-      if (status === "pago") return pronto(pendente, true);
+      const { status, mapa } = await postar({ acao: "situacao", id: pendente.id, chave: pendente.chave });
+      if (status === "pago") return pronto({ ...pendente, mapa }, true);
       if (status === "expirado") {
         localStorage.removeItem("vdv:pix:" + slug);
         localStorage.removeItem("vdv:cartao:" + slug);
@@ -169,13 +174,13 @@ async function abrirCartao() {
   if (brickPronto) { await brickPronto.unmount?.(); brickPronto = null; }
   const mp = new window.MercadoPago(chavePublica, { locale: "pt-BR" });
   brickPronto = await mp.bricks().create("cardPayment", "brick", {
-    initialization: { amount: preco.cartao, payer: { email: dados.email } },
+    initialization: { amount: total("cartao"), payer: { email: dados.email } },
     customization: {
       paymentMethods: { maxInstallments: 1, minInstallments: 1, types: { excluded: ["debit_card", "prepaid_card"] } },
       visual: {
         style: { theme: "default", customVariables: { baseColor: "#0D3532", buttonTextColor: "#FFFFFF", borderRadiusLarge: "14px" } },
         // Só crédito: o título padrão do Brick fala em "crédito ou débito".
-        texts: { formTitle: "Cartão de crédito", formSubmit: `Pagar ${brl(preco.cartao)}` }
+        texts: { formTitle: "Cartão de crédito", formSubmit: `Pagar ${brl(total("cartao"))}` }
       }
     },
     callbacks: {
@@ -185,10 +190,10 @@ async function abrirCartao() {
       onSubmit: async formData => {
         erro("erro-cartao", "");
         try {
-          const r = await postar({ acao: "criar", forma: "cartao", ...dados, precoVisto: preco?.cartao, turnstile: await tokenTurnstile(),
+          const r = await postar({ acao: "criar", forma: "cartao", ...dados, precoVisto: total("cartao"), turnstile: await tokenTurnstile(),
             cartao: { token: formData.token, payment_method_id: formData.payment_method_id } });
-          if (r.status === "pago") return pronto(r, true);
-          pendente = { id: r.id, chave: r.chave, preco: r.preco, forma: "cartao" };
+          if (r.status === "pago") return pronto({ ...r, comMapa: dados.mapa }, true);
+          pendente = { id: r.id, chave: r.chave, preco: r.preco, comMapa: dados.mapa, forma: "cartao" };
           guardar("vdv:cartao:" + slug, pendente);
           emAnalise();
         } catch (e) {
@@ -211,13 +216,16 @@ function emAnalise() {
 
 // ---- Pronto: link do PDF ----
 // `nova`: o pagamento acabou de ser confirmado nesta tela (não é quem voltou para baixar de novo).
-function pronto({ id, chave, preco: valor }, nova = false) {
-  if (nova) compraNoPixel(id, valor);
+// `mapa`: o link do mapa offline, que o servidor só manda para quem pagou com ele.
+function pronto({ id, chave, preco: valor, comMapa: levou, mapa }, nova = false) {
+  if (nova) compraNoPixel(id, valor, levou || Boolean(mapa));
   clearTimeout(consulta); clearTimeout(relogio);
   localStorage.removeItem("vdv:pix:" + slug);
   localStorage.removeItem("vdv:cartao:" + slug);
-  guardar("vdv:compra:" + slug, { id, chave });
+  guardar("vdv:compra:" + slug, { id, chave, ...(mapa ? { mapa } : {}) });
   $("baixar").href = "/api/pdf?" + new URLSearchParams({ id, chave });
+  $("abrir-mapa").hidden = !mapa;
+  if (mapa) $("abrir-mapa").href = mapa;
   $("num-pedido").textContent = id;
   mostrar("pronto");
 }
@@ -235,8 +243,13 @@ async function recuperar() {
 async function atualizarPreco() {
   preco = await postar({ acao: "preco", destino: slug });
   chavePublica = preco.chavePublica;
-  $("preco-pix").textContent = brl(preco.pix);
-  $("preco-cartao").textContent = brl(preco.cartao);
+  $("bump").hidden = !preco.mapa;
+  if (preco.mapa) $("mapa-preco").textContent = brl(preco.mapa);
+  mostrarPrecos();
+}
+function mostrarPrecos() {
+  $("preco-pix").textContent = brl(total("pix"));
+  $("preco-cartao").textContent = brl(total("cartao"));
 }
 
 // ---- Início ----
@@ -257,6 +270,8 @@ async function iniciar() {
   if (feita?.id) return pronto(feita);
 
   for (const b of document.querySelectorAll(".forma")) b.addEventListener("click", () => escolher(b.dataset.forma));
+  $("mapa").addEventListener("change", () => { if (preco) mostrarPrecos(); });
+  $("mapa-destino").textContent = nomeDestino;
   $("passo-dados").addEventListener("submit", async ev => {
     ev.preventDefault();
     erro("erro-dados", "");
