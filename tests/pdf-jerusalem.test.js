@@ -34,3 +34,10 @@ test("PDF de Jerusalém: valores da simulação entram quando vêm, senão a ref
   assert.match(roteiroJerusalem("Ana", { dias: [1, 2], total: -5, periodo: "<b>x</b>" }), /Gasto previsto por pessoa/);
   assert.doesNotMatch(roteiroJerusalem("Ana", { periodo: "<b>x</b>", pessoas: 1 }), /<b>x<\/b>/);
 });
+
+test("PDF de Jerusalém: todas as imagens apontam para /roteiros/jerusalem/", () => {
+  const h = roteiroJerusalem("Ana");
+  const caminhos = [...h.matchAll(/(?:src="|url\()([^")]+\.(?:jpg|png))/g)].map(m => m[1]);
+  assert.ok(caminhos.length > 10);
+  for (const c of caminhos) assert.match(c, /^\/roteiros\/jerusalem\/[a-z-]+\.(jpg|png)$/, c);
+});

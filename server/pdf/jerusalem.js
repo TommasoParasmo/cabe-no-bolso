@@ -39,7 +39,7 @@ p{margin:0}
 .mut{color:var(--mut)}
 
 /* Capa */
-.cover{background:var(--deep) url(img/capa.jpg) center/cover;color:var(--on)}
+.cover{background:var(--deep) url(/roteiros/jerusalem/capa.jpg) center/cover;color:var(--on)}
 .cover::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(13,53,50,.55) 0%,rgba(13,53,50,.1) 35%,rgba(13,53,50,.95) 72%)}
 .cover>*{position:relative}
 .cover .top{padding:14mm 16mm 0}
