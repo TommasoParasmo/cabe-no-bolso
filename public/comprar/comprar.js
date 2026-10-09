@@ -91,7 +91,7 @@ function tokenTurnstile() {
 // ---- Pix ----
 async function gerarPix() {
   const dados = dadosDoFormulario();
-  const pix = await postar({ acao: "criar", forma: "pix", ...dados, turnstile: await tokenTurnstile() });
+  const pix = await postar({ acao: "criar", forma: "pix", ...dados, precoVisto: preco?.pix, turnstile: await tokenTurnstile() });
   pendente = { id: pix.id, chave: pix.chave, copiaECola: pix.copiaECola, qrCode: pix.qrCode, expiraEm: pix.expiraEm };
   guardar("vdv:pix:" + slug, pendente);
   telaPix();
@@ -146,6 +146,7 @@ function carregarSdk() {
 
 async function abrirCartao() {
   const dados = dadosDoFormulario();
+  await atualizarPreco();
   if (!chavePublica) throw new Error("O pagamento com cartão ainda não está ligado. Use o Pix.");
   erro("erro-cartao", "");
   mostrar("cartao");
@@ -170,7 +171,7 @@ async function abrirCartao() {
       onSubmit: async formData => {
         erro("erro-cartao", "");
         try {
-          const r = await postar({ acao: "criar", forma: "cartao", ...dados, turnstile: await tokenTurnstile(),
+          const r = await postar({ acao: "criar", forma: "cartao", ...dados, precoVisto: preco?.cartao, turnstile: await tokenTurnstile(),
             cartao: { token: formData.token, payment_method_id: formData.payment_method_id } });
           if (r.status === "pago") return pronto(r);
           pendente = { id: r.id, chave: r.chave, forma: "cartao" };
@@ -178,6 +179,7 @@ async function abrirCartao() {
           emAnalise();
         } catch (e) {
           erro("erro-cartao", e.message);
+          await atualizarPreco().catch(() => {});
           throw e;
         }
       }
@@ -211,6 +213,14 @@ async function recuperar() {
     if (r.destino !== slug) { guardar("vdv:compra:" + r.destino, r); location.href = "/comprar/?destino=" + r.destino; return; }
     pronto(r);
   } catch (e) { erro("erro-rec", e.message); }
+}
+
+// Preço de agora (muda no fim da promoção): na abertura, antes do formulário do cartão e depois de um "preço mudou".
+async function atualizarPreco() {
+  preco = await postar({ acao: "preco", destino: slug });
+  chavePublica = preco.chavePublica;
+  $("preco-pix").textContent = brl(preco.pix);
+  $("preco-cartao").textContent = brl(preco.cartao);
 }
 
 // ---- Início ----
@@ -249,10 +259,7 @@ async function iniciar() {
   $("recuperar").addEventListener("click", recuperar);
 
   try {
-    preco = await postar({ acao: "preco", destino: slug });
-    chavePublica = preco.chavePublica;
-    $("preco-pix").textContent = brl(preco.pix);
-    $("preco-cartao").textContent = brl(preco.cartao);
+    await atualizarPreco();
     if (!chavePublica) document.querySelector('[data-forma="cartao"]').hidden = true;
     if (preco.promocao) cronometroPromo(preco.ate);
   } catch (e) { erro("erro-dados", e.message); }

@@ -67,6 +67,10 @@ export async function criarCompra(body, env, fetchFn = globalThis.fetch) {
   const { slug, nome, email, valores } = lerPedido(body);
   const forma = body?.forma === "cartao" ? "cartao" : "pix";
   const preco = precoDe(slug, env)[forma].toFixed(2);
+  // O preço que a pessoa viu na tela: se mudou nesse meio tempo (fim da promoção), não cobra sem ela ver o novo.
+  if (body?.precoVisto != null && Number(body.precoVisto).toFixed(2) !== preco) {
+    throw new CompraInvalida(`O preço mudou para R$ ${preco.replace(".", ",")}. Confira e tente de novo.`);
+  }
   const chave = aleatorio();
   const ref = `pdf_${slug}_${await hash(chave, 24)}`;
   let pagamento;
