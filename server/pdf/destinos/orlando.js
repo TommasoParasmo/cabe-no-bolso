@@ -1,39 +1,33 @@
 // Roteiro Detalhado + Pré-viagem de Orlando (família com filhos, 7 dias, de carro).
 // Formato de cada campo em server/pdf/destinos/LEIA-ME.md. Conteúdo escrito de memória.
 //
-// CONFERIR antes de vender:
-// - Visto: taxa MRV (cerca de US$ 185) e possível taxa extra criada em 2025; regras de dispensa de entrevista
-//   (mudaram em 2025, inclusive para crianças e idosos); sites ceac.state.gov e ais.usvisa-info.com.
-// - Limite da Receita: US$ 1.000 por pessoa na mala (via aérea), US$ 1.000 no free shop de chegada, imposto de 50%
-//   sobre o excesso, multa para quem não declara, e-DBV; se a cota vale igual para crianças; regra de celular,
-//   relógio e câmera de uso pessoal fora da cota.
-// - IOF de 3,5% em cartão, conta global e compra de dólar em espécie (mudou em 2025).
-// - Imposto de venda em Orlando (cerca de 6,5%) e taxa de hotel (cerca de 12,5%).
-// - Preços de ingresso: Disney 1 dia, Universal 2 parques 2 dias, Epic Universe, Kennedy Space Center (cerca de
-//   US$ 75 adulto), Volcano Bay, Typhoon Lagoon, Gatorland, LEGOLAND; Lightning Lane e Universal Express.
-// - Estacionamento: Disney e Universal (cerca de US$ 30 a 35), parques aquáticos da Disney grátis, Lori Wilson Park
-//   grátis, Jetty Park pago.
-// - Comida: regra de levar lanche (Disney permite; Universal só lanches pequenos), preços de coxa de peru,
-//   Butterbeer, Dole Whip, copo de refil da Universal.
-// - Altura mínima: Seven Dwarfs 97 cm, Space Mountain 112 cm, Shuttle Launch Experience 112 cm, Hagrid's 122 cm,
-//   Hulk 137 cm.
-// - Horários: parques (variam por data), Kennedy Space Center (9h às 17h ou 18h), The Wheel (ainda funciona no
-//   ICON Park?), feira do Lake Eola (domingo, 10h às 16h), outlets, Walmart.
-// - Cadeirinha na Flórida: obrigatória até 5 anos (cadeirinha até 3, assento de elevação aos 4 e 5); aluguel na
-//   locadora cerca de US$ 15 por dia.
-// - I-Ride Trolley: se ainda funciona e preço da passagem.
-// - Telefones: *347 (Polícia Rodoviária da Flórida), 1-800-222-1222 (Poison Control), plantão do Itamaraty
-//   +55 61 98260-0610; endereço e plantão do Consulado-Geral em Miami (não pusemos o número: conferir no site).
-// - Franquia de bagagem para os EUA (1 ou 2 malas de 23 kg, conforme a tarifa).
+// CONFERIR antes de vender (o QA já conferiu, em 09/10/2026: alturas mínimas, cadeirinha até 5 anos, cota da Receita
+// e free shop, *347, 911, Poison Control, I-Ride Trolley, horário e preço da NASA, estacionamento grátis dos parques
+// aquáticos da Disney, endereço do consulado em Orlando, plantão do Itamaraty, feira do Lake Eola das 10h às 15h):
+// - Plantão do Consulado-Geral em Orlando +1 321 387-9716 (o gov.br chama de plantão 24 h numa página e de "só
+//   WhatsApp" em outra) e WhatsApp +1 407 675-0604.
+// - Visto: taxa MRV (cerca de US$ 185), taxa extra de US$ 250 (aprovada em 2025, ver se já é cobrada), espera da
+//   entrevista (6 a 12 meses em São Paulo e no Rio, fonte não oficial), dispensa só para renovação até 12 meses.
+// - IOF de 3,5% em cartão, conta global e compra de dólar em espécie.
+// - Imposto: 6,5% em Orlando e 7,5% em Kissimmee; taxa de hotel de cerca de 12,5% e 13,5%.
+// - Preços de ingresso nos gastos dos dias (cotação de R$ 5,40): Universal 2 parques 2 dias, Magic Kingdom (QA: cerca
+//   de R$ 4.520 para 2 adultos e 2 crianças em julho), NASA (QA: R$ 2.100 a 2.300 para 4), Epic Universe, Volcano Bay
+//   (US$ 89 a 139), Typhoon Lagoon, Gatorland, LEGOLAND, Orlando Eye; Lightning Lane e Universal Express.
+// - Estacionamento: Disney US$ 35, Universal cerca de US$ 32; Lori Wilson Park grátis; Jetty Park pago.
+// - The Orlando Eye: se está aberta (fechada para manutenção em 06/2026, segundo uma revenda).
+// - Comida: regra de levar lanche (Disney permite; Universal só lanches pequenos), preços dos pratos, copo de refil.
+// - Horários dos parques, outlets e Walmart; feriados americanos do ano da viagem.
+// - Franquia de bagagem para os EUA.
 // - Empresas da página de guias: Undercover Tourist, Boggy Creek Airboat Adventures, Wild Florida, Kingdom
 //   Strollers, BabyQuip.
+// - Foto parque2.jpg: sem crédito conhecido, deixou de ser usada.
 
 export default {
   nome: "Orlando",
   moeda: "dólar",
   rotuloExtra: "Parques (3 dias) e carro",
   capa: { img: "capa", frase: "Parques na ordem certa, NASA, praia e compras, com tudo o que fazer antes de ir.", ritmo: "Em família, de carro" },
-  referencia: { total: "R$ 4.740", inclui: "comida, 3 dias de parque, NASA e gasolina", porDia: "cerca de R$ 680" },
+  referencia: { total: "R$ 5.820", inclui: "3 parques, NASA, comida e gasolina", porDia: "cerca de R$ 830" },
   fichaDoc: ["Visto americano", "Número e validade de cada pessoa"],
   fichaExtra: [["Aluguel de carro", "Locadora, número da reserva e local de retirada"], ["Ingressos dos parques", "Números de confirmação e datas"]],
 
@@ -56,7 +50,7 @@ export default {
       { d: "M345 285 L480 300 L640 300", l: "Beachline (528), com pedágio", lx: 530, ly: 322 }
     ],
     pinos: [
-      { x: 335, y: 280, dia: 1, l: "I-Drive e The Wheel" },
+      { x: 335, y: 280, dia: 1, l: "I-Drive e Orlando Eye" },
       { x: 275, y: 215, dia: 2, l: "" },
       { x: 305, y: 215, dia: 3, l: "Universal" },
       { x: 645, y: 190, dia: 4, l: "Kennedy Space Center", anc: "end" },
@@ -75,8 +69,8 @@ export default {
   quando: [
     ["6", "meses antes", [
       ["Passaporte e DS-160 de cada pessoa, inclusive bebê", "Confira a validade dos passaportes e preencha o formulário do visto em ceac.state.gov. Guarde o número de confirmação."],
-      ["Pague a taxa e agende CASV e entrevista", "Taxa de cerca de US$ 185 por pessoa. O agendamento é no site oficial ais.usvisa-info.com. A espera pode passar de meses."],
-      ["Vá à entrevista com os filhos", "Leve passaportes, confirmação do DS-160 e certidão de nascimento das crianças. O visto sai no passaporte em alguns dias."]]],
+      ["Pague a taxa e agende CASV e entrevista", "Taxa de cerca de US$ 185 por pessoa, agendada em ais.usvisa-info.com. Em São Paulo e no Rio, a espera chega a 6 a 12 meses."],
+      ["Vá à entrevista com os filhos", "Leve passaportes, DS-160 e certidão das crianças. Uma taxa extra de US$ 250 foi aprovada em 2025: confira em travel.state.gov."]]],
     ["90", "dias antes", [
       ["Compre as passagens", "Simule no vaidarviagem.com.br para achar as datas que cabem no bolso. Julho, dezembro e janeiro são os meses mais caros."],
       ["Reserve hotel fora dos parques e o carro", "I-Drive ou Lake Buena Vista, com quarto para 4. Peça a cadeirinha na reserva do carro ou planeje comprar lá."],
@@ -94,8 +88,8 @@ export default {
   regras: {
     titulo: "Visto, dólar e clima",
     cards: [
-      { ic: "i-doc", t: "Visto e entrada", itens: ["Cada pessoa, inclusive bebê, precisa de passaporte e visto americano válidos.", "Na imigração, diga o hotel e a data da volta. Tenha as reservas no celular.", "Quem já tem visto confere a validade: ele vale até 10 anos."] },
-      { ic: "coin", t: "Dólar e impostos", itens: ["O preço na etiqueta não tem imposto: some cerca de 6,5% no caixa.", "Gorjeta em restaurante com garçom: 15% a 20%. No balcão, é opcional.", "Cartão, conta global e dólar em espécie pagam IOF. Na maquininha, pague em dólar."] },
+      { ic: "i-doc", t: "Visto e entrada", itens: ["Cada pessoa, inclusive bebê, precisa de passaporte e visto americano válidos.", "Desde 09/2025, só quem renova visto vencido há menos de 12 meses fica sem entrevista.", "Na imigração, diga o hotel e a data da volta. O visto vale até 10 anos."] },
+      { ic: "coin", t: "Dólar e impostos", itens: ["A etiqueta vem sem imposto: some 6,5% em Orlando e 7,5% em Kissimmee.", "Gorjeta em restaurante com garçom: 15% a 20%. No balcão, é opcional.", "Cartão, conta global e dólar em espécie pagam IOF de 3,5%. Pague em dólar."] },
       { ic: "spark", t: "Parques com crianças", itens: ["Muitos brinquedos pedem altura mínima, de 97 a 137 cm.", "Combine um ponto de encontro e fotografe a roupa de cada filho de manhã.", "Leve carrinho para quem tem até 5 anos: anda-se 10 a 15 km por dia."] }
     ],
     avisos: [["Furacões e tempestades", "A temporada de furacões vai de junho a novembro, com mais risco de agosto a outubro. Escolha um seguro que cubra atraso e cancelamento por clima. No verão chove forte quase todo fim de tarde, por pouco tempo, e os brinquedos ao ar livre param quando há raios."]],
@@ -131,7 +125,7 @@ export default {
         contra: ["Precisa de carro para tudo", "Taxa de limpeza e depósito à parte"] }
     ],
     estilos: [["Econômico", "R$ 500 a 800", "diária do quarto para 4"], ["Confortável", "R$ 900 a 1.500", "diária do quarto para 4"], ["Casa com piscina", "R$ 1.000 a 2.000", "diária da casa inteira"]],
-    nota: "Valores de referência. Some a taxa de hotel (cerca de 12,5%), a taxa de resort, quando houver, e o estacionamento. Em julho, dezembro e janeiro as diárias sobem."
+    nota: "Valores de referência. Some a taxa de hotel (cerca de 12,5%, ou 13,5% em Kissimmee), a taxa de resort, quando houver, e o estacionamento. Em julho, dezembro e janeiro as diárias sobem."
   },
 
   locomover: {
@@ -161,15 +155,15 @@ export default {
       ["Epic Universe", "Todos os dias, das 9h às 21h", "Não fecha", "Ingresso com data", "Sim"],
       ["Volcano Bay", "Dias mais quentes, das 10h ao fim da tarde", "Parte do inverno", "Ingresso com data", "Sim"],
       ["Kennedy Space Center", "Todos os dias, das 9h às 17h ou 18h", "Muda em dia de lançamento", "Pago", "Melhor comprar antes"],
-      ["The Wheel (ICON Park)", "Todos os dias, da tarde até a noite", "Para com raios", "Pago", "Não"],
+      ["The Orlando Eye (ICON Park)", "Todos os dias, da tarde até a noite", "Confira se está aberta", "Pago", "Não"],
       ["SEA LIFE (ICON Park)", "Todos os dias, das 10h à noite", "Não fecha", "Pago", "Não"],
-      ["Lake Eola Park", "Todos os dias, do amanhecer à noite", "Feira só no domingo", "Grátis", "Não"],
+      ["Lake Eola Park", "Todos os dias. Feira: domingo, das 10h às 15h", "Não fecha", "Grátis", "Não"],
       ["Premium Outlets", "Todos os dias, das 10h às 21h", "Domingo fecha mais cedo", "Grátis", "Não"],
       ["Disney Springs", "Todos os dias, das 10h às 23h", "Não fecha", "Grátis", "Não"],
       ["Walmart Supercenter", "Todos os dias, das 6h às 23h", "Não fecha", "Grátis", "Não"],
       ["Cocoa Beach Pier", "Todos os dias, de manhã à noite", "Não fecha", "Grátis, estacionamento pago", "Não"]
     ],
-    aviso: ["Confira na semana da viagem", "Os parques mudam o horário conforme a época. Veja no aplicativo oficial: no verão e no fim do ano abrem mais cedo e fecham mais tarde."]
+    aviso: ["Confira na semana da viagem", "Os parques mudam o horário conforme a época: veja no aplicativo oficial. Em feriado americano, como o 4 de julho (em 2027, folga na segunda, 05/07), parques e estradas lotam."]
   },
 
   historia: {
@@ -177,7 +171,7 @@ export default {
     titulo: "Linha do tempo de Orlando",
     linhas: [
       ["1838", "O Exército americano ergue o Forte Gatlin, origem da cidade."],
-      ["1875", "Orlando vira cidade, com menos de cem moradores."],
+      ["1875", "Orlando vira vila, com menos de cem moradores. É cidade desde 1885."],
       ["1880", "Chega a ferrovia, e a região passa a viver da laranja."],
       ["1895", "Duas geadas seguidas destroem os laranjais."],
       ["1950", "Primeiro lançamento de foguete em Cabo Canaveral, na costa."],
@@ -195,21 +189,21 @@ export default {
   },
 
   dias: [
-    { img: "roda", d: "Chegada · de carro", t: "International Drive e roda-gigante", gasto: "R$ 250", seg: 4, bairro: "International Drive",
+    { img: "roda", d: "Chegada · de carro", t: "International Drive e roda-gigante", gasto: "R$ 360", seg: 4, bairro: "International Drive",
       destaque: ["Hoje, sem pressa", "O primeiro dia é só para chegar, comprar o básico e ver a cidade do alto."],
       stops: [
-        ["13:00", "Aeroporto MCO e retirada do carro", "Imigração, malas e locadora. Confira cadeirinha e pedágio.", ["Carro", "1h30 a 3h"], "Orlando International Airport MCO"],
-        ["16:00", "Check-in no hotel", "Deixe as malas e descanse. Criança cansada hoje estraga amanhã.", ["Carro", "20 a 30 min"]],
-        ["17:30", "Compras do básico no Walmart", "Água, protetor, lanches e capa de chuva para os parques.", ["Carro", "US$ 50 a 100"], "Walmart Supercenter Turkey Lake Road Orlando"],
-        ["20:00", "The Wheel, no ICON Park", "Roda-gigante de cerca de 120 metros, com a cidade iluminada.", ["Carro", "pago"], "The Wheel at ICON Park Orlando"]],
+        ["Chegada", "Aeroporto MCO e retirada do carro", "Imigração, malas e locadora. Confira cadeirinha e pedágio.", ["Carro", "1h30 a 3h"], "Orlando International Airport MCO"],
+        ["Depois", "Check-in no hotel", "Deixe as malas e descanse. Criança cansada hoje estraga amanhã.", ["Carro", "20 a 30 min"]],
+        ["Tarde", "Compras do básico no Walmart", "Água, protetor, lanches e capa de chuva para os parques.", ["Carro", "US$ 50 a 100"], "Walmart Supercenter Turkey Lake Road Orlando"],
+        ["Noite", "The Orlando Eye, no ICON Park", "Roda de cerca de 120 metros, com a cidade acesa. Confira se está aberta.", ["Carro", "pago"], "The Orlando Eye ICON Park Orlando"]],
       comer: [["Hambúrguer ou pizza na I-Drive", "R$ 80 a R$ 140 por pessoa"], ["Frutas do Walmart para o café", "R$ 30 por pessoa"]],
       chuva: "A roda para com raios. Troque pelo aquário SEA LIFE, ao lado, que é coberto.",
       tip: ["Para economizar", "Protetor, água e capa no Walmart. No parque, tudo custa o dobro."] },
 
-    { img: "parque2", d: "Dia inteiro · de carro", t: "Islands of Adventure, na ordem certa", gasto: "R$ 1.120", seg: 5, bairro: "Universal Orlando",
+    { img: "capa", d: "Dia inteiro · de carro", t: "Islands of Adventure, na ordem certa", gasto: "R$ 1.380", seg: 5, bairro: "Universal Orlando",
       destaque: ["A ordem certa", "Abertura no brinquedo mais disputado, pausa no meio-dia, volta no fim da tarde."],
       stops: [
-        ["07:45", "Estacionamento da Universal", "Chegue 1 hora antes da abertura e fotografe a placa da vaga.", ["Carro", "cerca de US$ 30"], "Universal Orlando Resort parking garage"],
+        ["07:45", "Estacionamento da Universal", "Chegue 1 hora antes da abertura e fotografe a placa da vaga.", ["Carro", "cerca de US$ 32"], "Universal Orlando Resort parking garage"],
         ["08:30", "O brinquedo mais disputado", "Hagrid's para os maiores. Com pequenos, Seuss Landing primeiro.", ["A pé", "abertura"], "Islands of Adventure Orlando"],
         ["12:30", "Pausa no meio do dia", "Almoço fora do pico e, se der, piscina no hotel.", ["Carro", "2 a 3h"]],
         ["17:00", "Volta ao parque", "As filas caem. Termine em Hogsmeade, com o castelo iluminado.", ["A pé", "até fechar"], "Hogsmeade Islands of Adventure"]],
@@ -217,7 +211,7 @@ export default {
       chuva: "Forbidden Journey e Spider-Man são cobertos. As montanhas-russas param com raios.",
       tip: ["Fila virtual", "Alguns brinquedos usam fila virtual no app da Universal. Abra logo na entrada."] },
 
-    { img: "capa", d: "Dia inteiro · de carro", t: "Universal Studios: brinquedos por idade", gasto: "R$ 1.100", seg: 5, bairro: "Universal Orlando",
+    { img: "capa", d: "Dia inteiro · de carro", t: "Universal Studios e Hogsmeade, por idade", gasto: "R$ 1.400", seg: 5, bairro: "Universal Orlando",
       destaque: ["Um parque para cada idade", "Pequenos nos Minions e na DreamWorks Land, maiores no Gringotts."],
       stops: [
         ["08:00", "Abertura do Universal Studios", "Minions para os pequenos, Gringotts para os maiores.", ["A pé", "abertura"], "Universal Studios Florida"],
@@ -225,10 +219,10 @@ export default {
         ["12:30", "Almoço e pausa", "Divida pratos e encha as garrafas nos bebedouros.", ["A pé", "1h30"]],
         ["17:00", "Jantar no CityWalk", "Restaurantes entre os parques, sem ingresso.", ["A pé", "grátis"], "Universal CityWalk Orlando"]],
       comer: [["Fish and chips no Leaky Cauldron", "R$ 90 a R$ 140 por pessoa"], ["Jantar no CityWalk", "R$ 90 a R$ 150 por pessoa"]],
-      chuva: "Quase tudo aqui é coberto. É o melhor parque para um dia de chuva.",
+      chuva: "Quase tudo no Universal Studios é coberto. É o melhor parque para um dia de chuva.",
       tip: ["Troca de pais", "Um adulto espera com o pequeno e depois entra sem pegar a fila de novo."] },
 
-    { img: "nasa", d: "Bate-volta de carro", t: "Kennedy Space Center", gasto: "R$ 680", seg: 5, bairro: "Merritt Island",
+    { img: "nasa", d: "Bate-volta de carro", t: "Kennedy Space Center", gasto: "R$ 760", seg: 5, bairro: "Merritt Island",
       destaque: ["De carro até o espaço", "Chegue na abertura e vá ao Saturn V antes do almoço."],
       stops: [
         ["08:00", "Estrada até a NASA", "Cerca de 1 hora pela Beachline (SR 528), com pedágio.", ["Carro", "cerca de 1h"]],
@@ -239,7 +233,7 @@ export default {
       chuva: "Quase tudo é coberto. Deixe o Rocket Garden para quando a chuva parar.",
       tip: ["Lançamento de foguete", "Veja o calendário no site oficial. Se tiver lançamento, troque a ordem dos dias."] },
 
-    { img: "praia", d: "Dia de praia · de carro", t: "Cocoa Beach, dia de descanso", gasto: "R$ 280", seg: 4, bairro: "Cocoa Beach",
+    { img: "praia", d: "Dia de praia · de carro", t: "Cocoa Beach, dia de descanso", gasto: "R$ 240", seg: 4, bairro: "Cocoa Beach",
       destaque: ["Dia de descanso", "Depois de dois parques e da NASA, areia e mar, sem horário."],
       stops: [
         ["09:00", "Ron Jon Surf Shop", "Loja de surfe gigante. Boia, baldinho e chapéu.", ["Carro", "cerca de 1h"], "Ron Jon Surf Shop Cocoa Beach"],
@@ -250,23 +244,33 @@ export default {
       chuva: "Fique no Ron Jon, que é coberto, e volte cedo para a piscina ou para Disney Springs.",
       tip: ["Mar e sol", "Protetor a cada 2 horas. Bandeira vermelha é corrente forte: só pé na água."] },
 
-    { img: "lago", d: "Centro e compras · de carro", t: "Lake Eola e outlets", gasto: "R$ 260", seg: 4, bairro: "Downtown e I-Drive",
-      destaque: ["Compras com conta feita", "Lago de manhã, outlet à tarde, sem passar do limite da Receita."],
+    { img: "lago", d: "Melhor num domingo · de carro", t: "Feira do Lake Eola e outlets", gasto: "R$ 200", seg: 4, bairro: "Downtown e I-Drive",
+      destaque: ["Feira e compras", "Feira de domingo em volta do lago e tarde no outlet, sem passar do limite da Receita."],
       stops: [
-        ["09:30", "Lake Eola Park", "Lago com fonte, cisnes e playground.", ["Carro", "cerca de 25 min"], "Lake Eola Park Orlando"],
-        ["10:30", "Pedalinho de cisne", "Barco em forma de cisne, por meia hora.", ["A pé", "pago"], "Lake Eola Swan Boats Orlando"],
-        ["13:00", "International Premium Outlets", "Lojas de marca com desconto. Comece pelas infantis.", ["Carro", "cerca de 25 min"], "Orlando International Premium Outlets"],
-        ["18:00", "Mala e conta da Receita", "Some as notas por pessoa. Veja a página @@PG:compras@@.", ["Hotel"]]],
-      comer: [["Cafés e food trucks no Lake Eola", "R$ 50 a R$ 90 por pessoa"], ["Praça de alimentação do outlet", "R$ 60 a R$ 90 por pessoa"]],
-      chuva: "Troque o lago pelo Florida Mall, que é coberto. O outlet é ao ar livre.",
-      tip: ["Feira de domingo", "Aos domingos tem feira em volta do lago, das 10h às 16h."],
-      semana: { dias: [0], senao: ["Para economizar", "Cadastre-se no site do outlet e pegue o cupom de desconto."] } },
+        ["10:00", "Feira do Lake Eola", "Comida, flores e artesanato em volta do lago, das 10h às 15h.", ["Carro", "cerca de 25 min"], "Lake Eola Park Orlando"],
+        ["11:00", "Pedalinho de cisne", "Barco em forma de cisne, por meia hora.", ["A pé", "pago"], "Lake Eola Swan Boats Orlando"],
+        ["14:00", "International Premium Outlets", "Lojas de marca com desconto. Comece pelas infantis.", ["Carro", "cerca de 25 min"], "Orlando International Premium Outlets"],
+        ["19:00", "Mala e conta da Receita", "Some as notas por pessoa. Veja a página @@PG:compras@@.", ["Hotel"]]],
+      comer: [["Almoço nas barracas da feira", "R$ 50 a R$ 90 por pessoa"], ["Praça de alimentação do outlet", "R$ 60 a R$ 90 por pessoa"]],
+      chuva: "A feira acontece com chuva fraca. Com temporal, vá direto ao Florida Mall, que é coberto.",
+      tip: ["Para economizar", "Cadastre-se no site do outlet antes e pegue o cupom de desconto no balcão."],
+      semana: { dias: [0], alternativa:
+        { img: "lago", d: "Centro e compras · de carro", t: "Lake Eola e outlets", gasto: "R$ 200", seg: 4, bairro: "Downtown e I-Drive",
+          destaque: ["Compras com conta feita", "Lago de manhã, outlet à tarde, sem passar do limite da Receita."],
+          stops: [
+            ["09:30", "Lake Eola Park", "Lago com fonte, cisnes e playground.", ["Carro", "cerca de 25 min"], "Lake Eola Park Orlando"],
+            ["10:30", "Pedalinho de cisne", "Barco em forma de cisne, por meia hora.", ["A pé", "pago"], "Lake Eola Swan Boats Orlando"],
+            ["13:00", "International Premium Outlets", "Lojas de marca com desconto. Comece pelas infantis.", ["Carro", "cerca de 25 min"], "Orlando International Premium Outlets"],
+            ["18:00", "Mala e conta da Receita", "Some as notas por pessoa. Veja a página @@PG:compras@@.", ["Hotel"]]],
+          comer: [["Cafés e food trucks no Lake Eola", "R$ 50 a R$ 90 por pessoa"], ["Praça de alimentação do outlet", "R$ 60 a R$ 90 por pessoa"]],
+          chuva: "Troque o lago pelo Florida Mall, que é coberto. O outlet é ao ar livre.",
+          tip: ["Para economizar", "Cadastre-se no site do outlet antes e pegue o cupom de desconto no balcão."] } } },
 
-    { img: "magic", d: "Último dia · de carro", t: "Magic Kingdom e volta para casa", gasto: "R$ 1.050", seg: 5, bairro: "Walt Disney World",
+    { img: "magic", d: "Último dia · de carro", t: "Magic Kingdom e volta para casa", gasto: "R$ 1.480", seg: 5, bairro: "Walt Disney World",
       destaque: ["Último parque", "Da abertura às 15h, com as malas no carro. Depois, aeroporto."],
       stops: [
         ["07:30", "Check-out e malas no carro", "Tudo no porta-malas, fora de vista.", ["Carro"]],
-        ["08:15", "Magic Kingdom", "Estacione no Ticket Center e vá de monotrilho ou barco.", ["Carro", "30 a 40 min"], "Magic Kingdom Park"],
+        ["08:15", "Magic Kingdom", "Estacione no Ticket Center e vá de monotrilho ou barco.", ["Carro", "US$ 35"], "Magic Kingdom Park"],
         ["15:00", "Saída e combustível", "Abasteça perto do aeroporto antes de devolver o carro.", ["Carro", "cerca de 40 min"]],
         ["17:00", "Carro e aeroporto MCO", "Devolva o carro e chegue 3 horas antes do voo internacional.", ["Carro", "3h antes"], "Orlando International Airport MCO"]],
       comer: [["Columbia Harbour House, no balcão", "R$ 80 a R$ 120 por pessoa"], ["Lanche no aeroporto", "R$ 60 por pessoa"]],
@@ -278,16 +282,11 @@ export default {
     grupo: "Parques e atrações",
     rotulo: "Atração",
     itens: [
-      { img: "parque2", t: "Islands of Adventure", dia: 2, tempo: "o dia inteiro", kickHist: "O parque em poucas linhas",
+      { img: "capa", t: "Islands of Adventure", dia: 2, tempo: "o dia inteiro", kickHist: "O parque em poucas linhas",
         hist: "Aberto em 1999, é o segundo parque da Universal em Orlando. É dividido em ilhas em volta de um lago, cada uma com um tema: super-heróis da Marvel, Jurassic Park, Harry Potter, Dr. Seuss e outros. É o parque das montanhas-russas mais fortes, mas o Seuss Landing e o Camp Jurassic têm brinquedos para os pequenos. O castelo de Hogwarts aparece de quase todo canto do lago.",
-        passos: [["Abertura", "Hagrid's ou VelociCoaster, conforme a altura dos filhos. Com pequenos, Seuss Landing primeiro."], ["Hogsmeade", "Forbidden Journey, dentro do castelo, e a Butterbeer. A varinha interativa é cara: decida antes."], ["Jurassic Park", "Camp Jurassic e Pteranodon Flyers para crianças. O River Adventure molha bastante."], ["Marvel Super Hero Island", "Spider-Man para todos. Hulk só a partir de 137 cm."], ["Toon Lagoon", "brinquedos de água para a tarde quente. Leve roupa extra."]],
-        foto: "O castelo de Hogwarts refletido no lago, no fim da tarde.",
+        passos: [["Abertura", "Hagrid's ou VelociCoaster, conforme a altura dos filhos. Com pequenos, Seuss Landing primeiro."], ["Hogsmeade", "Forbidden Journey, dentro do castelo, e a Butterbeer. A varinha interativa é cara: decida antes."], ["Jurassic Park", "Camp Jurassic e Pteranodon Flyers para crianças. O River Adventure molha bastante."], ["Marvel Super Hero Island", "Spider-Man para todos. Hulk só a partir de 137 cm."], ["Hogwarts Express", "no dia 3, com park-to-park, o trem liga Hogsmeade ao Universal Studios."]],
+        foto: "O lago com o Hulk de um lado e o castelo de Hogwarts ao fundo.",
         saber: "Nas montanhas-russas, bolsa e celular vão para o armário grátis da entrada." },
-      { img: "capa", t: "Universal Studios Florida", dia: 3, tempo: "o dia inteiro", kickHist: "O parque em poucas linhas",
-        hist: "Aberto em 1990, o parque imita ruas de cinema de Nova York, São Francisco e Hollywood. As atrações mudam com os filmes de sucesso: hoje o destaque para crianças é a área dos Minions e a DreamWorks Land, de Shrek e Trolls, aberta em 2024. Para os maiores, o Diagon Alley do Harry Potter esconde a montanha-russa do banco Gringotts atrás de uma fachada de Londres.",
-        passos: [["Abertura", "Gringotts ou Minions, as maiores filas. Fila de quem vai sozinho (single rider) anda mais rápido."], ["DreamWorks Land", "para menores de 6 anos, com Shrek, Trolls e área de água."], ["Diagon Alley", "entre pela fachada de Londres e espere o dragão soltar fogo no alto do banco."], ["Hogwarts Express", "da estação King's Cross até Hogsmeade, só com ingresso park-to-park."], ["Múmia e Men in Black", "no fim da tarde, quando as filas caem."]],
-        foto: "A família no globo da Universal, na entrada, logo cedo.",
-        saber: "Na troca de pais (Child Swap), um adulto espera com a criança e depois entra sem pegar a fila de novo." },
       { img: "magic", t: "Magic Kingdom", dia: 7, tempo: "da abertura às 15h", kickHist: "O parque em poucas linhas",
         hist: "Primeiro parque da Disney na Flórida, aberto em 1971, e o mais visitado do mundo. O Castelo da Cinderela, no fim da Main Street, é o centro de seis áreas temáticas, de Fantasyland a Tomorrowland. É o melhor parque para crianças de 2 a 10 anos: quase todos os brinquedos de Fantasyland não têm altura mínima. Para chegar, você estaciona no Transportation and Ticket Center e atravessa o lago de barco ou de monotrilho.",
         passos: [["Seven Dwarfs Mine Train", "a fila mais longa do parque. Vá primeiro, logo na abertura (a partir de 97 cm)."], ["Fantasyland", "Peter Pan's Flight, Dumbo e It's a Small World antes das 11h."], ["Tomorrowland", "Space Mountain a partir de 112 cm. Buzz Lightyear para todos."], ["Adventureland e Frontierland", "Piratas do Caribe e Big Thunder no começo da tarde."], ["Lightning Lane", "se a verba deixar, compre para os 2 ou 3 brinquedos de fila mais longa."]],
@@ -330,18 +329,18 @@ export default {
         { ic: "shield", t: "Seguro do carro", itens: ["Veja se o cartão de crédito ou o seguro viagem já cobre o carro.", "A proteção contra danos (LDW ou CDW) é a mais importante.", "Fotografe o carro todo na retirada e na devolução."] },
         { ic: "coin", t: "Pedágio", itens: ["Muitas praças não aceitam dinheiro: a placa é fotografada e cobrada depois.", "Aceite o plano de pedágio da locadora ou pergunte se dá para usar um SunPass.", "Há pedágio na saída do aeroporto e na Beachline, a caminho da NASA."] },
         { t: "Cadeirinha", itens: ["Na Flórida é obrigatória até 5 anos: cadeirinha até 3, assento de elevação aos 4 e 5.", "Por segurança, use assento de elevação até cerca de 1,45 m.", "Na locadora custa cerca de US$ 15 por dia. Comprar no Walmart pode sair mais barato."] },
-        { t: "Estacionamento", itens: ["Disney e Universal cobram cerca de US$ 30 a 35 por dia.", "Hotel na I-Drive também pode cobrar: pergunte antes de reservar.", "Disney Springs e os outlets não cobram."] },
+        { t: "Estacionamento", itens: ["Disney cobra US$ 35 por dia e a Universal, cerca de US$ 32.", "Hotel na I-Drive também pode cobrar: pergunte antes de reservar.", "Disney Springs e os outlets não cobram."] },
         { t: "Gasolina", itens: ["Preço por galão (3,8 litros). Normalmente, você mesmo abastece.", "Se a bomba pedir ZIP code, pague no caixa da loja.", "Devolva com o tanque cheio: a locadora cobra caro para abastecer."] }
       ],
-      avisos: [["Regras que mais pegam brasileiros", "Velocidade em milhas: 65 mph é cerca de 105 km/h. Pode virar à direita no sinal vermelho depois de parar, se não houver placa proibindo. Ônibus escolar parado com a placa de pare aberta: o trânsito para. Celular na mão ao volante dá multa."]] },
+      avisos: [["Regras que mais pegam brasileiros", "Velocidade em milhas: 65 mph é cerca de 105 km/h. Pode virar à direita no sinal vermelho depois de parar, se não houver placa proibindo. Ônibus escolar parado com a placa de pare aberta: o trânsito para. Mandar mensagem dirigindo dá multa; segurar o celular é proibido em zona escolar e de obras."]] },
     { id: "compras", grupo: "Carro e compras", sumario: "Compras e limite da Receita", rotulo: "Compras", kick: "Para voltar sem susto na alfândega", titulo: "Compras e limite da Receita",
       cards: [
         { ic: "coin", t: "A cota de cada um", itens: ["US$ 1.000 por pessoa, inclusive crianças, para o que vem na mala.", "Não dá para juntar cotas: um produto de US$ 1.500 passa do limite.", "Roupa e objetos de uso pessoal da viagem não entram na conta."] },
-        { t: "Free shop na chegada", itens: ["No free shop do aeroporto, no Brasil, há outra cota de US$ 1.000 por pessoa.", "Ela não se soma à cota da mala.", "Bebida e cigarro têm limite de quantidade."] },
+        { t: "Free shop na chegada", itens: ["No free shop do aeroporto, no Brasil, há outra cota de US$ 1.000 por pessoa.", "É uma cota separada: vale além da mala, mas o que sobrar não passa para ela.", "Bebida e cigarro têm limite de quantidade."] },
         { ic: "i-doc", t: "Se passar do limite", itens: ["Declare antes, pela internet (e-DBV), e siga pela fila de bens a declarar.", "Paga 50% de imposto sobre o que passou da cota.", "Quem não declara e é pego paga o imposto e uma multa."] },
-        { t: "Celular, notebook e relógio", itens: ["Um celular, um relógio e uma câmera de uso pessoal costumam ficar fora da cota.", "Notebook, tablet e videogame novos entram na conta.", "Confira as regras no site da Receita antes de comprar."] },
+        { t: "Celular, notebook e relógio", itens: ["Um celular, um relógio e uma câmera, usados e de uso pessoal, ficam fora da cota.", "Notebook, tablet e videogame novos entram na conta.", "Confira as regras no site da Receita antes de comprar."] },
         { t: "Onde comprar mais barato", itens: ["Outlets: Orlando International e Orlando Vineland Premium Outlets.", "Ross, TJ Maxx e Marshalls para roupa infantil.", "Walmart e Target para lanche, protetor e brinquedo."] },
-        { t: "Guarde as notas", itens: ["Guarde todas as notas fiscais e some por pessoa.", "O imposto de venda (cerca de 6,5%) só aparece no caixa.", "Fotografe as notas: elas comprovam o valor na alfândega."] }
+        { t: "Guarde as notas", itens: ["Guarde todas as notas fiscais e some por pessoa.", "O imposto de venda (6,5% em Orlando) só aparece no caixa.", "Fotografe as notas: elas comprovam o valor na alfândega."] }
       ],
       avisos: [["Mala e peso", "A franquia de bagagem para os EUA depende da tarifa: de nenhuma a 2 malas de 23 kg por pessoa. Confira no bilhete e pese as malas no hotel antes de sair. Excesso pago no aeroporto sai caro."]] }
   ],
@@ -357,7 +356,7 @@ export default {
       ["US$ 20", "Cupom de desconto do outlet, pego no site"],
       ["US$ 10", "Abasteça antes de devolver o carro"]
     ],
-    fora: "como o aluguel do carro, os ingressos comprados antes e o seguro",
+    fora: "como o aluguel do carro, o seguro viagem e o estacionamento do hotel",
     nota: "Dinheiro vivo por pessoa, para gorjetas, máquinas e emergências. Quase tudo aceita cartão. As compras nas lojas não entram nesta tabela."
   },
 
@@ -390,13 +389,13 @@ export default {
       ["Carro com coisas à vista", "Mochila, sacola de compras e eletrônicos no banco atraem arrombamento. Guarde tudo no porta-malas antes de chegar."],
       ["Criança perdida no parque", "Não é golpe, mas é o maior susto. Fotografe a roupa do dia, ponha seu telefone na pulseira e ensine: procure um funcionário."]
     ],
-    perda: ["Faça o boletim de ocorrência na polícia local e guarde o número.", "Procure o Consulado-Geral do Brasil em Miami (página @@PG:emergencia@@).", "Para voltar, peça a Autorização de Retorno ao Brasil (ARB). Guarde cópia do passaporte e do visto na nuvem."],
+    perda: ["Faça o boletim de ocorrência na polícia local e guarde o número.", "Procure o Consulado-Geral do Brasil em Orlando (página @@PG:emergencia@@).", "Para voltar, peça a Autorização de Retorno ao Brasil (ARB). Guarde cópia do passaporte e do visto na nuvem."],
     aviso: ["Calor e tempestade", "No verão, o calor passa de 33 °C com umidade alta. Dê água às crianças a cada fila e procure sombra no meio do dia. Com raios, saia da piscina e da praia na hora."]
   },
 
   fotos: {
     itens: [
-      ["A cidade iluminada do alto da The Wheel", "Ao anoitecer", 1],
+      ["A cidade iluminada do alto da Orlando Eye", "Ao anoitecer", 1],
       ["O castelo de Hogwarts, em Hogsmeade", "Fim da tarde, com as luzes", 2],
       ["O globo da Universal, na entrada", "Manhã, na chegada", 3],
       ["O dragão no alto do banco Gringotts", "Qualquer hora, espere o fogo", 3],
@@ -413,8 +412,8 @@ export default {
   extras: [
     { kick: "Um dia a mais", titulo: "Parque aquático",
       cards: [
-        { t: "Volcano Bay (Universal)", o: "O parque aquático da Universal, com um vulcão no meio e fila virtual pela pulseira.", preco: "R$ 450 a 650", min: 450, max: 650,
-          itens: ["Ingresso de 1 dia de cerca de US$ 80 a 110, conforme a data.", "Piscina de ondas e rio lento para os pequenos.", "A pulseira avisa a hora de voltar a cada brinquedo."],
+        { t: "Volcano Bay (Universal)", o: "O parque aquático da Universal, com um vulcão no meio e fila virtual pela pulseira.", preco: "R$ 480 a 750", min: 480, max: 750,
+          itens: ["Ingresso de 1 dia de cerca de US$ 89 a 139, conforme a data.", "Piscina de ondas e rio lento para os pequenos.", "A pulseira avisa a hora de voltar a cada brinquedo."],
           dica: "Fecha em parte do inverno. Confira o calendário antes." },
         { t: "Typhoon Lagoon (Disney)", o: "Parque aquático da Disney, com uma das maiores piscinas de ondas do país.", preco: "R$ 400 a 550", min: 400, max: 550,
           itens: ["Ingresso de cerca de US$ 70 a 90.", "Área rasa só para crianças pequenas.", "Estacionamento grátis."],
@@ -445,8 +444,8 @@ export default {
 
   emergencia: {
     numeros: [["911", "Polícia, ambulância e bombeiros"], ["*347", "Polícia Rodoviária da Flórida, do celular"], ["Seguro", "Ligue antes de ir ao hospital (telefone na página @@PG:ficha@@)"]],
-    consulado: { t: "Consulado-Geral do Brasil em Miami",
-      p: ["Orlando fica na área do consulado em Miami. Endereço e plantão consular estão no site do consulado (gov.br/mre): anote antes de viajar.",
+    consulado: { t: "Consulado-Geral do Brasil em Orlando",
+      p: ["355 N Orange Ave, Orlando, FL 32801. Atende toda a região do roteiro, inclusive a NASA e Cocoa Beach. Plantão de emergência (morte, internação, prisão): <b>+1 321 387-9716</b>. Dúvidas gerais, só por mensagem escrita no WhatsApp: +1 407 675-0604.",
         "Plantão do Itamaraty, em Brasília, 24 horas: <b>+55 61 98260-0610</b>. Intoxicação de criança (Poison Control): <b>1-800-222-1222</b>."] },
     frases: [
       ["Olá / tchau", "Hi / bye", "rái / bái"], ["Bom dia", "Good morning", "gud mórnin"], ["Obrigado", "Thank you", "fênk iú"],
