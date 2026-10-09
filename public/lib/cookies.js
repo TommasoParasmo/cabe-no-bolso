@@ -1,5 +1,5 @@
 // Aviso de cookies e Pixel da Meta (guia de cookies da ANPD): o Pixel só carrega depois de "Aceitar";
-// "Recusar" tem o mesmo destaque, nada vem marcado e a escolha fica guardada no aparelho.
+// "Recusar" fica ao lado e fácil de ver, nada vem marcado e a escolha fica guardada no aparelho.
 // O link "Cookies" do rodapé (data-cookies) reabre o aviso para mudar de ideia.
 // No app de celular (Capacitor) o Pixel fica de fora: rastreio ali exige outro consentimento.
 (() => {
@@ -26,17 +26,18 @@
     if (document.getElementById("cookies-aviso")) return;
     const css = document.createElement("style");
     css.textContent = `
-#cookies-aviso{position:fixed;left:12px;right:12px;bottom:12px;z-index:1000;max-width:560px;margin:0 auto;padding:14px 16px;border-radius:12px;background:#102624;color:#E4EFED;font:15px/1.45 "Segoe UI",system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.25);display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
-#cookies-aviso p{margin:0;flex:1 1 260px}
+#cookies-aviso{position:fixed;left:0;right:0;bottom:0;z-index:1000;padding:6px 10px calc(6px + env(safe-area-inset-bottom));background:rgba(16,38,36,.96);color:#E4EFED;font:13px/1.35 "Segoe UI",system-ui,sans-serif;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:center}
+#cookies-aviso p{margin:0;flex:1 1 150px;max-width:max-content}
 #cookies-aviso a{color:#7FD8CF}
-#cookies-aviso .botoes{display:flex;gap:8px}
-#cookies-aviso button{font:inherit;font-weight:600;padding:8px 18px;border-radius:8px;border:2px solid #7FD8CF;background:transparent;color:#E4EFED;cursor:pointer}
+#cookies-aviso .botoes{display:flex;gap:6px;flex:none}
+#cookies-aviso button{font:inherit;font-weight:600;min-height:44px;padding:0 12px;border-radius:8px;border:1.5px solid #E4EFED;background:transparent;color:#E4EFED;cursor:pointer}
+#cookies-aviso button[data-escolha="sim"]{background:#E2B23F;border-color:#E2B23F;color:#0D3532}
 @media print{#cookies-aviso{display:none}}`;
     const aviso = document.createElement("div");
     aviso.id = "cookies-aviso";
     aviso.setAttribute("role", "region");
     aviso.setAttribute("aria-label", "Aviso de cookies");
-    aviso.innerHTML = `<p>Usamos cookies da Meta para medir quem chega pelos nossos anúncios. Você escolhe. <a href="/privacidade.html">Saiba mais</a></p>
+    aviso.innerHTML = `<p>Usamos cookies para medir nossos anúncios. <a href="/privacidade.html#cookies">Saiba mais</a></p>
 <div class="botoes"><button type="button" data-escolha="sim">Aceitar</button><button type="button" data-escolha="nao">Recusar</button></div>`;
     aviso.addEventListener("click", ev => {
       const escolha = ev.target.closest("button")?.dataset.escolha;
@@ -46,10 +47,13 @@
       if (window.fbq && escolha === "nao") { gravar(escolha); location.reload(); return; }
       gravar(escolha);
       aviso.remove();
+      document.body.style.paddingBottom = "";
       if (escolha === "sim") carregarPixel();
     });
     document.head.append(css);
     document.body.append(aviso);
+    // Espaço no fim da página do tamanho da faixa, para ela não cobrir o botão principal.
+    document.body.style.paddingBottom = aviso.offsetHeight + "px";
   }
 
   const escolha = ler();
