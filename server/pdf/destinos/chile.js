@@ -473,5 +473,5 @@ export default {
     ]
   },
 
-  creditos: "Pueblo de Farellones nevado; Santiago en invierno desde el Cerro San Cristóbal; Colorful Valparaiso houses (CC BY-SA 4.0); Playa Cochoa, Viña del Mar (CC BY 4.0); Vineyard, Concha y Toro, Chile (CC BY-SA 3.0); Embalse el Yeso (CC0)."
+  creditos: "\"Pueblo de Farellones nevado\", Nbendersky (CC BY-SA 4.0); \"Santiago en invierno desde el Cerro San Cristóbal\", Nbendersky (CC BY-SA 4.0); \"Colorful Valparaiso houses\", Gabrielinfante92 (CC BY-SA 4.0); \"Playa Cochoa, Viña del Mar, Chile\", Carlos Teixidor Cadenas (CC BY 4.0); \"Vineyard, Concha y Toro, Chile\", Colin W (CC BY-SA 3.0); \"Embalse el Yeso\", Rod Sot (CC0). Licenças: creativecommons.org/licenses/by/4.0, /by-sa/3.0 e /by-sa/4.0."
 };

@@ -475,5 +475,5 @@ export default {
     ]
   },
 
-  creditos: "\"Orlando Eye\"; \"Kennedy Space Center, Rocket Garden, Power of Apollo\" (CC BY-SA 4.0); \"Lake Eola and Orlando Skyline seen in 2024\" (CC BY 4.0); \"A view of Universal Orlando Resort in May 2023\"; \"Cocoa Beach Pier from the beach 2023-05-19\" (CC0); \"Cinderella Castle January 2021\", Backattaxk251 (CC BY-SA 4.0)."
+  creditos: "\"A view of Universal Orlando Resort in May 2023\", Benoît Prieur (CC0); \"Orlando Eye\", Steveo89 (CC BY-SA 4.0); \"Kennedy Space Center, Rocket Garden, Power of Apollo\", Michael Rivera (CC BY-SA 4.0); \"Lake Eola and Orlando Skyline seen in 2024\", JER3L1337 (CC BY 4.0); \"Cocoa Beach Pier from the beach 2023-05-19 (2)\", Benoît Prieur (CC0); \"Cinderella Castle January 2021\", Backattaxk251 (CC BY-SA 4.0). Licenças: creativecommons.org/licenses/by/4.0 e /by-sa/4.0."
 };

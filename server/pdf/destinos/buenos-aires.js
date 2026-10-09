@@ -493,5 +493,5 @@ export default {
     ]
   },
 
-  creditos: "Buenos Aires, La Boca, Caminito 200807i; San Pedro Telmo (4729482264) (CC BY 2.0); Obelisco de Buenos Aires at sunset; Puente de la Mujer, Puerto Madero (CC BY-SA 4.0); El Viejo Almacén de Buenos Aires (CC BY-SA 2.0); Calle De Los Suspiros, Colonia del Sacramento (CC BY-SA 3.0)."
+  creditos: "\"Buenos Aires - La Boca - Caminito - 200807i\", Luis Argerich (CC BY 2.0); \"San Pedro Telmo (4729482264)\", Jorge Láscar (CC BY 2.0); \"Obelisco de Buenos Aires at sunset\", Dpalma01 (CC BY-SA 4.0); \"Puente de la Mujer, Puerto Madero\", Hernan Pablo (CC BY-SA 4.0); \"El Viejo Almacén de Buenos Aires\", bastique (CC BY-SA 2.0); \"Calle De Los Suspiros, Colonia del Sacramento\", Banfield (CC BY-SA 3.0). Licenças: creativecommons.org/licenses/by/2.0, /by-sa/2.0, /by-sa/3.0 e /by-sa/4.0."
 };
