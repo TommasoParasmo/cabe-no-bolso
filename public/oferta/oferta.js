@@ -251,7 +251,7 @@ function mostrar(v,org){
   simulacao={destino:slug,valores:{periodo:periodo(ida,volta),inicio:ida,pessoas,noites:6,passagens,hotel,comidaPasseios:comida,transporte:transp,total,...(sobra>=0?{sobra}:{})}};
   try{sessionStorage.setItem('vdv:simulacao',JSON.stringify(simulacao))}catch{}
   const r=$('result');r.hidden=false;r.dataset.ok='1';r.scrollIntoView({block:'start'});
-  $('mbar-s').textContent=ok?'Cabe no seu bolso':'Simulação pronta';
+  $('mbar-s').textContent=promo.promocao?'Promoção por tempo limitado 🔥':'Simulação pronta';
   $('mbar-b').textContent='Aproveite uma oferta imperdível';
   $('mbar-a').textContent='Quero o roteiro';$('mbar-a').setAttribute('href','#oferta');
 }
