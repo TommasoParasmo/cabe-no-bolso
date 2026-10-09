@@ -31,7 +31,7 @@ Em `@@PG:<id>@@` o motor põe o número da página (ids: `quando`, `mala`, `guia
 | `historia` | `{ kick, titulo, linhas: [13 a 15 × [ano, fato de até 110 caracteres]] }` |
 | `dias` | 7 dias, ver abaixo |
 | `guiasLugar` | `{ grupo: "Parques e atrações" (título do grupo no sumário), rotulo: "Atração" (cabeçalho "Atração 1 de 5"), itens: [4 a 6 × { img, t, dia, tempo, kickHist?, hist: até 520 caracteres, passos: [4–5 × [nome, até 100 caracteres]], foto, saber }] }` |
-| `especiais` | 1 a 3 páginas próprias do destino: `{ id, sumario, rotulo, kick, titulo, sub?, tabela?: { cab, linhas }, cards?: [ { ic?, t, itens? , texto? } ], avisos?: [[título, texto]] }`. Uma página cabe uma tabela de até 8 linhas + 4 cards, ou 6 cards + 1 aviso |
+| `especiais` | 1 a 3 páginas próprias do destino: `{ id, sumario, grupo? (título do grupo no sumário; sem ele, o de guiasLugar), rotulo, kick, titulo, sub?, tabela?: { cab, linhas }, cards?: [ { ic?, t, itens? , texto? } ], avisos?: [[título, texto]] }`. Uma página cabe uma tabela de até 8 linhas + 4 cards, ou 6 cards + 1 aviso |
 | `orcamento` | `{ colDinheiro: "Dinheiro vivo", dias: [7 × [valor curto, onde economizar até 55 caracteres]], fora: "como o seguro e o traslado do aeroporto", nota }` |
 | `comida` | `{ titulo: "Comida típica", pratos: [10 × [nome, descrição até 80, "preço · onde"]], cards: [2 × { t, itens: [2] }] }` |
 | `golpes` | `{ itens: [6 × [título, texto até 170]], perda: [3 itens], aviso: [título, texto] }` |

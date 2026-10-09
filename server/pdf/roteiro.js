@@ -182,7 +182,7 @@ export function montarRoteiro(D, slug, nomeCru, valores = {}) {
     ["horarios", "Horários e dias fechados", "Antes de ir", S.horarios], ["historia", D.historia.titulo, "Antes de ir", S.historia],
     ...S.dias.map((d, i) => ["dia" + (i + 1), "Dia " + (i + 1) + ": " + DAYS[i].t, "A viagem, dia a dia", d]),
     ...S.lugares.map((d, i) => ["lugar" + (i + 1), G.itens[i].t, G.grupo, d]),
-    ...S.especiais.map((d, i) => [D.especiais[i].id, D.especiais[i].sumario, G.grupo, d]),
+    ...S.especiais.map((d, i) => [D.especiais[i].id, D.especiais[i].sumario, D.especiais[i].grupo || G.grupo, d]),
     ["orcamento", "Orçamento dia a dia", "Na viagem", S.orcamento], ["comida", D.comida.titulo, "Na viagem", S.comida],
     ["golpes", "Cuidados e golpes comuns", "Na viagem", S.golpes], ["fotos", "Fotos para não deixar de tirar", "Na viagem", S.fotos],
     ...S.extras.map((d, i) => ["extras" + (i + 1), "Se sobrar: " + D.extras[i].titulo, "Na viagem", d]),
