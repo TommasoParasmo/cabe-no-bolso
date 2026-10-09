@@ -8,7 +8,7 @@ import { lerCache, gravarCache } from "./cache.js";
 import { comFotos } from "./fotos.js";
 import { EntradaInvalida } from "./veredito.js";
 import { buscarLugares, montarComGemini, linkDoMaps, achaNoMaps, fontesDoMaps, ErroGemini, MODELO_GEMINI } from "./gemini.js";
-import { novoUso, registrarUso } from "./uso.js";
+import { novoUso, registrarUso, registrarOrigem } from "./uso.js";
 
 // Claude: reserva quando o Gemini (server/gemini.js) falha ou não tem chave.
 // Sonnet conhece muito mais restaurantes e atrações reais por bairro que o Haiku (que inventava nomes).
@@ -352,7 +352,7 @@ async function comGemini(p, chave, fetchFn, ate = Infinity) {
 }
 
 // `completo`: o roteiro pago, com horários e mais dicas (quem confere o pagamento é functions/api/roteiro.js).
-export async function gerarRoteiro(body, env = {}, client = null, ip = null, fetchFn = globalThis.fetch, { completo = false, fotosFetch = globalThis.fetch, prazoMs = PRAZO_MS, antesDeGerar = null } = {}) {
+export async function gerarRoteiro(body, env = {}, client = null, ip = null, fetchFn = globalThis.fetch, { completo = false, fotosFetch = globalThis.fetch, prazoMs = PRAZO_MS, antesDeGerar = null, origem = null } = {}) {
   // O nome só entra no completo (e na chave do cache dele): o roteiro grátis não pede nome.
   const p = { ...validarPedido(body), completo, nome: completo ? lerNome(body) : "" };
   const chaveDe = extra => `https://cache.cabenobolso/roteiro/v12?${new URLSearchParams({
@@ -361,7 +361,11 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null, fet
   })}`;
   const chave = chaveDe(completo ? { k: "top2", nm: norm(p.nome) } : {});
   const guardado = semRefeicaoRuim(await lerCache(chave));
-  if (guardado) return { ...guardado, cache: true };
+  const tipo = completo ? "detalhado" : "gratis";
+  if (guardado) {
+    await registrarOrigem({ tipo, origem }, env).catch(() => {});
+    return { ...guardado, cache: true };
+  }
   // Roteiro novo vai gastar IA: quem chamou pode barrar antes (ex.: gerações por pagamento do Detalhado).
   if (antesDeGerar) await antesDeGerar();
   // Tokens de cada chamada à IA, somados e registrados no fim (deu certo ou não: o gasto aconteceu).
@@ -372,7 +376,7 @@ export async function gerarRoteiro(body, env = {}, client = null, ip = null, fet
     resultado = "ok";
     return r;
   } finally {
-    await registrarUso(uso, { tipo: completo ? "detalhado" : "gratis", resultado }, env).catch(() => {});
+    await registrarUso(uso, { tipo, resultado, origem }, env).catch(() => {});
   }
 }
 
