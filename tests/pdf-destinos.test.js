@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { DESTINOS, roteiroDestino } from "../server/pdf/destinos/index.js";
+import { encaixarDias } from "../server/pdf/roteiro.js";
 
 const VALORES = { periodo: "08 a 14 de julho de 2027", inicio: "2027-07-08", clima: { mes: 7, min: 3, max: 30 }, pessoas: 4, cotacao: 5.4,
   passagens: 18800, hotel: 4200, noites: 6, comidaPasseios: 6200, transporte: 9800, sobra: 4000, dias: [900, 1400, 1300, 1100, 700, 900, 800] };
@@ -43,10 +44,28 @@ for (const slug of Object.keys(DESTINOS)) {
   });
 }
 
-test("PDF de Buenos Aires: feira de San Telmo avisa quando o dia não é domingo", () => {
-  const dom = roteiroDestino("buenos-aires", "Ana", { inicio: "2027-03-13" }); // dia 2 = domingo
-  const qua = roteiroDestino("buenos-aires", "Ana", { inicio: "2027-03-16" });
-  const t = DESTINOS["buenos-aires"].dias[1].semana.senao[0];
-  assert.doesNotMatch(dom, new RegExp("<b>" + t + "</b>"));
-  assert.match(qua, new RegExp("<b>" + t + "</b>"));
+test("encaixarDias: troca com um dia do meio, usa o último dia, a alternativa ou o aviso", () => {
+  const dia = (t, semana) => ({ t, gasto: t, semana });
+  const feira = semana => dia("feira", { dias: [0], ...semana });
+  const base = f => [dia("a"), f, dia("c"), dia("d"), dia("e"), dia("f"), dia("g")];
+  // Dia 2 cai na terça e o domingo é o dia 6: troca.
+  assert.deepEqual(encaixarDias(base(feira()), [1, 2, 3, 4, 5, 0, 1]).map(d => d.t), ["a", "f", "c", "d", "e", "feira", "g"]);
+  // Domingo só no último dia: usa a versão de último dia e põe a do meio no lugar.
+  const f2 = feira({ ultimo: dia("feira+aeroporto"), meio: dia("recoleta") });
+  assert.deepEqual(encaixarDias(base(f2), [1, 2, 3, 4, 5, 6, 0]).map(d => d.t), ["a", "recoleta", "c", "d", "e", "f", "feira+aeroporto"]);
+  // Sem domingo na viagem: alternativa; sem alternativa, o aviso.
+  assert.equal(encaixarDias(base(feira({ alternativa: dia("outra") })), [1, 2, 3, 4, 5, 6, 1])[1].t, "outra");
+  assert.deepEqual(encaixarDias(base(feira({ senao: ["x", "y"] })), [1, 2, 3, 4, 5, 6, 1])[1].tip, ["x", "y"]);
+  // Já no dia certo: nada muda.
+  assert.equal(encaixarDias(base(feira()), [6, 0, 1, 2, 3, 4, 5])[1].t, "feira");
+});
+
+test("PDF de Buenos Aires: a feira de San Telmo cai sempre num domingo", () => {
+  const dias = h => [...h.matchAll(/<section id="dia\d"[\s\S]*?<\/section>/g)].map(m => m[0]);
+  for (const inicio of ["2027-03-13", "2027-03-15", "2027-03-17"]) {
+    const h = roteiroDestino("buenos-aires", "Ana", { inicio });
+    const comFeira = dias(h).filter(d => /Feira de San Telmo/.test(d));
+    assert.ok(comFeira.length >= 1, inicio);
+    for (const d of comFeira) assert.match(d, /Domingo, /, inicio);
+  }
 });

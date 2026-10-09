@@ -59,6 +59,7 @@ export const CSS_MAIS = `
 .sumario a i{font-style:normal;color:var(--mut);font-size:8.5pt}
 .sumario a b{font:800 10pt var(--display);color:var(--acc);min-width:9mm;text-align:right}
 .sumario h3{break-after:avoid;font-size:8.5pt;text-transform:uppercase;letter-spacing:.12em;color:var(--mut);margin:4mm 0 1mm}
+.money .row{gap:4mm}
 .maps{color:var(--acc);text-decoration:none;border-bottom:1px solid currentColor}
 .stop{grid-template-columns:16mm 1fr 18mm}
 .qr{display:block;width:18mm;height:18mm;align-self:start}
@@ -106,10 +107,20 @@ export function lerValores(v = {}) {
   const pessoas = Math.min(20, Math.max(1, Math.round(num(v.pessoas) || 1)));
   const dias = Array.isArray(v.dias) && v.dias.length === 7 && v.dias.every(x => num(x) !== null) ? v.dias.map(Number) : null;
   const itens = ["passagens", "hotel", "comidaPasseios", "transporte"].map(k => num(v[k]));
-  const total = num(v.total) ?? (itens.every(x => x !== null) ? itens.reduce((a, b) => a + b, 0) : null);
+  let total = num(v.total) ?? (itens.every(x => x !== null) ? itens.reduce((a, b) => a + b, 0) : null);
+  let sobra = num(v.sobra);
+  // Os gastos dos dias são o que a pessoa vai seguir: se somarem mais que comida, passeios e transporte do resumo,
+  // a diferença entra em comida e passeios, e o total e a sobra acompanham, para as páginas não se contradizerem.
+  const somaDias = dias ? dias.reduce((a, b) => a + b, 0) : null;
+  const falta = somaDias !== null && itens[2] !== null && itens[3] !== null ? somaDias - itens[2] - itens[3] : 0;
+  if (falta > 0) {
+    itens[2] += falta;
+    if (total !== null) total += falta;
+    if (sobra !== null) sobra = Math.max(0, sobra - falta);
+  }
   const periodo = typeof v.periodo === "string" ? esc(v.periodo.trim().slice(0, 60)) : "";
   return { pessoas, dias, total, periodo, passagens: itens[0], hotel: itens[1], comidaPasseios: itens[2], transporte: itens[3],
-    noites: Math.round(num(v.noites) || 6), sobra: num(v.sobra), cotacao: num(v.cotacao) || null,
+    noites: Math.round(num(v.noites) || 6), sobra, cotacao: num(v.cotacao) || null,
     inicio: lerData(v.inicio), clima: lerClima(v.clima) };
 }
 

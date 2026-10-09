@@ -58,5 +58,14 @@ seg: 1–5, bairro: até 28, destaque: [kick até 40, frase até 110], stops: [4
 até 70, "R$ 40 a R$ 70 por pessoa"]], chuva: até 140, tip: [título, texto até 150], semana?: { dias: [0–6],
 senao: [título, texto] } }`.
 
-`semana` serve para o que só acontece em certos dias (0 = domingo): quando a data da viagem não cai nesses
-dias, a dica do dia vira o texto de `senao`. O dia 7 termina com a ida ao aeroporto.
+`semana` serve para o que só acontece em certos dias da semana (0 = domingo), como uma feira de domingo ou um
+lugar que fecha na segunda. Formato: `{ dias: [dias permitidos], ultimo?, meio?, alternativa?, senao? }`. Quando a
+viagem tem data, o motor (`encaixarDias` em `roteiro.js`) tenta, nesta ordem:
+1. trocar o dia com um dos dias 2 a 6 que caia num dia permitido (o dia 1 e o dia 7 ficam no lugar);
+2. se só o dia 7 cair num dia permitido: usar `ultimo` (um dia completo que junta o passeio e a ida ao aeroporto)
+   no dia 7, e `meio` (um dia completo, normalmente o conteúdo do dia 7 sem o aeroporto) no lugar do dia;
+3. usar `alternativa` (o mesmo dia completo, sem o que depende da data);
+4. trocar a dica do dia por `senao` ([título, texto]). Evite chegar aqui: num produto pago, o aviso parece erro.
+
+Sem data, o dia fica onde está, e o campo `d` deve dizer quando fazer (ex.: "Melhor num domingo").
+O dia 7 termina com a ida ao aeroporto.

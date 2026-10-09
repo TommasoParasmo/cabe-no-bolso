@@ -10,6 +10,29 @@ const tabela = (cab, linhas) => '<table class="tb"><thead><tr>' + cab.map(c => "
   linhas.map(r => "<tr>" + r.map((c, i) => "<td>" + (i === 0 ? "<b>" + c + "</b>" : c) + "</td>").join("") + "</tr>").join("") + "</tbody></table>";
 const aviso = a => (a ? '<div class="warnbox"><b>' + a[0] + "</b><br>" + a[1] + "</div>" : "");
 
+// Encaixa os dias que só funcionam em certos dias da semana (campo semana do dia). sem[i] é o dia da semana
+// (0 = domingo) da posição i. Em ordem: troca com um dia do meio (2 a 6) que caia num dia permitido; se não der e
+// o último dia cair num dia permitido, usa semana.ultimo no último dia e semana.meio no lugar dele; se não, usa
+// semana.alternativa (o mesmo dia sem o que depende da data); por fim, a dica vira semana.senao.
+export function encaixarDias(dias, sem, comValores = false) {
+  const g = (novo, antigo) => (comValores ? antigo.gasto : novo.gasto);
+  const D = dias.slice();
+  const ok = (d, i) => !d.semana || d.semana.dias.includes(sem[i]);
+  for (let i = 0; i < D.length; i++) {
+    const d = D[i];
+    if (ok(d, i)) continue;
+    const j = [1, 2, 3, 4, 5].find(j => j !== i && d.semana.dias.includes(sem[j]) && ok(D[j], i));
+    if (j !== undefined && i > 0 && i < D.length - 1) { D[i] = D[j]; D[j] = d; continue; }
+    const fim = D.length - 1;
+    if (d.semana.ultimo && d.semana.meio && i !== fim && d.semana.dias.includes(sem[fim])) {
+      D[fim] = { ...d.semana.ultimo, gasto: g(d.semana.ultimo, D[fim]) }; D[i] = { ...d.semana.meio, gasto: g(d.semana.meio, d) }; continue;
+    }
+    if (d.semana.alternativa) { D[i] = { ...d.semana.alternativa, gasto: g(d.semana.alternativa, d) }; continue; }
+    if (d.semana.senao) D[i] = { ...d, tip: d.semana.senao };
+  }
+  return D;
+}
+
 // D: conteúdo do destino (formato em server/pdf/destinos/LEIA-ME.md); slug: pasta das imagens em /roteiros/.
 export function montarRoteiro(D, slug, nomeCru, valores = {}) {
   const B = "/roteiros/" + slug + "/";
@@ -25,14 +48,18 @@ export function montarRoteiro(D, slug, nomeCru, valores = {}) {
   const card = c => '<div class="card"><h3>' + (c.ic ? ic(c.ic) : "") + c.t + "</h3>" + (c.texto ? "<p>" + c.texto + "</p>" : "") + (c.itens ? lista(c.itens) : "") + "</div>";
   const porQuem = V.dias ? "para " + (V.pessoas > 1 ? V.pessoas + " pessoas" : "1 pessoa") : "por pessoa";
 
-  // Dias: cópia do conteúdo, com data, dia da semana e os avisos que dependem do dia (feira só no domingo, etc.).
-  const DAYS = D.dias.map((d, i) => ({ ...d, gasto: V.dias ? brl(V.dias[i]) : d.gasto }));
-  if (V.inicio) DAYS.forEach((d, i) => {
-    const dt = new Date(V.inicio.getTime() + i * 864e5);
-    d.sem = dt.getUTCDay();
-    d.d = SEMANA[d.sem] + ", " + String(dt.getUTCDate()).padStart(2, "0") + "/" + String(dt.getUTCMonth() + 1).padStart(2, "0");
-    if (d.semana && !d.semana.dias.includes(d.sem)) d.tip = d.semana.senao;
-  });
+  // Dias: cópia do conteúdo com o gasto da simulação (o valor acompanha o dia se ele mudar de lugar), datas e
+  // dia da semana. Passeio que só acontece em certos dias da semana é encaixado num dia que dá (encaixarDias).
+  let DAYS = D.dias.map((d, i) => ({ ...d, gasto: V.dias ? brl(V.dias[i]) : d.gasto }));
+  if (V.inicio) {
+    const sem = DAYS.map((_, i) => new Date(V.inicio.getTime() + i * 864e5).getUTCDay());
+    DAYS = encaixarDias(DAYS, sem, !!V.dias);
+    DAYS.forEach((d, i) => {
+      const dt = new Date(V.inicio.getTime() + i * 864e5);
+      d.sem = sem[i];
+      d.d = SEMANA[d.sem] + ", " + String(dt.getUTCDate()).padStart(2, "0") + "/" + String(dt.getUTCMonth() + 1).padStart(2, "0");
+    });
+  }
   const mesDaViagem = V.clima ? MESES[V.clima.mes - 1] : V.inicio ? MESES[V.inicio.getUTCMonth()] : "";
   const S = {};
 
@@ -51,7 +78,8 @@ export function montarRoteiro(D, slug, nomeCru, valores = {}) {
     (V.total !== null
       ? '<div class="money"><span style="opacity:.75;font-size:9.5pt">Custo previsto da viagem' + (V.pessoas > 1 ? " para " + V.pessoas + " pessoas" : "") + '</span><span class="big">' + brl(V.total) + "</span>" +
         [["Passagens", V.passagens], ["Hotel, " + V.noites + " noites", V.hotel], ["Comida e passeios", V.comidaPasseios], [D.rotuloExtra, V.transporte]].filter(x => x[1] !== null).map(x => '<div class="row"><span>' + x[0] + "</span><b>" + brl(x[1]) + "</b></div>").join("") +
-        (V.sobra !== null ? '<div class="row" style="color:var(--gold)"><span>Sobra do orçamento</span><b>' + brl(V.sobra) + "</b></div>" : "") + "</div>"
+"</div>" +
+        (V.sobra !== null ? '<div class="money" style="grid-template-columns:1fr auto;align-items:center;padding:4mm 6mm"><span style="font-size:9.5pt">Sobra do seu orçamento, fora da conta acima</span><span class="big" style="font-size:16pt">' + brl(V.sobra) + "</span></div>" : "")
       : '<div class="money"><span style="opacity:.75;font-size:9.5pt">Gasto previsto no destino, por pessoa</span><span class="big">' + D.referencia.total + '</span><div class="row"><span>Inclui</span><b>' + D.referencia.inclui + '</b></div><div class="row"><span>Por dia, em média</span><b>' + D.referencia.porDia + '</b></div><div class="row" style="color:var(--gold)"><span>Passagens e hotel</span><b>simule no app</b></div></div>') +
     '<div class="how"><b>Como usar este roteiro</b><ul><li>Comece pelo Pré-viagem, na página @@PG:quando@@.</li><li>Marque os quadradinhos conforme for resolvendo.</li><li>Na viagem, abra só a página do dia.</li><li>' + cot + "</li></ul></div></div></div></div>" + foot() + "</section>";
 
@@ -125,9 +153,9 @@ export function montarRoteiro(D, slug, nomeCru, valores = {}) {
     "<tr><td><b>Total</b></td><td><b>" + (somaDias !== null ? brl(somaDias) : D.referencia.total) + '</b></td><td class="vazio"></td><td></td><td></td></tr></tbody></table>' +
     (somaDias !== null && V.comidaPasseios !== null && V.transporte !== null && V.comidaPasseios + V.transporte - somaDias > 0
       ? '<p class="mut" style="font-size:8.5pt">Os dias somam o que você gasta em cada dia da viagem. No resumo, comida, passeios e ' + D.rotuloExtra.toLowerCase() + " dão " + brl(V.comidaPasseios + V.transporte) + ": os outros " + brl(V.comidaPasseios + V.transporte - somaDias) + " ficam fora dos dias, " + D.orcamento.fora + ".</p>" : "") +
+    '<p class="mut" style="font-size:8.5pt">' + D.orcamento.nota + "</p>" +
     (V.sobra !== null ? '<div class="money" style="grid-template-columns:1fr auto;align-items:center"><span>Mesmo seguindo o roteiro, você ainda tem de sobra</span><span class="big">' + brl(V.sobra) + "</span></div>"
-      : '<div class="warnbox"><b>Como usar</b><br>Anote o gasto real no fim de cada dia. Se um dia passar do previsto, compense nos dias seguintes com as dicas da última coluna.</div>') +
-    '<p class="mut" style="font-size:8.5pt">' + D.orcamento.nota + "</p>");
+      : '<div class="warnbox"><b>Como usar</b><br>Anote o gasto real no fim de cada dia. Se um dia passar do previsto, compense nos dias seguintes com as dicas da última coluna.</div>'));
 
   S.comida = sec("Na viagem", "Para provar", D.comida.titulo,
     '<div class="pratos">' + D.comida.pratos.map(p => '<div class="prato"><b>' + p[0] + "</b><p>" + p[1] + "</p><small>" + p[2] + "</small></div>").join("") + "</div>" +
@@ -144,8 +172,9 @@ export function montarRoteiro(D, slug, nomeCru, valores = {}) {
   // Passeios extras: a sobra do orçamento da simulação, quando existe, mostra quanto cada um usa.
   const usa = (min, max) => {
     if (V.sobra === null || !(V.sobra > 0)) return "";
-    const custo = ((min + max) / 2) * (V.dias ? V.pessoas : 1);
-    return '<div class="row" style="color:var(--gold)"><span>Usa da sua sobra de ' + brl(V.sobra) + "</span><b>cerca de " + Math.min(100, Math.round((custo / V.sobra) * 100)) + "%</b></div>";
+    const n = V.dias ? V.pessoas : 1;
+    const pct = Math.min(100, Math.round(((min + max) / 2) * n / V.sobra * 100));
+    return '<div class="row" style="color:var(--gold)"><span>' + (n > 1 ? "Para " + n + " pessoas: " + brl(min * n) + " a " + brl(max * n) : "Usa da sua sobra de " + brl(V.sobra)) + "</span><b>cerca de " + pct + "% da sobra</b></div>";
   };
   const extra = x => '<div class="card"><h3>' + x.t + "</h3><p>" + x.o + "</p>" + lista(x.itens) + '<div class="money" style="margin-top:2mm"><div class="row" style="border:0;padding:0"><span>Custo por pessoa</span><b>' + x.preco + "</b></div>" + usa(x.min, x.max) + '</div><p class="mut" style="font-size:8.5pt">' + x.dica + "</p></div>";
   S.extras = D.extras.map(p => sec("Se sobrar tempo ou dinheiro", p.kick, p.titulo, (p.cards.length > 1 ? '<div class="cards">' + p.cards.map(extra).join("") + "</div>" : extra(p.cards[0])) + aviso(p.aviso)));
