@@ -2,9 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { roteiroJerusalem } from "../server/pdf/jerusalem.js";
 
-test("PDF de Jerusalém: 16 páginas e só o nome muda", () => {
+test("PDF de Jerusalém: 38 páginas e só o nome muda", () => {
   const a = roteiroJerusalem("Maria Aparecida");
-  assert.equal((a.match(/<section class="page/g) || []).length, 16);
+  assert.equal((a.match(/<section [^>]*class="page/g) || []).length, 38);
   assert.match(a, /<b>Maria Aparecida<\/b>/);
   assert.match(a, /Boa viagem, Maria\./);
   assert.match(a, /Roteiro de Maria Aparecida · Jerusalém/);
@@ -40,4 +40,14 @@ test("PDF de Jerusalém: todas as imagens apontam para /roteiros/jerusalem/", ()
   const caminhos = [...h.matchAll(/(?:src="|url\()([^")]+\.(?:jpg|png))/g)].map(m => m[1]);
   assert.ok(caminhos.length > 10);
   for (const c of caminhos) assert.match(c, /^\/roteiros\/jerusalem\/[a-z-]+\.(jpg|png)$/, c);
+});
+
+test("PDF de Jerusalém: sumário com links e numeração pág. X de 38", () => {
+  const h = roteiroJerusalem("Ana");
+  assert.match(h, /<a href="#sacro1"><b>20<\/b><span>Santo Sepulcro<\/span><\/a>/);
+  assert.match(h, /pág\. 2 de 38/);
+  assert.match(h, /pág\. 37 de 38/);
+  assert.doesNotMatch(h, /@@PAG@@/);
+  for (const id of [...h.matchAll(/<a href="#([a-z0-9]+)"/g)].map(m => m[1])) assert.match(h, new RegExp('<section id="' + id + '"'));
+  assert.ok((h.match(/maps\/search\/\?api=1/g) || []).length >= 15);
 });
