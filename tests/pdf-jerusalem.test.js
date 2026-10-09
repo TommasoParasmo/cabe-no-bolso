@@ -1,0 +1,78 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { roteiroJerusalem } from "../server/pdf/jerusalem.js";
+
+test("PDF de Jerusalém: 38 páginas e só o nome muda", () => {
+  const a = roteiroJerusalem("Maria Aparecida");
+  assert.equal((a.match(/<section [^>]*class="page/g) || []).length, 38);
+  assert.match(a, /<b>Maria Aparecida<\/b>/);
+  assert.match(a, /Boa viagem, Maria\./);
+  assert.match(a, /Roteiro de Maria Aparecida · Jerusalém/);
+  const z = roteiroJerusalem("Zuleica Tavares"), q = roteiroJerusalem("Quirino");
+  assert.equal(z.replaceAll("Zuleica Tavares", "X").replaceAll("Zuleica", "X"), q.replaceAll("Quirino", "X"));
+});
+
+test("PDF de Jerusalém: nome escapado e sem os dados do exemplo", () => {
+  const h = roteiroJerusalem('<img src=x onerror=alert(1)> "Ana"');
+  assert.ok(!h.includes("<img src=x"));
+  assert.match(roteiroJerusalem("   "), /<b>Viajante<\/b>/);
+  assert.doesNotMatch(h, /07\/03|13\/03|2 pessoas|19\.594|Ana Souza|março/);
+});
+
+test("PDF de Jerusalém: valores da simulação entram quando vêm, senão a referência por pessoa", () => {
+  const v = { periodo: "07 a 13 de março de 2027", pessoas: 2, cotacao: 1.52, passagens: 11780, hotel: 3534, noites: 6, comidaPasseios: 3220, transporte: 1060, sobra: 5406, dias: [280, 320, 260, 1150, 300, 340, 520] };
+  const h = roteiroJerusalem("Ana", v);
+  assert.match(h, /R\$ 19\.594/);
+  assert.match(h, /07 a 13 de março de 2027/);
+  assert.match(h, /Gasto previsto para 2 pessoas<\/small><b>R\$ 1\.150/);
+  assert.match(h, /R\$ 1,52 por shekel/);
+  assert.match(h, /Sobra do orçamento<\/span><b>R\$ 5\.406/);
+  const g = roteiroJerusalem("Ana");
+  assert.match(g, /R\$ 1\.585/);
+  assert.match(g, /Gasto previsto por pessoa<\/small><b>R\$ 575/);
+  // Valor estranho não quebra o PDF: volta para a referência.
+  assert.match(roteiroJerusalem("Ana", { dias: [1, 2], total: -5, periodo: "<b>x</b>" }), /Gasto previsto por pessoa/);
+  assert.doesNotMatch(roteiroJerusalem("Ana", { periodo: "<b>x</b>", pessoas: 1 }), /<b>x<\/b>/);
+});
+
+test("PDF de Jerusalém: todas as imagens apontam para /roteiros/jerusalem/", () => {
+  const h = roteiroJerusalem("Ana");
+  const caminhos = [...h.matchAll(/(?:src="|url\()([^")]+\.(?:jpg|png))/g)].map(m => m[1]);
+  assert.ok(caminhos.length > 10);
+  for (const c of caminhos) assert.match(c, /^\/roteiros\/jerusalem\/[a-z-]+\.(jpg|png)$/, c);
+});
+
+test("PDF de Jerusalém: sumário com links e numeração pág. X de 38", () => {
+  const h = roteiroJerusalem("Ana");
+  assert.match(h, /<a href="#sacro1"><b>20<\/b><span>Santo Sepulcro<\/span><\/a>/);
+  assert.match(h, /pág\. 2 de 38/);
+  assert.match(h, /pág\. 37 de 38/);
+  assert.doesNotMatch(h, /@@PAG@@/);
+  for (const id of [...h.matchAll(/<a href="#([a-z0-9]+)"/g)].map(m => m[1])) assert.match(h, new RegExp('<section id="' + id + '"'));
+  assert.ok((h.match(/maps\/search\/\?api=1/g) || []).length >= 15);
+});
+
+test("PDF de Jerusalém: correções da revisão (Shabat, clima, QR, emergência, orçamento)", () => {
+  const v = { periodo: "07 a 13 de março de 2027", inicio: "2027-03-07", clima: { mes: 3, min: 8, max: 19 }, pessoas: 2,
+    passagens: 11780, hotel: 3534, noites: 6, comidaPasseios: 3220, transporte: 1060, sobra: 5406, dias: [280, 320, 260, 1150, 300, 340, 520] };
+  const h = roteiroJerusalem("Ana", v);
+  // 07/03/2027 é domingo, então o dia 7 (13/03) cai num sábado: sem trem para o aeroporto.
+  assert.match(h, /Sábado, 13\/03/);
+  assert.match(h, /Hoje é sábado e não tem trem/);
+  assert.match(h, /Clima em março/);
+  assert.match(h, /Para 7 dias em março/);
+  assert.match(h, /Os dias somam comida, passeios e transporte/);
+  // Começando numa segunda, o dia 5 é sexta e o 6 é sábado (Shabat fora do último dia).
+  const s = roteiroJerusalem("Ana", { ...v, inicio: "2027-03-08" });
+  assert.match(s, /Hoje é Shabat/);
+  // Referências de página resolvidas, sem marcador sobrando.
+  assert.doesNotMatch(h, /@@PG:|@@PAG@@/);
+  assert.match(h, /lista da página \d+/);
+  // QR codes nas paradas, emergência com 104 e plantão do Itamaraty.
+  assert.ok((h.match(/<a class="qr"/g) || []).length >= 15);
+  assert.match(h, /<svg[^>]*viewBox/);
+  assert.match(h, /104/);
+  assert.match(h, /98260-0610/);
+  assert.match(h, /Gruta do Leite/);
+  assert.match(h, /Igreja de Santa Catarina/);
+});
