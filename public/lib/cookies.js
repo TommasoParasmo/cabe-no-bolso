@@ -37,7 +37,7 @@
     aviso.id = "cookies-aviso";
     aviso.setAttribute("role", "region");
     aviso.setAttribute("aria-label", "Aviso de cookies");
-    aviso.innerHTML = `<p>Usamos cookies para medir nossos anúncios. <a href="/privacidade.html#cookies">Saiba mais</a></p>
+    aviso.innerHTML = `<p>Usamos cookies para medir nossos anúncios. Compras também são informadas à Meta pelo nosso servidor. <a href="/privacidade.html#cookies">Saiba mais</a></p>
 <div class="botoes"><button type="button" data-escolha="sim">Aceitar</button><button type="button" data-escolha="nao">Recusar</button></div>`;
     aviso.addEventListener("click", ev => {
       const escolha = ev.target.closest("button")?.dataset.escolha;

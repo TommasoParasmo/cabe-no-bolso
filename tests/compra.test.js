@@ -124,7 +124,7 @@ test("compra: a venda paga soma no anúncio de onde a pessoa veio (origem:AAAA-M
   assert.deepEqual(JSON.parse([...env2.LEADS.m.entries()].find(([k]) => k.startsWith("origem:"))[1]).pdf, { direto: 1 });
 });
 
-test("meta: com cookies aceitos, a venda paga vai uma vez pela Conversions API com o número do pedido como event_id", async () => {
+test("meta: a venda paga vai uma vez pela Conversions API com o número do pedido como event_id", async () => {
   const env = { MP_ACCESS_TOKEN: "tok", META_CAPI_TOKEN: "capi", LEADS: kv() };
   env.LEADS.delete = async k => env.LEADS.m.delete(k);
   const mp = mercadoPago(pixCriado, pago);
@@ -159,7 +159,7 @@ test("meta: com cookies aceitos, a venda paga vai uma vez pela Conversions API c
   assert.equal(env.LEADS.m.has("meta:ORD01PDF123"), false, "os dados saem do KV depois do envio");
 });
 
-test("meta: sem cookies aceitos ou sem token, nada vai para a Meta", async () => {
+test("meta: pedido sem dados para a Meta (checkout antigo) ou sem token, nada vai para a Meta", async () => {
   const env = { MP_ACCESS_TOKEN: "tok", META_CAPI_TOKEN: "capi", LEADS: kv() };
   const mp = mercadoPago(pixCriado, pago);
   let chamadas = 0;

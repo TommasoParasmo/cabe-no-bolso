@@ -63,8 +63,7 @@ function escolher(f) {
 
 // Pixel da Meta: só existe quando a pessoa aceitou os cookies (/lib/cookies.js carrega o Pixel nesse caso).
 // O Purchase leva o número do pedido como eventID, o mesmo event_id que o servidor manda pela Conversions API
-// (server/meta.js): a Meta junta os dois e conta a compra uma vez.
-const aceitouCookies = () => { try { return localStorage.getItem("vdv-cookies") === "sim"; } catch { return false; } };
+// (server/meta.js) para todos os compradores: a Meta junta os dois e conta a compra uma vez.
 const cookie = nome => document.cookie.split("; ").find(c => c.startsWith(nome + "="))?.slice(nome.length + 1);
 const noPixel = (evento, valor, id) => window.fbq?.("track", evento,
   { value: Number(valor), currency: "BRL", content_name: slug, content_ids: [slug], content_type: "product" }, id ? { eventID: id } : undefined);
@@ -79,7 +78,8 @@ function dadosDoFormulario() {
   if (nome.length < 2) throw new Error("Escreva o nome que vai na capa.");
   if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) throw new Error("Confira o e-mail.");
   return { destino: slug, nome, email, valores: valoresDaSimulacao(), utm: ler("vdv-origem", sessionStorage) || undefined,
-    meta: aceitouCookies() ? { fbp: cookie("_fbp"), fbc: cookie("_fbc"), url: location.href } : undefined };
+    // _fbp e _fbc só existem com o Pixel carregado (cookies aceitos); sem eles, a Meta usa o e-mail (hash) e o IP.
+    meta: { fbp: cookie("_fbp"), fbc: cookie("_fbc"), url: location.href } };
 }
 
 // Turnstile (o "não sou robô" invisível da Cloudflare), igual ao app.

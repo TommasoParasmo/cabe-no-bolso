@@ -1,7 +1,8 @@
 // Compra para a Meta pela Conversions API (servidor), além do Pixel no navegador. Os dois mandam o mesmo
 // event_id (o número do pedido), e a Meta conta a compra uma vez só. Bloqueador de anúncio e navegador que
 // corta o Pixel deixam de esconder a venda dos anúncios.
-// Só vai para quem aceitou os cookies no aviso (/lib/cookies.js): o checkout manda `meta` só nesse caso.
+// Vai para todos os compradores, com ou sem cookies aceitos (decisão do Tom, 09/10/2026; a política de privacidade
+// e o aviso de cookies dizem isso). Sem cookies, não há _fbp/_fbc: a Meta reconhece pelo e-mail (hash) e pelo IP.
 // Liga com META_CAPI_TOKEN na Cloudflare (token do Gerenciador de Eventos, nunca no código).
 // Os dados para a Meta reconhecer a pessoa ficam em meta:<ORD> por 2 dias e saem do KV depois do envio.
 export const PIXEL_ID = "1648295673479841";
