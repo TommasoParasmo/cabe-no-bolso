@@ -29,7 +29,9 @@ export async function guardarDadosMeta(id, { meta, email }, { ip, ua } = {}, env
 
 // Quando a venda é contada (uma vez por pedido): manda o Purchase e apaga os dados guardados.
 export async function enviarCompraMeta(id, { slug, preco }, env, fetchFn = globalThis.fetch, agora = Date.now()) {
-  if (!env?.META_CAPI_TOKEN || !env?.LEADS) return false;
+  if (!env?.LEADS) return false;
+  // Sem token, o envio fica esperando (os dados ficam 2 dias no KV): o log mostra, para não passar em branco.
+  if (!env.META_CAPI_TOKEN) { console.warn("compra: META_CAPI_TOKEN não está na Cloudflare; Purchase não enviado", String(id).toUpperCase()); return false; }
   const d = await env.LEADS.get(chave(id), "json").catch(() => null);
   if (!d) return false;
   const evento = {
