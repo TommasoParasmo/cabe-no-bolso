@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { precoDe, criarCompra, situacaoCompra, compraPaga, recuperarCompra, motivoRecusa, CompraInvalida, NaoPago } from "../server/compra.js";
 import { enviarCompraMeta } from "../server/meta.js";
-import { htmlDaCompra, pdfDaCompra, nomeArquivo } from "../server/entrega.js";
+import { htmlDaCompra, pdfDaCompra, nomeArquivo, gerarPdf } from "../server/entrega.js";
 
 // KV falso (LEADS): get com "json" e "arrayBuffer", put e o que foi gravado.
 function kv() {
@@ -227,4 +227,17 @@ test("entrega: PDF do destino com o nome, fotos pelo site, guardado no KV e sem 
   await pdfDaCompra("ORD01PDF123", compra, env, fetchFn);
   assert.equal(chamadas, 1, "a segunda vez vem do KV");
   assert.equal(await pdfDaCompra("ORD01PDF123", compra, { LEADS: kv() }, fetchFn), null);
+});
+
+test("entrega: Browser Rendering no limite (429) espera e tenta mais uma vez", async () => {
+  const env = { CF_ACCOUNT_ID: "conta", CF_BROWSER_TOKEN: "t" };
+  let chamadas = 0; const esperas = [];
+  const pdf = new Response("%PDF-1.7", { headers: { "content-type": "application/pdf" } });
+  const limite = () => new Response("{}", { status: 429, headers: { "retry-after": "2" } });
+  const buf = await gerarPdf("<html></html>", env, async () => (++chamadas === 1 ? limite() : pdf), async ms => esperas.push(ms));
+  assert.equal(chamadas, 2);
+  assert.deepEqual(esperas, [2000]);
+  assert.equal(new TextDecoder().decode(buf), "%PDF-1.7");
+  // Segunda recusa: desiste (a rota entrega a página para salvar como PDF).
+  await assert.rejects(gerarPdf("<html></html>", env, async () => limite(), async () => {}), /Browser Rendering 429/);
 });

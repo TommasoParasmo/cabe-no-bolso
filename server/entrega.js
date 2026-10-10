@@ -23,8 +23,23 @@ export function htmlDaCompra({ slug, nome, valores }, comBotao = false) {
   return html.replace(/<head>/i, `<head>${base}`).replace(/<body([^>]*)>/i, `<body$1>${botao}`);
 }
 
-export async function gerarPdf(html, env, fetchFn = globalThis.fetch) {
-  const r = await fetchFn(`https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/browser-run/pdf`, {
+// Limite de uso do Browser Rendering (429): espera o que a Cloudflare pede (até 10 s) e tenta mais uma vez,
+// para o comprador receber o arquivo e não a página de salvar como PDF.
+const ESPERA_MAX_MS = 10000;
+export async function gerarPdf(html, env, fetchFn = globalThis.fetch, esperar = ms => new Promise(ok => setTimeout(ok, ms))) {
+  let r = await pedirPdf(html, env, fetchFn);
+  if (r.status === 429) {
+    const seg = Number(r.headers.get("retry-after"));
+    await esperar(Math.min(ESPERA_MAX_MS, seg > 0 ? seg * 1000 : 3000));
+    r = await pedirPdf(html, env, fetchFn);
+  }
+  const tipo = r.headers.get("content-type") || "";
+  if (!r.ok || !tipo.includes("pdf")) throw new Error(`Browser Rendering ${r.status}`);
+  return r.arrayBuffer();
+}
+
+function pedirPdf(html, env, fetchFn) {
+  return fetchFn(`https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/browser-run/pdf`, {
     method: "POST",
     headers: { Authorization: `Bearer ${env.CF_BROWSER_TOKEN}`, "content-type": "application/json" },
     body: JSON.stringify({
@@ -33,9 +48,6 @@ export async function gerarPdf(html, env, fetchFn = globalThis.fetch) {
       pdfOptions: { format: "a4", printBackground: true, preferCSSPageSize: true }
     })
   });
-  const tipo = r.headers.get("content-type") || "";
-  if (!r.ok || !tipo.includes("pdf")) throw new Error(`Browser Rendering ${r.status}`);
-  return r.arrayBuffer();
 }
 
 // O PDF da compra: do KV, ou gerado agora e guardado. Devolve null se o Browser Rendering não estiver ligado.
