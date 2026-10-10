@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { precoDe, criarCompra, situacaoCompra, mapaDaCompra, compraPaga, recuperarCompra, motivoRecusa, CompraInvalida, NaoPago } from "../server/compra.js";
 import { enviarCompraMeta } from "../server/meta.js";
-import { htmlDaCompra, pdfDaCompra, nomeArquivo } from "../server/entrega.js";
+import { htmlDaCompra, pdfDaCompra, nomeArquivo, gerarPdf } from "../server/entrega.js";
 
 // KV falso (LEADS): get com "json" e "arrayBuffer", put e o que foi gravado.
 function kv() {
@@ -87,8 +87,8 @@ test("compra: libera só com a chave certa, order paga e da mesma compra; conta 
   const env = { MP_ACCESS_TOKEN: "tok", LEADS: kv() };
   const mp = mercadoPago(pixCriado, pago);
   const { id, chave } = await criarCompra(pedido, env, mp.fetchFn);
-  assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago" });
-  assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago" });
+  assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago", preco: 29.9 });
+  assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago", preco: 29.9 });
   assert.deepEqual(JSON.parse(env.LEADS.m.get("vendas:pdf:orlando")).n, 1);
   await assert.rejects(compraPaga(id, "0".repeat(32), env, mp.fetchFn), CompraInvalida);
   await assert.rejects(compraPaga(id, "nada", env, mp.fetchFn), CompraInvalida);
@@ -157,6 +157,20 @@ test("meta: a venda paga vai uma vez pela Conversions API com o número do pedid
   assert.equal(e.user_data.client_ip_address, "200.1.2.3");
   assert.match(e.user_data.em[0], /^[0-9a-f]{64}$/);
   assert.equal(env.LEADS.m.has("meta:ORD01PDF123"), false, "os dados saem do KV depois do envio");
+  assert.equal(meta[0].corpo.test_event_code, undefined, "sem código de teste, vai como evento normal");
+});
+
+test("meta: com META_TEST_EVENT_CODE a compra do servidor leva o código de teste", async () => {
+  const env = { MP_ACCESS_TOKEN: "tok", META_CAPI_TOKEN: "capi", META_TEST_EVENT_CODE: "TEST123", LEADS: kv() };
+  const mp = mercadoPago(pixCriado, pago);
+  const corpos = [];
+  const fetchFn = async (url, opts = {}) => {
+    if (String(url).includes("facebook")) { corpos.push(JSON.parse(opts.body)); return new Response("{}"); }
+    return mp.fetchFn(url, opts);
+  };
+  const { id, chave } = await criarCompra({ ...pedido, meta: { url: "https://vaidarviagem.com.br/comprar/" } }, env, fetchFn);
+  await situacaoCompra(id, chave, env, fetchFn);
+  assert.equal(corpos[0].test_event_code, "TEST123");
 });
 
 test("meta: pedido sem dados para a Meta (checkout antigo) ou sem token, nada vai para a Meta", async () => {
@@ -176,7 +190,7 @@ test("compra: preço configurado abaixo do da promoção libera a order paga nes
   const mp = mercadoPago(pixCriado, { ...pago, total_amount: "19.90" });
   const { id, chave } = await criarCompra(pedido, env, mp.fetchFn);
   assert.equal(mp.pedidos[0].corpo.total_amount, "19.90");
-  assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago" });
+  assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago", preco: 19.9 });
 });
 
 test("mapa offline: só aparece com link, soma ao mesmo pagamento e o link vai só para quem pagou com ele", async () => {
@@ -203,7 +217,7 @@ test("mapa offline: só aparece com link, soma ao mesmo pagamento e o link vai s
   assert.equal(corpo.total_amount, "39.80");
   assert.equal(corpo.transactions.payments[0].amount, "39.80");
   assert.match(corpo.description, /\+ Mapa offline$/);
-  assert.deepEqual(await situacaoCompra(c.id, c.chave, env, fetchFn), { status: "pago", mapa: "https://maps.app.goo.gl/abc123" });
+  assert.deepEqual(await situacaoCompra(c.id, c.chave, env, fetchFn), { status: "pago", preco: 39.8, mapa: "https://maps.app.goo.gl/abc123" });
   assert.equal(meta[0].custom_data.value, 39.8, "a Meta recebe o total do pedido");
   assert.deepEqual(meta[0].custom_data.content_ids, ["orlando", "mapa-offline"]);
   assert.deepEqual(JSON.parse(env.LEADS.m.get("vendas:pdf:orlando")).mapa, 1);
@@ -221,7 +235,7 @@ test("mapa offline: só aparece com link, soma ao mesmo pagamento e o link vai s
   const env2 = { MP_ACCESS_TOKEN: "tok", MAPAS_OFFLINE: MAPAS, LEADS: kv() };
   const mp2 = mercadoPago(pixCriado, pago);
   const c2 = await criarCompra({ ...pedido, precoVisto: 29.9 }, env2, mp2.fetchFn);
-  assert.deepEqual(await situacaoCompra(c2.id, c2.chave, env2, mp2.fetchFn), { status: "pago" });
+  assert.deepEqual(await situacaoCompra(c2.id, c2.chave, env2, mp2.fetchFn), { status: "pago", preco: 29.9 });
   assert.equal(JSON.parse(env2.LEADS.m.get("vendas:pdf:orlando")).mapa, undefined);
   await assert.rejects(mapaDaCompra(c2.id, c2.chave, env2, mp2.fetchFn), CompraInvalida);
 });
@@ -234,7 +248,7 @@ test("compra: recupera em outro aparelho com o número e o e-mail, e a chave ant
   const r = await recuperarCompra({ id: id.toLowerCase(), email: "MARIA@email.com" }, env, mp.fetchFn);
   assert.equal(r.destino, "orlando");
   assert.notEqual(r.chave, chave);
-  assert.deepEqual(await situacaoCompra(id, r.chave, env, mp.fetchFn), { status: "pago" });
+  assert.deepEqual(await situacaoCompra(id, r.chave, env, mp.fetchFn), { status: "pago", preco: 29.9 });
   await assert.rejects(compraPaga(id, chave, env, mp.fetchFn), CompraInvalida);
 });
 
@@ -260,4 +274,17 @@ test("entrega: PDF do destino com o nome, fotos pelo site, guardado no KV e sem 
   await pdfDaCompra("ORD01PDF123", compra, env, fetchFn);
   assert.equal(chamadas, 1, "a segunda vez vem do KV");
   assert.equal(await pdfDaCompra("ORD01PDF123", compra, { LEADS: kv() }, fetchFn), null);
+});
+
+test("entrega: Browser Rendering no limite (429) espera e tenta mais uma vez", async () => {
+  const env = { CF_ACCOUNT_ID: "conta", CF_BROWSER_TOKEN: "t" };
+  let chamadas = 0; const esperas = [];
+  const pdf = new Response("%PDF-1.7", { headers: { "content-type": "application/pdf" } });
+  const limite = () => new Response("{}", { status: 429, headers: { "retry-after": "2" } });
+  const buf = await gerarPdf("<html></html>", env, async () => (++chamadas === 1 ? limite() : pdf), async ms => esperas.push(ms));
+  assert.equal(chamadas, 2);
+  assert.deepEqual(esperas, [2000]);
+  assert.equal(new TextDecoder().decode(buf), "%PDF-1.7");
+  // Segunda recusa: desiste (a rota entrega a página para salvar como PDF).
+  await assert.rejects(gerarPdf("<html></html>", env, async () => limite(), async () => {}), /Browser Rendering 429/);
 });

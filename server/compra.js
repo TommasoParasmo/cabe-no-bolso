@@ -217,11 +217,12 @@ export async function mapaDaCompra(id, chave, env, fetchFn = globalThis.fetch) {
   return { slug: g.slug, kml: MAPAS_KML[g.slug] };
 }
 
-// Situação para o checkout: "pago", "esperando" ou "expirado".
+// Situação para o checkout: "pago" (com o valor pago e o link do mapa, se comprou), "esperando" ou "expirado".
 export async function situacaoCompra(id, chave, env, fetchFn = globalThis.fetch, agora = Date.now()) {
   try {
     const g = await compraPaga(id, chave, env, fetchFn, agora);
-    return { status: "pago", ...entrega(g, env) };
+    // O valor com que o pedido foi criado, para o Pixel (o preço da tela pode ter mudado desde então).
+    return { status: "pago", preco: Number(g.preco), ...entrega(g, env) };
   } catch (e) {
     if (e instanceof NaoPago) return { status: e.message };
     throw e;
