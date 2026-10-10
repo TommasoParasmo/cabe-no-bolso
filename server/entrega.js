@@ -44,6 +44,8 @@ function pedirPdf(html, env, fetchFn) {
     headers: { Authorization: `Bearer ${env.CF_BROWSER_TOKEN}`, "content-type": "application/json" },
     body: JSON.stringify({
       html,
+      // Pede as fotos em JPEG/PNG (não WebP/AVIF), pelo mesmo motivo do no-transform em public/_headers.
+      setExtraHTTPHeaders: { Accept: "image/jpeg,image/png,image/*;q=0.5,*/*;q=0.1" },
       gotoOptions: { waitUntil: "networkidle0", timeout: 45000 },
       pdfOptions: { format: "a4", printBackground: true, preferCSSPageSize: true }
     })
@@ -56,6 +58,7 @@ export async function pdfDaCompra(id, compra, env, fetchFn = globalThis.fetch) {
   const guardado = await env.LEADS?.get(chavePdf(id), "arrayBuffer").catch(() => null);
   if (guardado) return guardado;
   const pdf = await gerarPdf(htmlDaCompra(compra), env, fetchFn);
+  console.log("entrega: PDF gerado", compra.slug, `${(pdf.byteLength / 1e6).toFixed(1)} MB`);
   await env.LEADS?.put(chavePdf(id), pdf, { expirationTtl: GUARDA_PDF_DIAS * 86400 }).catch(e => console.error("entrega: PDF não guardado", e?.message));
   return pdf;
 }
