@@ -87,8 +87,8 @@ test("compra: libera só com a chave certa, order paga e da mesma compra; conta 
   const env = { MP_ACCESS_TOKEN: "tok", LEADS: kv() };
   const mp = mercadoPago(pixCriado, pago);
   const { id, chave } = await criarCompra(pedido, env, mp.fetchFn);
-  assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago" });
-  assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago" });
+  assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago", preco: 29.9 });
+  assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago", preco: 29.9 });
   assert.deepEqual(JSON.parse(env.LEADS.m.get("vendas:pdf:orlando")).n, 1);
   await assert.rejects(compraPaga(id, "0".repeat(32), env, mp.fetchFn), CompraInvalida);
   await assert.rejects(compraPaga(id, "nada", env, mp.fetchFn), CompraInvalida);
@@ -157,6 +157,20 @@ test("meta: a venda paga vai uma vez pela Conversions API com o número do pedid
   assert.equal(e.user_data.client_ip_address, "200.1.2.3");
   assert.match(e.user_data.em[0], /^[0-9a-f]{64}$/);
   assert.equal(env.LEADS.m.has("meta:ORD01PDF123"), false, "os dados saem do KV depois do envio");
+  assert.equal(meta[0].corpo.test_event_code, undefined, "sem código de teste, vai como evento normal");
+});
+
+test("meta: com META_TEST_EVENT_CODE a compra do servidor leva o código de teste", async () => {
+  const env = { MP_ACCESS_TOKEN: "tok", META_CAPI_TOKEN: "capi", META_TEST_EVENT_CODE: "TEST123", LEADS: kv() };
+  const mp = mercadoPago(pixCriado, pago);
+  const corpos = [];
+  const fetchFn = async (url, opts = {}) => {
+    if (String(url).includes("facebook")) { corpos.push(JSON.parse(opts.body)); return new Response("{}"); }
+    return mp.fetchFn(url, opts);
+  };
+  const { id, chave } = await criarCompra({ ...pedido, meta: { url: "https://vaidarviagem.com.br/comprar/" } }, env, fetchFn);
+  await situacaoCompra(id, chave, env, fetchFn);
+  assert.equal(corpos[0].test_event_code, "TEST123");
 });
 
 test("meta: pedido sem dados para a Meta (checkout antigo) ou sem token, nada vai para a Meta", async () => {
@@ -176,7 +190,7 @@ test("compra: preço configurado abaixo do da promoção libera a order paga nes
   const mp = mercadoPago(pixCriado, { ...pago, total_amount: "19.90" });
   const { id, chave } = await criarCompra(pedido, env, mp.fetchFn);
   assert.equal(mp.pedidos[0].corpo.total_amount, "19.90");
-  assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago" });
+  assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago", preco: 19.9 });
 });
 
 test("compra: recupera em outro aparelho com o número e o e-mail, e a chave antiga deixa de valer", async () => {
@@ -187,7 +201,7 @@ test("compra: recupera em outro aparelho com o número e o e-mail, e a chave ant
   const r = await recuperarCompra({ id: id.toLowerCase(), email: "MARIA@email.com" }, env, mp.fetchFn);
   assert.equal(r.destino, "orlando");
   assert.notEqual(r.chave, chave);
-  assert.deepEqual(await situacaoCompra(id, r.chave, env, mp.fetchFn), { status: "pago" });
+  assert.deepEqual(await situacaoCompra(id, r.chave, env, mp.fetchFn), { status: "pago", preco: 29.9 });
   await assert.rejects(compraPaga(id, chave, env, mp.fetchFn), CompraInvalida);
 });
 

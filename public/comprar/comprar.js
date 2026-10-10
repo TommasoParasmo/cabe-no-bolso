@@ -131,8 +131,8 @@ function acompanhar() {
   clearTimeout(consulta);
   const ver = async () => {
     try {
-      const { status } = await postar({ acao: "situacao", id: pendente.id, chave: pendente.chave });
-      if (status === "pago") return pronto(pendente, true);
+      const { status, preco: pago } = await postar({ acao: "situacao", id: pendente.id, chave: pendente.chave });
+      if (status === "pago") return pronto({ ...pendente, preco: pago ?? pendente.preco }, true);
       if (status === "expirado") {
         localStorage.removeItem("vdv:pix:" + slug);
         localStorage.removeItem("vdv:cartao:" + slug);

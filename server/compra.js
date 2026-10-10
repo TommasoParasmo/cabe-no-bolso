@@ -184,11 +184,12 @@ export async function compraPaga(id, chave, env, fetchFn = globalThis.fetch, ago
   return g;
 }
 
-// Situação para o checkout: "pago", "esperando" ou "expirado".
+// Situação para o checkout: "pago" (com o valor pago), "esperando" ou "expirado".
 export async function situacaoCompra(id, chave, env, fetchFn = globalThis.fetch, agora = Date.now()) {
   try {
-    await compraPaga(id, chave, env, fetchFn, agora);
-    return { status: "pago" };
+    const g = await compraPaga(id, chave, env, fetchFn, agora);
+    // O valor com que o pedido foi criado, para o Pixel (o preço da tela pode ter mudado desde então).
+    return { status: "pago", preco: Number(g.preco) };
   } catch (e) {
     if (e instanceof NaoPago) return { status: e.message };
     throw e;
