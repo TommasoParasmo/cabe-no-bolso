@@ -72,6 +72,11 @@ header{background:var(--deep);color:var(--on)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:54px;padding:0 24px;border-radius:14px;border:0;background:var(--gold);color:var(--deep);font-weight:700;font-size:17px;text-decoration:none;width:100%}
 .btn:disabled{opacity:.6;cursor:progress}
 .btn.line{background:transparent;box-shadow:inset 0 0 0 1.5px var(--deep)}
+.bump{display:flex;gap:12px;align-items:flex-start;border:2px dashed var(--gold);background:var(--goldbg);border-radius:16px;padding:14px;cursor:pointer}
+.bump input{flex:none;width:22px;height:22px;margin:2px 0 0;accent-color:var(--deep)}
+.bump b{display:block;color:var(--deep)}
+.bump>span{font-size:14px;color:var(--goldink)}
+.mapa-pronto{display:grid;gap:10px;width:100%}
 .erro{background:var(--badbg);color:var(--bad);border-radius:12px;padding:12px 14px;font-size:14px}
 .legal{font-size:12px;color:var(--mut)}
 
@@ -142,6 +147,11 @@ summary{cursor:pointer;font-weight:600;color:var(--acc)}
           <button type="button" class="forma" data-forma="cartao" aria-pressed="false"><small>Cartão de crédito</small><b class="num" id="preco-cartao">R$ 34,90</b><span>À vista</span></button>
         </div>
       </div>
+      <label class="bump" id="bump" hidden>
+        <input type="checkbox" id="mapa">
+        <span><b>Sim, quero o Mapa offline de <span id="mapa-destino"></span> por + <span class="num" id="mapa-preco">R$ 9,90</span></b>
+        Os lugares do roteiro num mapa: link do Google Maps e arquivo para usar sem internet no app grátis Organic Maps. Vai junto com o PDF, no mesmo pagamento.</span>
+      </label>
       <div class="erro" id="erro-dados" role="alert" hidden></div>
       <button class="btn" type="submit" id="continuar">Gerar o Pix</button>
       <p class="legal">Ao continuar, você concorda com os <a href="/termos.html">termos</a> e a <a href="/privacidade.html">política de privacidade</a>.</p>
@@ -181,6 +191,11 @@ summary{cursor:pointer;font-weight:600;color:var(--acc)}
       <h2>Pagamento confirmado!</h2>
       <p>Seu roteiro está pronto. Baixe o PDF e guarde no celular.</p>
       <a class="btn" id="baixar" href="#">Baixar meu roteiro em PDF</a>
+      <div class="mapa-pronto" id="mapa-pronto" hidden>
+        <a class="btn line" id="abrir-mapa" href="#" target="_blank" rel="noopener">Abrir meu mapa no Google Maps</a>
+        <a class="btn line" id="baixar-mapa" href="#">Baixar o mapa offline</a>
+        <p class="help">Sem internet: instale o app grátis Organic Maps, baixe nele o mapa da cidade e abra este arquivo. Os lugares ficam no celular.</p>
+      </div>
       <p class="pedido">Número do pedido: <b id="num-pedido"></b><br><span class="help">Guarde este número. Com ele e o e-mail, você baixa o PDF de novo em qualquer aparelho.</span></p>
     </div>
   </section>

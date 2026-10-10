@@ -27,8 +27,8 @@ export async function guardarDadosMeta(id, { meta, email }, { ip, ua } = {}, env
   await env.LEADS.put(chave(id), JSON.stringify(dados), { expirationTtl: GUARDA_SEG });
 }
 
-// Quando a venda é contada (uma vez por pedido): manda o Purchase e apaga os dados guardados.
-export async function enviarCompraMeta(id, { slug, preco }, env, fetchFn = globalThis.fetch, agora = Date.now()) {
+// Quando a venda é contada (uma vez por pedido): manda o Purchase (valor total, com o mapa offline se levou) e apaga os dados guardados.
+export async function enviarCompraMeta(id, { slug, preco, mapa }, env, fetchFn = globalThis.fetch, agora = Date.now()) {
   if (!env?.LEADS) return false;
   // Sem token, o envio fica esperando (os dados ficam 2 dias no KV): o log mostra, para não passar em branco.
   if (!env.META_CAPI_TOKEN) { console.warn("compra: META_CAPI_TOKEN não está na Cloudflare; Purchase não enviado", String(id).toUpperCase()); return false; }
@@ -38,7 +38,7 @@ export async function enviarCompraMeta(id, { slug, preco }, env, fetchFn = globa
     event_name: "Purchase", event_time: Math.floor(agora / 1000), event_id: String(id).toUpperCase(),
     action_source: "website", event_source_url: d.url,
     user_data: { em: [d.em], fbp: d.fbp, fbc: d.fbc, client_ip_address: d.ip, client_user_agent: d.ua },
-    custom_data: { value: Number(preco), currency: "BRL", content_name: slug, content_ids: [slug], content_type: "product" }
+    custom_data: { value: Number(preco), currency: "BRL", content_name: slug, content_ids: mapa ? [slug, "mapa-offline"] : [slug], content_type: "product" }
   };
   const pixel = env.META_PIXEL_ID || PIXEL_ID;
   const r = await fetchFn(`https://graph.facebook.com/v21.0/${pixel}/events?access_token=${encodeURIComponent(env.META_CAPI_TOKEN)}`, {

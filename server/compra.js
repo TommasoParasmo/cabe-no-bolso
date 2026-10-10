@@ -4,17 +4,29 @@
 // o número do cartão nunca passa pelo nosso servidor.
 // Preço promocional de outubro de 2026: vale até OFERTA.ate (horário de Brasília) e depois passa ao preço "depois".
 // O checkout mostra um cronômetro até essa data, que é real e igual para todo mundo.
-// Tudo fica no KV (LEADS): compra:<ORD> (o pedido), vendas:pdf:<destino> (vendas pagas, para acompanhar) e venda:<ORD> (já contada).
+// Tudo fica no KV (LEADS): compra:<ORD> (o pedido), vendas:pdf:<destino> (vendas pagas e, em `mapa`, quantas levaram
+// o mapa offline, para acompanhar) e venda:<ORD> (já contada).
 // A venda paga também soma em origem:AAAA-MM-DD (tipo "pdf"), com o anúncio de onde a pessoa veio, como os roteiros.
 import { lerCache, gravarCache } from "./cache.js";
 import { lerOrigem, registrarOrigem } from "./uso.js";
 import { guardarDadosMeta, enviarCompraMeta } from "./meta.js";
+import { MAPAS_KML } from "./mapas-kml.js";
 
 const API = "https://api.mercadopago.com/v1/orders";
 export const DESTINOS_PDF = { jerusalem: "Jerusalém", orlando: "Orlando", chile: "Santiago do Chile", "buenos-aires": "Buenos Aires" };
 // Preços em reais (texto com ponto, como o Mercado Pago pede). OFERTA_PDF na Cloudflare troca sem mexer no código,
 // no mesmo formato JSON (ex.: {"ate":"2026-11-01T00:00:00-03:00","pix":"29.90","cartao":"34.90","depois":{"pix":"39.90","cartao":"44.90"}}).
 export const OFERTA = { ate: "2026-11-01T00:00:00-03:00", pix: "29.90", cartao: "34.90", depois: { pix: "39.90", cartao: "44.90" } };
+// Mapa offline (order bump): caixinha no checkout que soma ao mesmo pagamento. Só aparece para o destino que tem
+// link do mapa (Google Maps, feito pelo time de Produto). MAPAS_OFFLINE na Cloudflare junta ou troca links sem mexer
+// no código, em JSON ({"orlando":"https://maps.app.goo.gl/..."}). O link só vai para quem pagou com o mapa, junto com
+// o arquivo KML do destino (server/mapas-kml.js, por /api/mapa): o link do Google só abre com internet, o KML não.
+export const MAPA = { preco: "9.90", links: {
+  orlando: "https://www.google.com/maps/d/viewer?mid=18wYIEDU-4668fJfEVzqrt8-ODqVCQbw",
+  chile: "https://www.google.com/maps/d/viewer?mid=1zsozZ93qrxgSkJJp0ghDyS0WBOtwBHg",
+  "buenos-aires": "https://www.google.com/maps/d/viewer?mid=15emWMn-YrAJZ6IDFtOkERhbMdgzatfc",
+  jerusalem: "https://www.google.com/maps/d/viewer?mid=1YsyVgg7uKmfgD3Td6wEGghZ0aXBHwXQ"
+} };
 export const VALIDADE_MIN = 60;
 const GUARDA_DIAS = 400;
 const EMAIL = /^[^\s@<>"',;]{1,64}@[^\s@<>"',;]+\.[a-z]{2,}$/i;
@@ -29,6 +41,13 @@ export const compraLigada = env => Boolean(env?.MP_ACCESS_TOKEN && env?.LEADS);
 function oferta(env) {
   try { return env?.OFERTA_PDF ? { ...OFERTA, ...JSON.parse(env.OFERTA_PDF) } : OFERTA; } catch { return OFERTA; }
 }
+function linkMapa(slug, env) {
+  let links = MAPA.links;
+  try { if (env?.MAPAS_OFFLINE) links = { ...links, ...JSON.parse(env.MAPAS_OFFLINE) }; } catch {}
+  const l = Object.hasOwn(links, slug) ? links[slug] : null;
+  return typeof l === "string" && /^https:\/\/[^\s"<>]+$/.test(l) ? l : null;
+}
+const emCentavos = r => Math.round(Number(r) * 100);
 const chaveVendas = slug => `vendas:pdf:${slug}`;
 const chaveCompra = id => `compra:${String(id).toUpperCase()}`;
 const destinoValido = slug => {
@@ -43,7 +62,8 @@ export function precoDe(slug, env, agora = Date.now()) {
   const fim = Date.parse(o.ate);
   const promocao = fim > agora;
   const p = promocao ? o : o.depois;
-  return { destino: slug, promocao, ...(promocao ? { ate: new Date(fim).toISOString() } : {}), pix: Number(p.pix), cartao: Number(p.cartao) };
+  return { destino: slug, promocao, ...(promocao ? { ate: new Date(fim).toISOString() } : {}), pix: Number(p.pix), cartao: Number(p.cartao),
+    ...(linkMapa(slug, env) ? { mapa: Number(MAPA.preco) } : {}) };
 }
 
 async function hash(texto, letras = 64) {
@@ -70,8 +90,11 @@ const cabecalho = token => ({ Authorization: `Bearer ${token}`, "content-type": 
 export async function criarCompra(body, env, fetchFn = globalThis.fetch, contexto = {}) {
   const { slug, nome, email, valores } = lerPedido(body);
   const forma = body?.forma === "cartao" ? "cartao" : "pix";
-  const preco = precoDe(slug, env)[forma].toFixed(2);
-  // O preço que a pessoa viu na tela: se mudou nesse meio tempo (fim da promoção), não cobra sem ela ver o novo.
+  // Mapa marcado num destino sem link (ou link tirado nesse meio tempo): não cobra o que não dá para entregar.
+  const mapa = body?.mapa === true;
+  if (mapa && !linkMapa(slug, env)) throw new CompraInvalida("O mapa offline saiu deste destino. Desmarque e tente de novo.");
+  const preco = ((emCentavos(precoDe(slug, env)[forma]) + (mapa ? emCentavos(MAPA.preco) : 0)) / 100).toFixed(2);
+  // O preço que a pessoa viu na tela (com o mapa, se marcou): se mudou nesse meio tempo (fim da promoção), não cobra sem ela ver o novo.
   if (body?.precoVisto != null && Number(body.precoVisto).toFixed(2) !== preco) {
     throw new CompraInvalida(`O preço mudou para R$ ${preco.replace(".", ",")}. Confira e tente de novo.`);
   }
@@ -93,7 +116,7 @@ export async function criarCompra(body, env, fetchFn = globalThis.fetch, context
     headers: { ...cabecalho(env.MP_ACCESS_TOKEN), "X-Idempotency-Key": crypto.randomUUID() },
     body: JSON.stringify({
       type: "online", processing_mode: "automatic", total_amount: preco, external_reference: ref,
-      description: `Roteiro Detalhado + Pré-viagem ${DESTINOS_PDF[slug]}`,
+      description: `Roteiro Detalhado + Pré-viagem ${DESTINOS_PDF[slug]}${mapa ? " + Mapa offline" : ""}`,
       transactions: { payments: [pagamento] }, payer: { email }
     })
   });
@@ -105,13 +128,13 @@ export async function criarCompra(body, env, fetchFn = globalThis.fetch, context
     throw new Error(`Mercado Pago ${r.status}${codigo ? ` (${codigo})` : ""}`);
   }
   await env.LEADS.put(chaveCompra(order.id), JSON.stringify({
-    slug, nome, valores, origem: lerOrigem(body), chave: await hash(chave), ref, forma, preco, conferir: await hash(`${String(order.id).toUpperCase()}:${email}`), criado: new Date().toISOString()
+    slug, nome, valores, origem: lerOrigem(body), chave: await hash(chave), ref, forma, preco, ...(mapa ? { mapa: linkMapa(slug, env) } : {}), conferir: await hash(`${String(order.id).toUpperCase()}:${email}`), criado: new Date().toISOString()
   }), { expirationTtl: GUARDA_DIAS * 86400 });
   await guardarDadosMeta(order.id, { meta: body?.meta, email }, contexto, env).catch(e => console.error("compra: dados da Meta não guardados", e?.message));
   const base = { id: order.id, chave, forma, preco: Number(preco) };
   if (forma === "cartao") {
     // Cartão aprovado na hora: a tela vai direto para o PDF, sem consultar a situação, então a venda conta aqui.
-    if (pago(order, preco)) { await registrarVenda(order.id, { slug, origem: lerOrigem(body), preco }, env, fetchFn); return { ...base, status: "pago" }; }
+    if (pago(order, preco)) { await registrarVenda(order.id, { slug, origem: lerOrigem(body), preco, mapa }, env, fetchFn); return { ...base, status: "pago", ...entrega({ slug, mapa }, env) }; }
     if (["failed", "canceled"].includes(order.status)) throw new CompraInvalida(motivoRecusa(order.status_detail));
     return { ...base, status: "esperando" };
   }
@@ -120,6 +143,14 @@ export async function criarCompra(body, env, fetchFn = globalThis.fetch, context
   if (!pm.qr_code) throw new Error("Mercado Pago sem QR Code do Pix");
   const expiraEm = pag.date_of_expiration || new Date(inicio + VALIDADE_MIN * 60000).toISOString();
   return { ...base, status: "esperando", copiaECola: pm.qr_code, qrCode: pm.qr_code_base64 || null, expiraEm };
+}
+
+// O que vai junto com o PDF para quem pagou: o link do mapa offline, se comprou. Vale o link de agora (um mapa
+// corrigido chega a quem já comprou); sem ele (MAPAS_OFFLINE mudou ou quebrou), o link guardado na compra.
+function entrega(g, env) {
+  if (!g.mapa) return {};
+  const l = linkMapa(g.slug, env) || (typeof g.mapa === "string" ? g.mapa : null);
+  return l ? { mapa: l } : {};
 }
 
 // Motivos de recusa do cartão em português simples (status_detail ou código de erro do Mercado Pago).
@@ -158,12 +189,12 @@ async function compraGuardada(id, chave, env) {
 }
 
 // Conta a venda uma vez só por order (venda:<ORD>), na primeira vez que ela aparece paga.
-async function contarVenda(id, { slug, origem }, env) {
+async function contarVenda(id, { slug, origem, mapa }, env) {
   const marca = `venda:${String(id).toUpperCase()}`;
   if (await env.LEADS.get(marca)) return;
   await env.LEADS.put(marca, "1", { expirationTtl: GUARDA_DIAS * 86400 });
   const v = (await env.LEADS.get(chaveVendas(slug), "json").catch(() => null)) || { n: 0 };
-  await env.LEADS.put(chaveVendas(slug), JSON.stringify({ n: v.n + 1, ultima: new Date().toISOString() }));
+  await env.LEADS.put(chaveVendas(slug), JSON.stringify({ n: v.n + 1, ...(v.mapa || mapa ? { mapa: (v.mapa || 0) + (mapa ? 1 : 0) } : {}), ultima: new Date().toISOString() }));
   await registrarOrigem({ tipo: "pdf", origem: origem || "direto" }, env);
 }
 
@@ -184,12 +215,19 @@ export async function compraPaga(id, chave, env, fetchFn = globalThis.fetch, ago
   return g;
 }
 
-// Situação para o checkout: "pago" (com o valor pago), "esperando" ou "expirado".
+// Arquivo do mapa offline (KML, para o Organic Maps) de uma compra paga que levou o mapa.
+export async function mapaDaCompra(id, chave, env, fetchFn = globalThis.fetch) {
+  const g = await compraPaga(id, chave, env, fetchFn);
+  if (!g.mapa || !Object.hasOwn(MAPAS_KML, g.slug)) throw new CompraInvalida("Esse pedido não tem mapa offline.");
+  return { slug: g.slug, kml: MAPAS_KML[g.slug] };
+}
+
+// Situação para o checkout: "pago" (com o valor pago e o link do mapa, se comprou), "esperando" ou "expirado".
 export async function situacaoCompra(id, chave, env, fetchFn = globalThis.fetch, agora = Date.now()) {
   try {
     const g = await compraPaga(id, chave, env, fetchFn, agora);
     // O valor com que o pedido foi criado, para o Pixel (o preço da tela pode ter mudado desde então).
-    return { status: "pago", preco: Number(g.preco) };
+    return { status: "pago", preco: Number(g.preco), ...entrega(g, env) };
   } catch (e) {
     if (e instanceof NaoPago) return { status: e.message };
     throw e;
@@ -209,7 +247,7 @@ export async function recuperarCompra(body, env, fetchFn = globalThis.fetch) {
   if (!pago(o, g.preco)) throw new NaoPago("Esse pedido ainda não foi pago. Se você acabou de pagar, espere um minuto e tente de novo.");
   const chave = aleatorio();
   await env.LEADS.put(chaveCompra(id), JSON.stringify({ ...g, chave: await hash(chave) }), { expirationTtl: GUARDA_DIAS * 86400 });
-  return { id, chave, destino: g.slug };
+  return { id, chave, destino: g.slug, ...entrega(g, env) };
 }
 
 // Freio por IP para criar compras e tentar recuperar pedidos (um robô não enche o Mercado Pago nem o KV).

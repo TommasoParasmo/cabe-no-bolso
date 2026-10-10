@@ -1,7 +1,7 @@
 // Compra do PDF por destino (checkout no site). Ações no corpo:
-// { acao: "preco", destino }                        → preço de agora (e o fim da promoção)
-// { acao: "criar", destino, nome, email, valores, forma: "pix" | "cartao", cartao?, utm?, meta?, turnstile? } → cria o pagamento
-// { acao: "situacao", id, chave }                   → "pago", "esperando" ou "expirado"
+// { acao: "preco", destino }                        → preço de agora (o fim da promoção e o do mapa offline, se tem)
+// { acao: "criar", destino, nome, email, valores, forma: "pix" | "cartao", mapa?, cartao?, utm?, meta?, turnstile? } → cria o pagamento
+// { acao: "situacao", id, chave }                   → "pago" (com o link do mapa, se comprou), "esperando" ou "expirado"
 // { acao: "recuperar", id, email }                  → chave nova para baixar o PDF em outro aparelho
 import { compraLigada, precoDe, criarCompra, situacaoCompra, recuperarCompra, dentroDoLimite, CompraInvalida, NaoPago } from "../../server/compra.js";
 import { conferirTurnstile, RoboSuspeito } from "../../server/turnstile.js";

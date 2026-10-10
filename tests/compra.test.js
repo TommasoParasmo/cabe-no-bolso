@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { precoDe, criarCompra, situacaoCompra, compraPaga, recuperarCompra, motivoRecusa, CompraInvalida, NaoPago } from "../server/compra.js";
+import { MAPA, precoDe, criarCompra, situacaoCompra, mapaDaCompra, compraPaga, recuperarCompra, motivoRecusa, CompraInvalida, NaoPago } from "../server/compra.js";
 import { enviarCompraMeta } from "../server/meta.js";
 import { htmlDaCompra, pdfDaCompra, nomeArquivo, gerarPdf } from "../server/entrega.js";
 
@@ -33,9 +33,9 @@ const pedido = { destino: "orlando", nome: "Maria Aparecida", email: " Maria@Ema
 const OUT = Date.parse("2026-10-09T12:00:00-03:00");
 
 test("compra: preço promocional de outubro até 31/10 e preço cheio depois", () => {
-  assert.deepEqual(precoDe("orlando", {}, OUT), { destino: "orlando", promocao: true, ate: "2026-11-01T03:00:00.000Z", pix: 29.9, cartao: 34.9 });
+  assert.deepEqual(precoDe("orlando", {}, OUT), { destino: "orlando", promocao: true, ate: "2026-11-01T03:00:00.000Z", pix: 29.9, cartao: 34.9, mapa: 9.9 });
   assert.deepEqual(precoDe("chile", {}, Date.parse("2026-10-31T23:59:59-03:00")).promocao, true);
-  assert.deepEqual(precoDe("chile", {}, Date.parse("2026-11-01T00:00:00-03:00")), { destino: "chile", promocao: false, pix: 39.9, cartao: 44.9 });
+  assert.deepEqual(precoDe("chile", {}, Date.parse("2026-11-01T00:00:00-03:00")), { destino: "chile", promocao: false, pix: 39.9, cartao: 44.9, mapa: 9.9 });
   // OFERTA_PDF na Cloudflare troca o preço sem mexer no código.
   assert.equal(precoDe("jerusalem", { OFERTA_PDF: '{"pix":"19.90"}' }, OUT).pix, 19.9);
   assert.throws(() => precoDe("narnia", {}), CompraInvalida);
@@ -192,6 +192,55 @@ test("compra: preço configurado abaixo do da promoção libera a order paga nes
   const { id, chave } = await criarCompra(pedido, env, mp.fetchFn);
   assert.equal(mp.pedidos[0].corpo.total_amount, "19.90");
   assert.deepEqual(await situacaoCompra(id, chave, env, mp.fetchFn), { status: "pago", preco: 19.9 });
+});
+
+test("mapa offline: só aparece com link, soma ao mesmo pagamento e o link vai só para quem pagou com ele", async () => {
+  const MAPAS = '{"orlando":"https://maps.app.goo.gl/abc123"}';
+  // Os 4 destinos já têm link. Sem link (tirado por MAPAS_OFFLINE), nem aparece nem cobra.
+  for (const d of ["orlando", "chile", "buenos-aires", "jerusalem"]) assert.match(MAPA.links[d], /^https:\/\/www\.google\.com\/maps\/d\/viewer\?mid=/, d);
+  const SEM = { MAPAS_OFFLINE: '{"orlando":""}' };
+  assert.equal(precoDe("orlando", SEM, OUT).mapa, undefined);
+  await assert.rejects(criarCompra({ ...pedido, mapa: true }, { MP_ACCESS_TOKEN: "tok", LEADS: kv(), ...SEM }, mercadoPago(pixCriado).fetchFn), CompraInvalida);
+  assert.equal(precoDe("orlando", { MAPAS_OFFLINE: MAPAS }, OUT).mapa, 9.9);
+  assert.equal(precoDe("chile", { MAPAS_OFFLINE: '{"chile":""}' }, OUT).mapa, undefined);
+  assert.equal(precoDe("orlando", { MAPAS_OFFLINE: '{"orlando":"javascript:alert(1)"}' }, OUT).mapa, undefined, "link estranho não vale");
+
+  const env = { MP_ACCESS_TOKEN: "tok", META_CAPI_TOKEN: "capi", MAPAS_OFFLINE: MAPAS, LEADS: kv() };
+  const meta = [];
+  const mp = mercadoPago({ ...pixCriado, total_amount: "39.80" }, { ...pago, total_amount: "39.80" });
+  const fetchFn = async (url, opts = {}) => {
+    if (String(url).includes("facebook")) { meta.push(JSON.parse(opts.body).data[0]); return new Response("{}"); }
+    return mp.fetchFn(url, opts);
+  };
+  // O preço visto é o total com o mapa: 29,90 + 9,90.
+  await assert.rejects(criarCompra({ ...pedido, mapa: true, precoVisto: 29.9 }, env, fetchFn), /39,80/);
+  const c = await criarCompra({ ...pedido, mapa: true, precoVisto: 39.8, meta: { url: "https://vaidarviagem.com.br/comprar/" } }, env, fetchFn);
+  assert.equal(c.preco, 39.8);
+  const corpo = mp.pedidos.at(-1).corpo;
+  assert.equal(corpo.total_amount, "39.80");
+  assert.equal(corpo.transactions.payments[0].amount, "39.80");
+  assert.match(corpo.description, /\+ Mapa offline$/);
+  assert.deepEqual(await situacaoCompra(c.id, c.chave, env, fetchFn), { status: "pago", preco: 39.8, mapa: "https://maps.app.goo.gl/abc123" });
+  assert.equal(meta[0].custom_data.value, 39.8, "a Meta recebe o total do pedido");
+  assert.deepEqual(meta[0].custom_data.content_ids, ["orlando", "mapa-offline"]);
+  assert.deepEqual(JSON.parse(env.LEADS.m.get("vendas:pdf:orlando")).mapa, 1);
+  const rec = await recuperarCompra({ id: c.id, email: "maria@email.com" }, env, fetchFn);
+  assert.equal(rec.mapa, "https://maps.app.goo.gl/abc123");
+  // O arquivo para usar sem internet (KML) sai só para quem pagou com o mapa.
+  const arq = await mapaDaCompra(c.id, rec.chave, env, fetchFn);
+  assert.equal(arq.slug, "orlando");
+  assert.match(arq.kml, /^<\?xml[\s\S]*<kml[\s\S]*Magic Kingdom/);
+  // O link do destino saiu depois da compra: quem pagou continua recebendo o link guardado no pedido.
+  env.MAPAS_OFFLINE = '{"orlando":""}';
+  assert.equal((await situacaoCompra(c.id, rec.chave, env, fetchFn)).mapa, "https://maps.app.goo.gl/abc123");
+
+  // Comprou sem o mapa: o link não vai, mesmo com o destino tendo mapa.
+  const env2 = { MP_ACCESS_TOKEN: "tok", MAPAS_OFFLINE: MAPAS, LEADS: kv() };
+  const mp2 = mercadoPago(pixCriado, pago);
+  const c2 = await criarCompra({ ...pedido, precoVisto: 29.9 }, env2, mp2.fetchFn);
+  assert.deepEqual(await situacaoCompra(c2.id, c2.chave, env2, mp2.fetchFn), { status: "pago", preco: 29.9 });
+  assert.equal(JSON.parse(env2.LEADS.m.get("vendas:pdf:orlando")).mapa, undefined);
+  await assert.rejects(mapaDaCompra(c2.id, c2.chave, env2, mp2.fetchFn), CompraInvalida);
 });
 
 test("compra: recupera em outro aparelho com o número e o e-mail, e a chave antiga deixa de valer", async () => {
