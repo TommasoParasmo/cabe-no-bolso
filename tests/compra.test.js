@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { precoDe, criarCompra, situacaoCompra, compraPaga, recuperarCompra, motivoRecusa, CompraInvalida, NaoPago } from "../server/compra.js";
 import { enviarCompraMeta } from "../server/meta.js";
 import { htmlDaCompra, pdfDaCompra, nomeArquivo, gerarPdf } from "../server/entrega.js";
@@ -240,4 +241,18 @@ test("entrega: Browser Rendering no limite (429) espera e tenta mais uma vez", a
   assert.equal(new TextDecoder().decode(buf), "%PDF-1.7");
   // Segunda recusa: desiste (a rota entrega a página para salvar como PDF).
   await assert.rejects(gerarPdf("<html></html>", env, async () => limite(), async () => {}), /Browser Rendering 429/);
+});
+
+test("PDF comprado: cada foto e logo usa a versão leve de public/roteiros/<destino>/pdf/", () => {
+  for (const slug of ["orlando", "chile", "buenos-aires", "jerusalem"]) {
+    const h = htmlDaCompra({ slug, nome: "Ana", valores: {} });
+    const imgs = [...h.matchAll(/\/roteiros\/[^")\s]+\.(?:jpg|png)/g)].map(m => m[0]);
+    assert.ok(imgs.length > 40, slug);
+    for (const i of new Set(imgs)) {
+      assert.ok(i.startsWith("/roteiros/" + slug + "/pdf/"), i);
+      assert.ok(existsSync("public" + i), i);
+    }
+    assert.match(h, /class="dr"><img src="\/roteiros\/[a-z-]+\/pdf\/[a-z-]+-mini\.jpg"/);
+    assert.match(h, /\.cover\{[^}]*\/pdf\/[a-z-]+-capa\.jpg/);
+  }
 });
