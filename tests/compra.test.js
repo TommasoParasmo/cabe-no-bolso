@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { precoDe, criarCompra, situacaoCompra, mapaDaCompra, compraPaga, recuperarCompra, motivoRecusa, CompraInvalida, NaoPago } from "../server/compra.js";
+import { existsSync } from "node:fs";
+import { MAPA, precoDe, criarCompra, situacaoCompra, mapaDaCompra, compraPaga, recuperarCompra, motivoRecusa, CompraInvalida, NaoPago } from "../server/compra.js";
 import { enviarCompraMeta } from "../server/meta.js";
 import { htmlDaCompra, pdfDaCompra, nomeArquivo, gerarPdf } from "../server/entrega.js";
 
@@ -32,9 +33,9 @@ const pedido = { destino: "orlando", nome: "Maria Aparecida", email: " Maria@Ema
 const OUT = Date.parse("2026-10-09T12:00:00-03:00");
 
 test("compra: preço promocional de outubro até 31/10 e preço cheio depois", () => {
-  assert.deepEqual(precoDe("orlando", {}, OUT), { destino: "orlando", promocao: true, ate: "2026-11-01T03:00:00.000Z", pix: 29.9, cartao: 34.9 });
+  assert.deepEqual(precoDe("orlando", {}, OUT), { destino: "orlando", promocao: true, ate: "2026-11-01T03:00:00.000Z", pix: 29.9, cartao: 34.9, mapa: 9.9 });
   assert.deepEqual(precoDe("chile", {}, Date.parse("2026-10-31T23:59:59-03:00")).promocao, true);
-  assert.deepEqual(precoDe("chile", {}, Date.parse("2026-11-01T00:00:00-03:00")), { destino: "chile", promocao: false, pix: 39.9, cartao: 44.9 });
+  assert.deepEqual(precoDe("chile", {}, Date.parse("2026-11-01T00:00:00-03:00")), { destino: "chile", promocao: false, pix: 39.9, cartao: 44.9, mapa: 9.9 });
   // OFERTA_PDF na Cloudflare troca o preço sem mexer no código.
   assert.equal(precoDe("jerusalem", { OFERTA_PDF: '{"pix":"19.90"}' }, OUT).pix, 19.9);
   assert.throws(() => precoDe("narnia", {}), CompraInvalida);
@@ -195,11 +196,13 @@ test("compra: preço configurado abaixo do da promoção libera a order paga nes
 
 test("mapa offline: só aparece com link, soma ao mesmo pagamento e o link vai só para quem pagou com ele", async () => {
   const MAPAS = '{"orlando":"https://maps.app.goo.gl/abc123"}';
-  // Sem link do destino, nem aparece nem cobra.
-  assert.equal(precoDe("orlando", {}, OUT).mapa, undefined);
-  await assert.rejects(criarCompra({ ...pedido, mapa: true }, { MP_ACCESS_TOKEN: "tok", LEADS: kv() }, mercadoPago(pixCriado).fetchFn), CompraInvalida);
+  // Os 4 destinos já têm link. Sem link (tirado por MAPAS_OFFLINE), nem aparece nem cobra.
+  for (const d of ["orlando", "chile", "buenos-aires", "jerusalem"]) assert.match(MAPA.links[d], /^https:\/\/www\.google\.com\/maps\/d\/viewer\?mid=/, d);
+  const SEM = { MAPAS_OFFLINE: '{"orlando":""}' };
+  assert.equal(precoDe("orlando", SEM, OUT).mapa, undefined);
+  await assert.rejects(criarCompra({ ...pedido, mapa: true }, { MP_ACCESS_TOKEN: "tok", LEADS: kv(), ...SEM }, mercadoPago(pixCriado).fetchFn), CompraInvalida);
   assert.equal(precoDe("orlando", { MAPAS_OFFLINE: MAPAS }, OUT).mapa, 9.9);
-  assert.equal(precoDe("chile", { MAPAS_OFFLINE: MAPAS }, OUT).mapa, undefined);
+  assert.equal(precoDe("chile", { MAPAS_OFFLINE: '{"chile":""}' }, OUT).mapa, undefined);
   assert.equal(precoDe("orlando", { MAPAS_OFFLINE: '{"orlando":"javascript:alert(1)"}' }, OUT).mapa, undefined, "link estranho não vale");
 
   const env = { MP_ACCESS_TOKEN: "tok", META_CAPI_TOKEN: "capi", MAPAS_OFFLINE: MAPAS, LEADS: kv() };
@@ -227,8 +230,8 @@ test("mapa offline: só aparece com link, soma ao mesmo pagamento e o link vai s
   const arq = await mapaDaCompra(c.id, rec.chave, env, fetchFn);
   assert.equal(arq.slug, "orlando");
   assert.match(arq.kml, /^<\?xml[\s\S]*<kml[\s\S]*Magic Kingdom/);
-  // MAPAS_OFFLINE mudou depois da compra: quem pagou continua recebendo o link guardado no pedido.
-  delete env.MAPAS_OFFLINE;
+  // O link do destino saiu depois da compra: quem pagou continua recebendo o link guardado no pedido.
+  env.MAPAS_OFFLINE = '{"orlando":""}';
   assert.equal((await situacaoCompra(c.id, rec.chave, env, fetchFn)).mapa, "https://maps.app.goo.gl/abc123");
 
   // Comprou sem o mapa: o link não vai, mesmo com o destino tendo mapa.
@@ -287,4 +290,18 @@ test("entrega: Browser Rendering no limite (429) espera e tenta mais uma vez", a
   assert.equal(new TextDecoder().decode(buf), "%PDF-1.7");
   // Segunda recusa: desiste (a rota entrega a página para salvar como PDF).
   await assert.rejects(gerarPdf("<html></html>", env, async () => limite(), async () => {}), /Browser Rendering 429/);
+});
+
+test("PDF comprado: cada foto e logo usa a versão leve de public/roteiros/<destino>/pdf/", () => {
+  for (const slug of ["orlando", "chile", "buenos-aires", "jerusalem"]) {
+    const h = htmlDaCompra({ slug, nome: "Ana", valores: {} });
+    const imgs = [...h.matchAll(/\/roteiros\/[^")\s]+\.(?:jpg|png)/g)].map(m => m[0]);
+    assert.ok(imgs.length > 40, slug);
+    for (const i of new Set(imgs)) {
+      assert.ok(i.startsWith("/roteiros/" + slug + "/pdf/"), i);
+      assert.ok(existsSync("public" + i), i);
+    }
+    assert.match(h, /class="dr"><img src="\/roteiros\/[a-z-]+\/pdf\/[a-z-]+-mini\.jpg"/);
+    assert.match(h, /\.cover\{[^}]*\/pdf\/[a-z-]+-capa\.jpg/);
+  }
 });

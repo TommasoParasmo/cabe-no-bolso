@@ -20,8 +20,17 @@ export function htmlDaCompra({ slug, nome, valores }, comBotao = false) {
   const botao = comBotao
     ? `<style>@media print{.salvar{display:none!important}}</style><div class="salvar" style="position:sticky;top:0;z-index:9;background:#0D3532;color:#fff;padding:12px 16px;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;font:600 15px system-ui"><span>Para guardar o seu roteiro, toque em <b>Salvar PDF</b> e escolha "Salvar como PDF".</span><button onclick="print()" style="background:#E2B23F;color:#0D3532;border:0;border-radius:10px;padding:10px 18px;font:700 15px system-ui;cursor:pointer">Salvar PDF</button></div>`
     : "";
-  return html.replace(/<head>/i, `<head>${base}`).replace(/<body([^>]*)>/i, `<body$1>${botao}`);
+  return fotosDoPdf(html).replace(/<head>/i, `<head>${base}`).replace(/<body([^>]*)>/i, `<body$1>${botao}`);
 }
+
+// O Chromium do Browser Rendering grava cada uso de uma imagem descomprimido no PDF (um roteiro com as fotos de
+// 1600 px deu 40 MB, acima do limite do KV). Cada uso aponta para a versão no tamanho em que aparece na página,
+// em public/roteiros/<destino>/pdf/ (geradas por tools/fotos-pdf.py).
+export const fotosDoPdf = html => html
+  .replace(/(class="dr"><img src=")(\/roteiros\/[a-z-]+\/)([a-z-]+)\.jpg"/g, '$1$2pdf/$3-mini.jpg"')
+  .replace(/(\.cover\{[^}]*url\()(\/roteiros\/[a-z-]+\/)([a-z-]+)\.jpg\)/g, "$1$2pdf/$3-capa.jpg)")
+  .replace(/(background-image:url\()(\/roteiros\/[a-z-]+\/)([a-z-]+\.jpg)\)/g, "$1$2pdf/$3)")
+  .replace(/(src=")(\/roteiros\/[a-z-]+\/)(logo-[a-z]+\.png)"/g, '$1$2pdf/$3"');
 
 // Limite de uso do Browser Rendering (429): espera o que a Cloudflare pede (até 10 s) e tenta mais uma vez,
 // para o comprador receber o arquivo e não a página de salvar como PDF.

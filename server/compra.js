@@ -21,7 +21,12 @@ export const OFERTA = { ate: "2026-11-01T00:00:00-03:00", pix: "29.90", cartao: 
 // link do mapa (Google Maps, feito pelo time de Produto). MAPAS_OFFLINE na Cloudflare junta ou troca links sem mexer
 // no código, em JSON ({"orlando":"https://maps.app.goo.gl/..."}). O link só vai para quem pagou com o mapa, junto com
 // o arquivo KML do destino (server/mapas-kml.js, por /api/mapa): o link do Google só abre com internet, o KML não.
-export const MAPA = { preco: "9.90", links: {} };
+export const MAPA = { preco: "9.90", links: {
+  orlando: "https://www.google.com/maps/d/viewer?mid=18wYIEDU-4668fJfEVzqrt8-ODqVCQbw",
+  chile: "https://www.google.com/maps/d/viewer?mid=1zsozZ93qrxgSkJJp0ghDyS0WBOtwBHg",
+  "buenos-aires": "https://www.google.com/maps/d/viewer?mid=15emWMn-YrAJZ6IDFtOkERhbMdgzatfc",
+  jerusalem: "https://www.google.com/maps/d/viewer?mid=1YsyVgg7uKmfgD3Td6wEGghZ0aXBHwXQ"
+} };
 export const VALIDADE_MIN = 60;
 const GUARDA_DIAS = 400;
 const EMAIL = /^[^\s@<>"',;]{1,64}@[^\s@<>"',;]+\.[a-z]{2,}$/i;
