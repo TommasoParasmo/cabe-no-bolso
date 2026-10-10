@@ -250,6 +250,29 @@ footer a{color:inherit}
 </svg>
 
 <style>
+.erros{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+.erro{background:var(--surf);border-radius:22px;padding:24px;display:grid;gap:10px;align-content:start;border-top:4px solid #B3261E}
+.erro small{justify-self:start;background:#FBE9E7;color:#B3261E;border-radius:999px;padding:4px 10px;font-weight:700;font-size:12px}
+.erro b{font:700 20px/1.2 var(--display)}
+.erro p{color:var(--mut);font-size:15px}
+.fecho{margin-top:22px;font:700 20px/1.3 var(--display);color:var(--deep)}
+.modular{margin-top:18px;background:var(--goldbg);color:var(--goldink);border-radius:18px;padding:16px 20px;font-weight:600;font-size:15px}
+.bonus{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.bn{background:var(--surf);border-radius:22px;padding:24px;display:grid;gap:8px;align-content:start;box-shadow:0 10px 30px rgba(13,53,50,.06)}
+.bn .ic{font-size:28px;line-height:1}
+.bn small{color:var(--acc);font-weight:700;font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+.bn b{font:700 19px/1.2 var(--display)}
+.bn p{color:var(--mut);font-size:15px}
+.bn .pre{margin-top:4px;grid-template-columns:1fr}.bn .pre li{font-size:14px}
+.bn .vl{margin-top:auto;padding-top:6px;font-weight:700;font-size:15px}
+.vl s{color:var(--mut);font-weight:500}.vl em{font-style:normal;color:var(--ok)}
+.stack{list-style:none;margin:0;padding:14px 16px;display:grid;gap:8px;background:var(--goldbg);border-radius:16px;font-size:14px}
+.stack li{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.stack li span{font-weight:600;color:var(--deep)}
+.stack li .vl{white-space:nowrap;font-size:13px}
+.barato{font-weight:600;font-size:15px;color:var(--deep)}
+@media (max-width:960px){.erros{grid-template-columns:1fr 1fr}.bonus{grid-template-columns:1fr 1fr}}
+@media (max-width:600px){.erros,.bonus{grid-template-columns:1fr}}
 </style>
 
 
@@ -313,11 +336,20 @@ footer a{color:inherit}
   </div>
 </section>
 
+<section class="block" style="padding-top:0">
+  <div class="wrap">
+    <div class="head"><span class="kick">Erros que custam caro</span><h2>Planejar <span class="t-nome"></span> sozinho é que pode dar errado.</h2></div>
+    <div class="erros" id="erros"></div>
+    <p class="fecho">A viagem já custa caro demais para ser decidida no improviso.</p>
+  </div>
+</section>
+
 <section class="block" id="roteiro" style="padding-top:0">
   <div class="wrap">
     <div class="head"><span class="kick">O roteiro</span><h2 id="roth"></h2><p>Um dia de cada vez, com horário, como chegar e quanto vai gastar.</p></div>
     <div class="days" id="days"></div>
     <div class="daysmore" id="daysmore"></div>
+    <p class="modular" id="modular"></p>
   </div>
 </section>
 
@@ -341,6 +373,13 @@ footer a{color:inherit}
   </div>
 </section>
 
+<section class="block" id="bonus" style="padding-top:0">
+  <div class="wrap">
+    <div class="head"><span class="kick">Incluso sem custo</span><h2>E ainda vão junto estes bônus.</h2></div>
+    <div class="bonus" id="bonus-cards"></div>
+  </div>
+</section>
+
 <section class="block offerwrap dark" id="oferta">
   <div class="wrap ogrid">
     <div>
@@ -360,6 +399,7 @@ footer a{color:inherit}
         <span class="badge">Tudo incluído</span>
         <h3>Roteiro Detalhado + Pré-viagem</h3>
         <div class="pr"><strong class="num" id="preco-pix">R$ 29,90</strong><span>no Pix</span></div><p class="card">ou <b id="preco-cartao">R$ 34,90 no cartão de crédito</b></p>
+        <p class="barato" id="barato"></p>
         <p class="anc" id="anc"></p>
         <div class="thumbs" id="thumbs"><div class="tr" id="tr"></div><span id="tp"></span></div>
         <ul class="checks" id="checks">
@@ -369,10 +409,7 @@ footer a{color:inherit}
           <li><svg width="20" height="20"><use href="#check"/></svg>Indicação das empresas de guia e passeio mais conhecidas, para contratar se quiser</li>
           <li><svg width="20" height="20"><use href="#check"/></svg>PDF com o seu nome na capa</li>
         </ul>
-        <div style="background:var(--goldbg);border-radius:16px;padding:16px;display:grid;gap:10px">
-          <b style="color:var(--goldink)">Pré-viagem: tudo pronto antes de embarcar</b>
-          <ul class="checks pre" id="pre"></ul>
-        </div>
+        <ul class="stack" id="stack"></ul>
         <a class="btn block buy" href="/comprar/">Quero meu roteiro</a>
       </div>
       <div class="guar"><svg width="26" height="26" class="gold"><use href="#shield"/></svg><span>Não gostou? Devolvemos o dinheiro em até 7 dias, sem perguntas.</span></div>

@@ -21,3 +21,9 @@ test("cada página de oferta reescreve para /oferta/ e tem destino nos dados e n
     }
   }
 });
+
+test("cada destino tem erros caros, bônus próprios, roteiro modular e âncora de preço", () => {
+  const n = (oferta.match(/^'?[\w-]+'?:\{nome:/gm) || []).length;
+  for (const campo of ["erros:\\[", "bonus:\\[", "modular:'", "barato:'"])
+    assert.equal((oferta.match(new RegExp("^  " + campo, "gm")) || []).length, n, campo + " faltando em algum destino");
+});
